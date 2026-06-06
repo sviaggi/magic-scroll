@@ -4317,8 +4317,17 @@ document.addEventListener('keydown', e => {
       safeToggleScroll();
     }
   }
-  if (e.code === 'ArrowRight' || e.code === 'PageDown') { const i = currentIdx+1; if (i < songs.length) renderSong(i); }
-  if (e.code === 'ArrowLeft'  || e.code === 'PageUp')   { const i = currentIdx-1; if (i >= 0) renderSong(i); }
+  // Guard: never intercept arrow keys while the user is typing in any
+  // editable element (textarea, input, contenteditable — covers edit mode,
+  // the search box, the capo/key fields, and any future inputs).
+  const _inEditor = e.target.tagName === 'TEXTAREA'
+                 || e.target.tagName === 'INPUT'
+                 || e.target.tagName === 'SELECT'
+                 || e.target.isContentEditable;
+  if (!_inEditor) {
+    if (e.code === 'ArrowRight' || e.code === 'PageDown') { const i = currentIdx+1; if (i < songs.length) renderSong(i); }
+    if (e.code === 'ArrowLeft'  || e.code === 'PageUp')   { const i = currentIdx-1; if (i >= 0) renderSong(i); }
+  }
 });
 
 // ── CHORD POPUP — lists unique chords in the song, click one to see its diagram
