@@ -1899,7 +1899,7 @@
     </div>
     <label id="drop-zone" for="file-input">
       <div>Drop files here</div>
-      <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl</div>
+      <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl · .midi</div>
     </label>
     <input type="file" id="file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" multiple>
     <input type="file" id="refresh-file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" style="display:none">
@@ -2868,6 +2868,59 @@ function extractChords(text) {
 // one <div> per line. chord lines get their tokens wrapped in <span.chord-token>
 // for colour/font styling. lyrics and tab lines are plain text, totally untouched.
 
+
+// ── RICH TEXT MARKUP ──────────────────────────────────────────────────────────
+// Used in non-chord lines of song bodies.  Syntax:
+//   **bold**   *italic*   _underline_
+//   [yt: https://youtu.be/ID]        — YouTube thumbnail link
+//   [video: https://youtube.com/...]  — same
+//   [link: Title | https://...]       — hyperlink
+function extractYTId(url) {
+  const m = url.match(/(?:youtu\.be\/|[?&]v=)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+function applyMarkup(line, lineEl) {
+  // YouTube / video tags → placeholder so we can build real DOM nodes later
+  line = line.replace(/\[(yt|video):\s*([^\]]+)\]/gi, function(_, _k, url) {
+    url = url.trim();
+    const vid = extractYTId(url);
+    return vid ? '\x00yt:' + vid + '\x00'
+               : '<a href="' + url + '" target="_blank" rel="noopener">[&#9654; Video]</a>';
+  });
+  // [link: Title | URL]
+  line = line.replace(/\[link:\s*([^|]+)\|\s*([^\]]+)\]/gi, function(_, t, u) {
+    return '<a href="' + u.trim() + '" target="_blank" rel="noopener">' + t.trim() + '</a>';
+  });
+  // Bold / italic / underline
+  line = line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+             .replace(/\*([^*\n]+)\*/g,     '<em>$1</em>')
+             .replace(/_([^_\n]+)_/g,        '<u>$1</u>');
+
+  // Build DOM: split on YT placeholders
+  const parts = line.split(/\x00yt:([\w-]{11})\x00/);
+  if (parts.length > 1) {
+    const wrap = document.createElement('div');
+    wrap.className = 'markup-yt-wrap';
+    parts.forEach(function(part, i) {
+      if (i % 2 === 0) {
+        if (part) { const s = document.createElement('span'); s.innerHTML = part; wrap.appendChild(s); }
+      } else {
+        const a = document.createElement('a');
+        a.href = 'https://www.youtube.com/watch?v=' + part;
+        a.target = '_blank'; a.rel = 'noopener'; a.className = 'markup-yt-thumb';
+        a.innerHTML = '<img src="https://img.youtube.com/vi/' + part + '/mqdefault.jpg"'
+                    + ' alt="YouTube video" loading="lazy">'
+                    + '<span class="markup-yt-play">&#9654;</span>';
+        wrap.appendChild(a);
+      }
+    });
+    lineEl.appendChild(wrap);
+    return true; // element already populated
+  }
+  lineEl.innerHTML = line;
+  return false;
+}
+
 function renderTabContent() {
   if (currentIdx < 0) return;
   const song = songs[currentIdx];
@@ -2928,7 +2981,9 @@ function renderTabContent() {
         }
       });
     } else {
-      lineEl.textContent = dispLine;
+      // Apply rich-text markup: **bold**, *italic*, _underline_, [yt:…], [link:…|…]
+      const populated = applyMarkup(dispLine, lineEl);
+      if (!populated && !lineEl.innerHTML) lineEl.textContent = dispLine;
     }
     frag.appendChild(lineEl);
   });
@@ -3921,6 +3976,141 @@ function parseMusicXML(xmlText, filename) {
            _source: 'abc', abc_text: abc, abc_file_name: filename };
 }
 
+
+// ── MIDI IMPORTER ─────────────────────────────────────────────────────────────
+// Reads SMF format 0 and 1; picks the track with the most notes as melody;
+// quantises to 1/32nd grid and converts to ABC (L:1/16).
+function parseMIDI(arrayBuffer, filename) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const view  = new DataView(arrayBuffer);
+  if (String.fromCharCode(bytes[0],bytes[1],bytes[2],bytes[3]) !== 'MThd') return null;
+  const format=view.getUint16(8,false), ntrks=view.getUint16(10,false), div=view.getUint16(12,false);
+  if (div & 0x8000) return null; // SMPTE unsupported
+
+  function rvl(p) { let v=0,n=0; do{const b=bytes[p+n];v=(v<<7)|(b&0x7F);n++;}while(bytes[p+n-1]&0x80); return [v,n]; }
+
+  // Parse tracks
+  const tracks=[]; let tp=14;
+  for (let t=0; t<ntrks; t++) {
+    if (String.fromCharCode(bytes[tp],bytes[tp+1],bytes[tp+2],bytes[tp+3]) !== 'MTrk') break;
+    const cl=view.getUint32(tp+4,false); const evts=[]; let pos=tp+8,end=pos+cl,absT=0,run=0;
+    while (pos<end) {
+      const [dt,dl]=rvl(pos); pos+=dl; absT+=dt;
+      let st=bytes[pos]; if(st&0x80){run=st;pos++;}else st=run;
+      if (st===0xFF) {
+        const mt=bytes[pos++]; const [ml,mll]=rvl(pos); pos+=mll;
+        const md=bytes.slice(pos,pos+ml); pos+=ml;
+        if(mt===0x51) evts.push({t:absT,k:'tempo',v:(md[0]<<16)|(md[1]<<8)|md[2]});
+        if(mt===0x58) evts.push({t:absT,k:'tsig',num:md[0],den:1<<md[1]});
+        if(mt===0x59) evts.push({t:absT,k:'ksig',sh:md[0]<128?md[0]:md[0]-256,mn:md[1]});
+        if(mt===0x03) evts.push({t:absT,k:'name',v:new TextDecoder().decode(md).replace(/\0/g,'').trim()});
+      } else if (st===0xF0||st===0xF7) { const [sl,sll]=rvl(pos); pos+=sll+sl; }
+      else {
+        const et=st&0xF0;
+        if (et===0x90) { const n=bytes[pos++],v=bytes[pos++]; evts.push({t:absT,k:v>0?'on':'off',n,v}); }
+        else if (et===0x80) { evts.push({t:absT,k:'off',n:bytes[pos++],v:bytes[pos++]}); }
+        else if (et===0xA0||et===0xB0||et===0xE0) pos+=2;
+        else if (et===0xC0||et===0xD0) pos+=1;
+        else pos++;
+      }
+    }
+    tracks.push(evts); tp+=8+cl;
+  }
+
+  // Metadata from track 0
+  const me=tracks[0]||[], tsigs=[{t:0,num:4,den:4}], ksigs=[{t:0,sh:0,mn:0}];
+  let title=filename.replace(/\.midi?$/i,'').replace(/[_-]/g,' ').trim();
+  for (const e of me) {
+    if(e.k==='tsig') tsigs.push({t:e.t,num:e.num,den:e.den});
+    if(e.k==='ksig') ksigs.push({t:e.t,sh:e.sh,mn:e.mn});
+    if(e.k==='name'&&e.v) title=e.v;
+  }
+
+  // Pick track with most note-ons
+  const si=format===0?0:1; let nt=tracks[si]||[], mx=0;
+  for (let i=si; i<tracks.length; i++) { const n=tracks[i].filter(e=>e.k==='on').length; if(n>mx){mx=n;nt=tracks[i];} }
+  const nameEv=nt.find(e=>e.k==='name'); if(nameEv&&nameEv.v) title=nameEv.v;
+
+  // Pair Note On/Off
+  const act={}, notes=[];
+  for (const e of nt) {
+    if(e.k==='on') act[e.n]=e.t;
+    else if(e.k==='off'&&act[e.n]!==undefined){notes.push({start:act[e.n],dur:e.t-act[e.n],pitch:e.n});delete act[e.n];}
+  }
+  const lt=nt.length?nt[nt.length-1].t:0;
+  for(const[p,s]of Object.entries(act)) notes.push({start:s,dur:lt-s,pitch:+p});
+  notes.sort((a,b)=>a.start-b.start||b.pitch-a.pitch);
+  if(!notes.length) return null;
+
+  // Quantise to 1/32 grid
+  const Q32=Math.max(1,div/8), Q16=Math.max(1,div/4);
+  const qq=t=>Math.round(t/Q32)*Q32;
+  const qn=notes.map(n=>({start:qq(n.start),dur:Math.max(Q32,qq(n.dur)),pitch:n.pitch}));
+
+  // Group into chord slots, de-duplicate pitches
+  const sm={};
+  for(const n of qn){if(!sm[n.start])sm[n.start]=[];if(!sm[n.start].some(x=>x.pitch===n.pitch))sm[n.start].push(n);}
+  const starts=Object.keys(sm).map(Number).sort((a,b)=>a-b);
+
+  // Duration → ABC string  (L:1/16 base = Q16 ticks)
+  function gcd(a,b){return b?gcd(b,a%b):a;}
+  function da(ticks){
+    const n32=Math.max(1,Math.round(ticks/Q32)); // units of 1/32
+    // 1/16 = 2 × 1/32, so multiplier = n32/2
+    const g=gcd(n32,2), num=n32/g, den=2/g;
+    if(den===1) return num===1?'':String(num);
+    if(num===1) return '/'+den;
+    return num+'/'+den;
+  }
+
+  // Pitch → ABC
+  const PN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const FK={'-7':'Cb','-6':'Gb','-5':'Db','-4':'Ab','-3':'Eb','-2':'Bb','-1':'F','0':'C',
+             '1':'G','2':'D','3':'A','4':'E','5':'B','6':'F#','7':'C#'};
+  const SO='FCGDAEB', FO='BEADGCF';
+  function kAcc(sh){const a={};if(sh>0)for(let i=0;i<sh;i++)a[SO[i]]=1;if(sh<0)for(let i=0;i<-sh;i++)a[FO[i]]=-1;return a;}
+  let cks=ksigs[0], ca=kAcc(cks.sh);
+  function pa(midi,mAcc){
+    const nm=PN[midi%12],oct=Math.floor(midi/12)-1,base=nm[0],sharp=nm.length>1;
+    const exp=ca[base]??0,alt=sharp?1:0,mk=base+oct;
+    let acc=''; if(alt!==exp)acc=sharp?'^':'='; else if(mAcc[mk]!==undefined&&mAcc[mk]!==alt)acc=sharp?'^':'=';
+    mAcc[mk]=alt;
+    const n=oct>=5?base.toLowerCase():base;
+    const sf=oct>=6?"'".repeat(oct-5):oct<=3?','.repeat(4-oct):'';
+    return acc+n+sf;
+  }
+
+  // Build ABC measure-by-measure
+  let ti=0,ki=0,curTS=tsigs[0];
+  let measT=(curTS.num*div*4)/curTS.den;
+  const lines=[],mBuf=[]; let mc=0;
+  const endT=starts[starts.length-1]+(sm[starts[starts.length-1]]?.[0]?.dur||Q16);
+  let ms=0;
+
+  while(ms<endT){
+    // Inline changes
+    let inl='';
+    while(ti+1<tsigs.length&&tsigs[ti+1].t<=ms){ti++;curTS=tsigs[ti];measT=(curTS.num*div*4)/curTS.den;inl+=`[M:${curTS.num}/${curTS.den}]`;}
+    while(ki+1<ksigs.length&&ksigs[ki+1].t<=ms){ki++;cks=ksigs[ki];ca=kAcc(cks.sh);inl+=`[K:${FK[String(cks.sh)]+(cks.mn?'m':'')}]`;}
+    const me=ms+measT,mAcc={};let str=inl,cur=ms;
+    for(const st of starts.filter(t=>t>=ms&&t<me)){
+      if(st>cur) str+='z'+da(st-cur);
+      const ch=sm[st],dr=ch[0].dur;
+      if(ch.length===1) str+=pa(ch[0].pitch,mAcc)+da(dr);
+      else {str+='[';for(const n of ch)str+=pa(n.pitch,mAcc);str+=']'+da(dr);}
+      cur=st+dr;
+    }
+    mBuf.push(str||'z4');
+    if(++mc%4===0){lines.push(mBuf.join(' | '));mBuf.length=0;}
+    ms=me;
+  }
+  if(mBuf.length) lines.push(mBuf.join(' | '));
+
+  const k0=ksigs[0],t0=tsigs[0],ks=FK[String(k0.sh)]+(k0.mn?'m':'');
+  const abc=['X: 1','T: '+title,`M: ${t0.num}/${t0.den}`,'L: 1/16','K: '+ks,...lines].join('\n');
+  return {title,artist:'',key:ks,type:'Sheet Music',_source:'abc',abc_text:abc,abc_file_name:filename};
+}
+
 function loadFileSongs(data) {
   // Common path: deduplicate, save, render — shared by all file format handlers
   const prevLen = songs.length;
@@ -3956,6 +4146,15 @@ function loadFile(file) {
     };
     reader.readAsArrayBuffer(file);
     return;
+  }
+
+  // ── .mid / .midi: binary MIDI ──────────────────────────────────────────────
+  if (name.endsWith('.mid') || name.endsWith('.midi')) {
+    reader.onload = function(e) {
+      const song = parseMIDI(e.target.result, file.name);
+      if (song) loadFileSongs([song]); else alert('Could not parse MIDI: ' + file.name);
+    };
+    reader.readAsArrayBuffer(file); return;
   }
 
   // ── .xml / .musicxml: text, check if it's MusicXML ────────────────────────
@@ -6900,6 +7099,22 @@ ${svgHTML}
   .tuner-in-tune { color:#5ccc5c; }
   .tuner-close   { color:#ffaa22; }
   .tuner-off     { color:var(--c-chrome-text); opacity:0.6; }
+  /* ── RICH TEXT MARKUP ────────────────────────────────────────────────────── */
+  .lyric-line strong { font-weight: 700; }
+  .lyric-line em     { font-style: italic; }
+  .lyric-line u      { text-decoration: underline; }
+  .lyric-line a      { color: var(--c-accent); text-decoration: underline; }
+  .lyric-line a:hover{ opacity: 0.8; }
+  .markup-yt-wrap { margin: 8px 0; }
+  .markup-yt-thumb {
+    display: inline-flex; align-items: center; gap: 8px;
+    text-decoration: none; border: 1px solid var(--c-card-border);
+    border-radius: 4px; overflow: hidden; background: var(--c-chrome-bg3);
+    max-width: 360px; transition: opacity 0.15s;
+  }
+  .markup-yt-thumb:hover { opacity: 0.85; }
+  .markup-yt-thumb img   { width: 160px; height: 90px; object-fit: cover; display: block; }
+  .markup-yt-play { font-size: 1.5rem; color: var(--c-accent); padding: 0 12px; flex-shrink: 0; }
 </style>
 </head><body>
 <div id="pd-wrap">
