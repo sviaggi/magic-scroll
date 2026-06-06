@@ -2,7 +2,7 @@
   "name": "Magic Scroll",
   "short_name": "Magic Scroll",
   "description": "Song/Sheet Music offline reader with chord diagrams, tuner, and metronome",
-  "start_url": "./Magic Scroll v0.9.9.5.html",
+  "start_url": "./MagicScrollv0.9.9.5.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
