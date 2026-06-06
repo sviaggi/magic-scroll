@@ -3,7 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Magic Scroll 0.9.9.5</title>
+<title>Magic Scroll</title>
+
+<!-- PWA: Web App Manifest -->
+<link rel="manifest" href="manifest.json">
+<!-- iOS full-screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Magic Scroll">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Android theme colour -->
+<meta name="theme-color" content="#3d0000">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
 
   /* ── FONT VARIABLES ──────────────────────────────────────────────────────────
@@ -15,7 +27,96 @@
   /* Google Fonts loaded as fallbacks — these kick in if the custom fonts
      aren't installed locally. HYWenHei/Gotisch stay first in the stack
      so nothing changes visually if you have them. */
-  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IM+Fell+English:ital@0;1&display=swap');
+  /* ── CUSTOM FONTS ─────────────────────────────────────────────────────────────
+   HYWenHei is distributed as SunnyDay.otf in the same folder as the HTML.
+   TypographerGotisch files are also in the same folder.
+   local() tries the system install first; the URL falls back to the file.    */
+
+@font-face {
+  font-family: 'HYWenHei';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('HYWenHei'), local('HYWenHei 55W'),
+       url('SunnyDay.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'TypographerGotisch D';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('TypographerGotisch D'), local('TypographerGotischD'),
+       url('TypographerGotischD.woff2') format('woff2'),
+       url('TypographerGotischD.otf')   format('opentype'),
+       url('TypographerGotisch D.otf')  format('opentype'),
+       url('TypographerGotischD.ttf')   format('truetype');
+}
+
+@font-face {
+  font-family: 'TypographerGotisch Schmuck';
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('TypographerGotisch Schmuck'), local('TypographerGotischSchmuck'),
+       url('TypographerGotischSchmuck.woff2') format('woff2'),
+       url('TypographerGotischSchmuck.otf')   format('opentype'),
+       url('TypographerGotisch Schmuck.otf')  format('opentype'),
+       url('TypographerGotischSchmuck.ttf')   format('truetype');
+}
+
+/* ── FALLBACK WEB FONTS ───────────────────────────────────────────────────────
+   Served from fonts/ (after running download-assets.js) or Google CDN.
+   @font-face instead of @import avoids a blocking cross-origin request.     */
+
+@font-face {
+  font-family: 'Courier Prime'; font-style: normal; font-weight: 400; font-display: swap;
+  src: local('Courier Prime'),
+       url('fonts/courier-prime-400.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/courierprime/v9/u-450q2lgwslOqpF_6gQ8kELawRR4-LfrtHTFQ.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Courier Prime'; font-style: italic; font-weight: 400; font-display: swap;
+  src: local('Courier Prime Italic'),
+       url('fonts/courier-prime-400italic.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/courierprime/v9/u-4n0q2lgwslOqpF_6gQ8kELY7pMf-Ps6rHDOBhkLQ.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Courier Prime'; font-style: normal; font-weight: 700; font-display: swap;
+  src: local('Courier Prime Bold'),
+       url('fonts/courier-prime-700.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/courierprime/v9/u-4k0q2lgwslOqpF_6gQ8kELawRpW9qaD6_nHXTFQ.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display'; font-style: normal; font-weight: 400; font-display: swap;
+  src: local('Playfair Display Regular'),
+       url('fonts/playfair-display-400.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/playfairdisplay/v36/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQ.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display'; font-style: italic; font-weight: 400; font-display: swap;
+  src: local('Playfair Display Italic'),
+       url('fonts/playfair-display-400italic.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/playfairdisplay/v36/nuFRD-vYSZviVYUb_rj3ij__anPXBYf9pWN3XESmR9_S5YAQ.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display'; font-style: normal; font-weight: 700; font-display: swap;
+  src: local('Playfair Display Bold'),
+       url('fonts/playfair-display-700.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/playfairdisplay/v36/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKd3vUDQ.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IM Fell English'; font-style: normal; font-weight: 400; font-display: swap;
+  src: local('IM Fell English Regular'),
+       url('fonts/im-fell-english-400.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/imfellenglish/v20/Ktk1ALSLW8zDe0rthJysWo9YkyouFGaJlqWnWw.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IM Fell English'; font-style: italic; font-weight: 400; font-display: swap;
+  src: local('IM Fell English Italic'),
+       url('fonts/im-fell-english-400italic.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/imfellenglish/v20/Ktk3ALSLW8zDe0rthJysWo9YkyouFG-TL7SZoRk.woff2') format('woff2');
+}
 
   :root {
     --font-mono:    'HYWenHei', 'Courier Prime', 'Courier New', monospace;
@@ -52,27 +153,30 @@
 
   /* ── DARK THEME ──────────────────────────────────────────────────────────── */
   body.theme-dark {
-    --c-chrome-bg:      #080808;
-    --c-chrome-bg2:     #111111;
-    --c-chrome-bg3:     #1c1c1c;
-    --c-chrome-border:  #4a3800;
-    --c-chrome-text:    #d4c4a0;
-    --c-chrome-muted:   #6a5a40;
-    --c-accent:         #b07820;
-    --c-accent-dim:     #4a3000;
-    --c-accent-glow:    rgba(176,120,32,0.12);
-    --c-page-bg:        #080808;
-    --c-card-bg:        #12100c;
-    --c-card-fallback:  #12100c;
-    --c-card-text:      #c8b888;
-    --c-card-title:     #d4c4a0;
-    --c-card-artist:    #a08858;
-    --c-card-meta:      #a08858;
-    --c-card-meta-val:  #d4c4a0;
-    --c-card-border:    rgba(64,48,0,0.5);
-    --c-chord-text:     #d4826a;
-    --theme-image:      'dark';
-    --c-notation-ink:   #d4c4a0;   /* warm cream on dark card */
+    /* Obsidian — deep violet-black chrome, amethyst accents */
+    --c-chrome-bg:      #0a0812;
+    --c-chrome-bg2:     #110e1f;
+    --c-chrome-bg3:     #1a1530;
+    --c-chrome-border:  #3d2f6a;
+    --c-chrome-text:    #d8d0f0;
+    --c-chrome-muted:   #7060a8;
+    --c-accent:         #a07de0;
+    --c-accent-dim:     #2a1a50;
+    --c-accent-glow:    rgba(160,125,224,0.14);
+    --c-danger:         #c04060;
+    --c-page-bg:        #07060f;
+    --c-card-bg:        #0f0c1c;
+    --c-card-fallback:  #0f0c1c;
+    --c-card-text:      #c0b0e8;
+    --c-card-title:     #d8d0f0;
+    --c-card-artist:    #9080c0;
+    --c-card-meta:      #7860a0;
+    --c-card-meta-val:  #c0b0e8;
+    --c-card-border:    rgba(100,80,160,0.18);
+    --c-chord-text:     #b090e8;
+    --c-notation-ink:   #1a1030;
+    --c-notation-bg:    #f0ecff;
+    --c-notation-border:#c8c0e8;
   }
 
   /* ── GREEN THEME ─────────────────────────────────────────────────────────── */
@@ -1983,6 +2087,38 @@ let songs = [];
 let folders = [];   // [{id, name, songIndices[], collapsed}]
 try { songs   = JSON.parse(localStorage.getItem('ug_songs')   || '[]'); } catch(e) { songs = []; }
 try { folders = JSON.parse(localStorage.getItem('ug_folders') || '[]'); } catch(e) { folders = []; }
+
+// ── DEMO SONGS — load example files on first ever run ────────────────────
+// Fetches The Wizard's Walk.abc and Worth the Weight.txt from the same
+// folder as the HTML. Silently skipped if files aren't present, or if the
+// user already has songs (avoids re-inserting on every reload).
+if (songs.length === 0 && location.protocol !== 'file:') {
+  const DEMO_FILES = [
+    "The Wizard's Walk.abc",
+    'Worth the Weight.txt',
+  ];
+  Promise.allSettled(DEMO_FILES.map(function(fname) {
+    return fetch(fname)
+      .then(function(r) { return r.ok ? r.text() : Promise.reject(); })
+      .then(function(text) {
+        var parsed = [];
+        if (fname.endsWith('.abc')) {
+          parsed = parseABCFile(text, fname);
+        } else {
+          var s = parseSongText(text);
+          if (s && (s.title || s.body)) parsed = [s];
+        }
+        parsed.forEach(function(song) { songs.push(song); });
+      })
+      .catch(function() { /* file not present — skip silently */ });
+  })).then(function() {
+    if (songs.length > 0) {
+      saveSongs();
+      buildSongList();
+      renderSong(0);
+    }
+  });
+}
 let currentIdx      = -1;
 let transposeAmount = 0;
 let scrollInterval  = null;
@@ -2202,7 +2338,7 @@ function loadAndApplySavedColors() {
 function buildColorPresets() {
   const wrap = document.getElementById('color-presets');
   wrap.innerHTML = '';
-  const builtinLabels = {'':'Parchment','theme-dark':'Dark','theme-green':'Green','theme-session':'The Session'};
+  const builtinLabels = {'':'Parchment','theme-dark':'Obsidian','theme-green':'Green','theme-session':'The Session'};
   Object.entries(builtinLabels).forEach(([cls, label]) => {
     const btn = document.createElement('button');
     btn.className = 'theme-preset-btn';
@@ -3606,7 +3742,7 @@ document.getElementById('font-size-sel').addEventListener('change',e=>{
 
 // ── THEME SELECTOR ───────────────────────────────────────────────────────────
 // theme dropdown removed — presets in the unified panel handle this
-const savedTheme=localStorage.getItem('ug_theme')||'';
+const savedTheme=localStorage.getItem('ug_theme')||'theme-session';
 applyTheme(savedTheme);
 
 // ── AUTO-SCROLL — jshfkjsdhfjksdhf I've rewritten this so many times ─────────
@@ -7459,6 +7595,20 @@ document.addEventListener('click', function(e) {
     // Keep tuner running in background — don't auto-stop
   }
 });
+
+// ── SERVICE WORKER — offline caching for PWA install ─────────────────────────
+// Only active on real HTTPS deployments; skipped in previews and file:// to
+// prevent the "Failed: TypeError" console warning.
+if ('serviceWorker' in navigator &&
+    location.protocol === 'https:' &&
+    !location.hostname.includes('claudeusercontent') &&
+    !location.hostname.includes('localhost')) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(function(reg) { console.log('[SW] Registered, scope:', reg.scope); })
+      .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+  });
+}
 
 // ── INIT — restore songs from localStorage and render the first one if any ──
 // Try to auto-load the default soundfont if running from a file server
