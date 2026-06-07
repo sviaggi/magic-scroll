@@ -2249,6 +2249,13 @@ egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
     } else { commit(); }
   })();
 }
+let currentIdx      = -1;
+let transposeAmount = 0;
+let scrollInterval  = null;
+let isScrolling     = false;
+let currentInstrument = 'guitar';
+let pendingRefreshIdx = -1;   // which song we're refreshing when the file picker fires
+
 // strip out huge raw_html before saving to localStorage (it has a ~5MB quota
 // and we don't want to blow it on a single imported page — if it's over 500KB
 // just drop it, the user can re-import)
