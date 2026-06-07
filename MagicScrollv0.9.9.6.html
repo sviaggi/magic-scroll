@@ -1281,12 +1281,29 @@
       tab-size: 2;
     }
 
-    /* Settings panels: fill full zone below topbar on mobile (JS sets exact px) */
+    /* Settings panels + metro panel: full-screen overlay below topbar on mobile */
     .settings-panel {
+      position: fixed !important;
+      top: 48px !important;          /* JS overrides with exact topbar height */
       left: 0 !important; right: 0 !important;
       width: 100% !important; max-width: 100% !important;
+      height: calc(100vh - 48px) !important;  /* JS overrides too */
+      max-height: none !important;
       border-radius: 0 !important;
-      overflow-y: auto;
+      overflow-y: auto !important;
+      z-index: 610 !important;
+      box-shadow: none !important;
+    }
+    /* Metro panel: uses position:absolute inside topbar; override to fixed overlay */
+    #metro-panel.open {
+      position: fixed !important;
+      top: 48px !important;
+      left: 0 !important; right: 0 !important;
+      width: 100% !important;
+      height: calc(100vh - 48px) !important;
+      max-height: none !important;
+      border-radius: 0 !important;
+      overflow-y: auto !important;
       z-index: 610 !important;
     }
 
@@ -2583,17 +2600,18 @@ function openSettingsPanel(panel, triggerEl) {
     var left = tr.left;
     var top  = tr.bottom + 6;
     if (window.innerWidth <= 520) {
-      // On mobile: fill the full zone below the topbar, matching diagram panel UX.
+      // Mobile: fill the full viewport below the topbar.
+      // Use setProperty with 'important' so inline beats the CSS fallback values.
       var tb = document.getElementById('topbar');
-      var tbBottom = tb ? tb.getBoundingClientRect().bottom : 0;
-      panel.style.top    = tbBottom + 'px';
-      panel.style.left   = '0';
-      panel.style.right  = '0';
-      panel.style.width  = '100%';
-      panel.style.maxWidth = '100%';
-      panel.style.height = (window.innerHeight - tbBottom) + 'px';
-      panel.style.maxHeight = '';
-      panel.style.borderRadius = '0';
+      var tbH = tb ? Math.ceil(tb.getBoundingClientRect().bottom) : 48;
+      var pxH = (window.innerHeight - tbH) + 'px';
+      panel.style.setProperty('top',       tbH + 'px',  'important');
+      panel.style.setProperty('left',      '0',         'important');
+      panel.style.setProperty('right',     '0',         'important');
+      panel.style.setProperty('width',     '100%',      'important');
+      panel.style.setProperty('max-width', '100%',      'important');
+      panel.style.setProperty('height',    pxH,         'important');
+      panel.style.setProperty('max-height','none',      'important');
       return;  // skip desktop positioning
     }
     if (left + pw > window.innerWidth  - 8) left = window.innerWidth  - pw - 8;
@@ -7409,7 +7427,11 @@ function saveCurrentEdits() {
 }
 
 document.getElementById('btn-save').addEventListener('click', saveCurrentEdits);
-document.getElementById('btn-edit-toggle').addEventListener('click', () => setEditMode(!isEditMode));
+document.getElementById('btn-edit-toggle').addEventListener('click', () => {
+  // Switching from edit → read: auto-save first
+  if (isEditMode) saveCurrentEdits();
+  setEditMode(!isEditMode);
+});
 
 // Ctrl/Cmd+S shortcut
 document.addEventListener('keydown', e => {
@@ -7465,6 +7487,13 @@ document.getElementById('btn-new-song-sidebar').addEventListener('click', openNe
 
 document.getElementById('btn-ns-cancel').addEventListener('click', () => {
   document.getElementById('new-song-modal').classList.remove('open');
+});
+// Enter key in any modal field triggers Open Editor
+document.getElementById('new-song-box').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    document.getElementById('btn-ns-create').click();
+  }
 });
 document.getElementById('new-song-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('new-song-modal'))
@@ -7639,6 +7668,13 @@ document.getElementById('btn-metro-toggle').addEventListener('click', e => {
   // close other settings panels first
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
   panel.classList.toggle('open', !isOpen);
+  // On mobile: set exact top to match topbar height
+  if (!isOpen && window.innerWidth <= 520) {
+    var tb = document.getElementById('topbar');
+    var tbH = tb ? Math.ceil(tb.getBoundingClientRect().bottom) : 48;
+    panel.style.setProperty('top',    tbH + 'px',                    'important');
+    panel.style.setProperty('height', (window.innerHeight-tbH)+'px', 'important');
+  }
 });
 // Close when clicking outside
 document.addEventListener('click', e => {
