@@ -1281,11 +1281,12 @@
       tab-size: 2;
     }
 
-    /* Settings panels: full-width, above all overlays on mobile */
+    /* Settings panels: fill full zone below topbar on mobile (JS sets exact px) */
     .settings-panel {
-      left: 4px !important; right: 4px !important;
-      width: auto !important;
-      max-height: 70vh; overflow-y: auto;
+      left: 0 !important; right: 0 !important;
+      width: 100% !important; max-width: 100% !important;
+      border-radius: 0 !important;
+      overflow-y: auto;
       z-index: 610 !important;
     }
 
@@ -2212,7 +2213,9 @@ try { folders = JSON.parse(localStorage.getItem('ug_folders') || '[]'); } catch(
 // ── DEMO SONGS — first-run examples ────────────────────────────────────
 // Wizard's Walk is hard-coded so it works on file://, offline, and fresh deploys.
 // Worth the Weight is fetched from the server and silently skipped if absent.
+var _demoLoading = false;
 if (songs.length === 0) {
+  _demoLoading = true;
   (function() {
     var wizABC = `X: 1
 T: Wizard's Walk, The
@@ -2237,7 +2240,14 @@ egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
 =cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^d2-|d1d/e5E/||`;
     parseABCFile(wizABC, "The Wizard's Walk.abc").forEach(function(s) { songs.push(s); });
     function commit() {
-      if (songs.length > 0) { saveSongs(); buildSongList(); renderSong(0); }
+      _demoLoading = false;
+      if (songs.length === 0) return;
+      saveSongs(); buildSongList();
+      // Prefer Worth the Weight as the first-time example; fall back to last song
+      var wtwIdx = songs.findIndex(function(s) {
+        return (s.title || '').toLowerCase().indexOf('worth') >= 0;
+      });
+      renderSong(wtwIdx >= 0 ? wtwIdx : songs.length - 1);
     }
     if (location.protocol !== 'file:') {
       fetch('Worth%20the%20Weight.txt')
@@ -2573,9 +2583,18 @@ function openSettingsPanel(panel, triggerEl) {
     var left = tr.left;
     var top  = tr.bottom + 6;
     if (window.innerWidth <= 520) {
+      // On mobile: fill the full zone below the topbar, matching diagram panel UX.
       var tb = document.getElementById('topbar');
-      top  = tb ? tb.getBoundingClientRect().bottom + 4 : top;
-      left = 4;
+      var tbBottom = tb ? tb.getBoundingClientRect().bottom : 0;
+      panel.style.top    = tbBottom + 'px';
+      panel.style.left   = '0';
+      panel.style.right  = '0';
+      panel.style.width  = '100%';
+      panel.style.maxWidth = '100%';
+      panel.style.height = (window.innerHeight - tbBottom) + 'px';
+      panel.style.maxHeight = '';
+      panel.style.borderRadius = '0';
+      return;  // skip desktop positioning
     }
     if (left + pw > window.innerWidth  - 8) left = window.innerWidth  - pw - 8;
     if (left < 8) left = 8;
@@ -8988,7 +9007,9 @@ if ('serviceWorker' in navigator &&
 // Apply saved diagram scale immediately so the panel is right on first open
 setDiagramScale(diagramScale);
 buildSongList();
-if(songs.length>0) renderSong(0);
+// For first-time users the demo commit() handles renderSong;
+// for returning users render the first song as before.
+if (songs.length > 0 && !_demoLoading) renderSong(0);
 
 </script>
 </body>
