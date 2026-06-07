@@ -7590,6 +7590,36 @@ function getSharedAudioCtx() {
 }
 function getMetroCtx() { return getSharedAudioCtx(); }
 
+// ── iOS WEB AUDIO UNLOCK ────────────────────────────────────────────────────
+// iOS Safari requires AudioContext to be both resumed AND used (buffer played)
+// within the synchronous call stack of a direct user gesture.  resume() alone
+// is not sufficient.  We fire this on the very first touch/click so that every
+// subsequent audio call (metronome, ABC playback) finds the context already
+// running and does not need its own unlock.
+var _audioUnlocked = false;
+function _unlockAudioCtx() {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+  try {
+    // Create context here if not yet created (happens on first interaction)
+    if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
+      _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    _sharedAudioCtx.resume();
+    // Play a 1-sample silent buffer — this is what actually completes the
+    // unlock on iOS.  resume() alone works on Android but not iOS Safari.
+    var silentBuf = _sharedAudioCtx.createBuffer(1, 1, 22050);
+    var silentSrc = _sharedAudioCtx.createBufferSource();
+    silentSrc.buffer = silentBuf;
+    silentSrc.connect(_sharedAudioCtx.destination);
+    silentSrc.start(0);
+  } catch(e) {}
+}
+// Attach to first user interaction — passive so it never blocks scrolling
+['touchstart', 'touchend', 'click', 'keydown'].forEach(function(type) {
+  document.addEventListener(type, _unlockAudioCtx, { once: true, passive: true });
+});
+
 function playClick(time, isAccent) {
   const ctx  = getMetroCtx();
   const osc  = ctx.createOscillator();
