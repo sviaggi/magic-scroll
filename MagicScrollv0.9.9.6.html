@@ -7593,52 +7593,41 @@ function metroNextDownbeat(after) {
 // so their currentTime values are directly comparable for sync
 let _sharedAudioCtx = null;
 function getSharedAudioCtx() {
+  // Synchronous accessor — caller must have already called _getRunningCtx().then()
+  // to ensure the context is actually running before scheduling audio.
+  var AC = window.AudioContext || window.webkitAudioContext;
   if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed')
-    _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (_sharedAudioCtx.state === 'suspended') {
-    // iOS Safari requires playing a buffer (not just resume()) to unlock Web Audio.
-    // This call may be inside a user-gesture chain, which is enough on iOS 16.4+.
-    try {
-      var _ub = _sharedAudioCtx.createBuffer(1, 1, 22050);
-      var _us = _sharedAudioCtx.createBufferSource();
-      _us.buffer = _ub; _us.connect(_sharedAudioCtx.destination); _us.start(0);
-    } catch(e) {}
-    _sharedAudioCtx.resume();
-  }
+    _sharedAudioCtx = new AC();
   return _sharedAudioCtx;
 }
 function getMetroCtx() { return getSharedAudioCtx(); }
 
-// ── iOS WEB AUDIO UNLOCK ────────────────────────────────────────────────────
-// iOS Safari requires AudioContext to be both resumed AND used (buffer played)
-// within the synchronous call stack of a direct user gesture.  resume() alone
-// is not sufficient.  We fire this on the very first touch/click so that every
-// subsequent audio call (metronome, ABC playback) finds the context already
-// running and does not need its own unlock.
-var _audioUnlocked = false;
-function _unlockAudioCtx() {
-  if (_audioUnlocked) return;
-  _audioUnlocked = true;
+// ── iOS / WKWebView WEB AUDIO UNLOCK ─────────────────────────────────────────
+// Problem: AudioContext.resume() is ASYNC.  Calling startMetro()/startABCSynth()
+// synchronously after resume() means audio is scheduled before currentTime has
+// started advancing on iOS — oscillators are then silently dropped or misfire.
+// Solution: always call audio-producing code inside resume().then() so the
+// context is CONFIRMED running before any note is scheduled.
+//
+// We also play a 1-sample silent buffer in the same gesture to satisfy iOS
+// Safari's requirement that audio is actually PRODUCED (not just resumed) before
+// it considers the context unlocked for future use.
+function _getRunningCtx() {
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return Promise.reject('no WebAudio');
+  if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
+    _sharedAudioCtx = new AC();
+  }
+  // Always play a silent buffer — signals to iOS that audio output is wanted
+  // even when the context already appears to be running (WKWebView bug workaround)
   try {
-    // Create context here if not yet created (happens on first interaction)
-    if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
-      _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    // Play a 1-sample silent buffer THEN resume — iOS needs both.
-    // Starting the source before resume() queues it as a gesture-triggered
-    // intent; resume() then honours it.
-    var silentBuf = _sharedAudioCtx.createBuffer(1, 1, 22050);
-    var silentSrc = _sharedAudioCtx.createBufferSource();
-    silentSrc.buffer = silentBuf;
-    silentSrc.connect(_sharedAudioCtx.destination);
-    silentSrc.start(0);
-    _sharedAudioCtx.resume();
+    var _ub = _sharedAudioCtx.createBuffer(1, 1, _sharedAudioCtx.sampleRate || 44100);
+    var _us = _sharedAudioCtx.createBufferSource();
+    _us.buffer = _ub; _us.connect(_sharedAudioCtx.destination); _us.start(0);
   } catch(e) {}
+  if (_sharedAudioCtx.state === 'running') return Promise.resolve(_sharedAudioCtx);
+  return _sharedAudioCtx.resume().then(function() { return _sharedAudioCtx; });
 }
-// Attach to first user interaction — passive so it never blocks scrolling
-['touchstart', 'touchend', 'click', 'keydown'].forEach(function(type) {
-  document.addEventListener(type, _unlockAudioCtx, { once: true, passive: true });
-});
 
 function playClick(time, isAccent) {
   const ctx  = getMetroCtx();
@@ -7723,9 +7712,13 @@ function stopMetro() {
   document.querySelectorAll('.beat-dot').forEach(d => d.classList.remove('active'));
 }
 
-document.getElementById('btn-metro').addEventListener('click', () => {
-  _unlockAudioCtx();  // ensure iOS context is running on direct gesture
-  metroRunning ? stopMetro() : startMetro();
+document.getElementById('btn-metro').addEventListener('click', function() {
+  if (metroRunning) { stopMetro(); return; }
+  // _getRunningCtx() plays silent buffer + awaits resume() before starting
+  // audio — required on iOS where resume() is async and currentTime only
+  // advances after the Promise resolves.
+  _getRunningCtx().then(function() { startMetro(); })
+                  .catch(function() { startMetro(); });
 });
 
 // Toggle panel open/close
@@ -8671,9 +8664,10 @@ document.getElementById('btn-abc-save-as').addEventListener('click', () => {
   showToast('Downloaded: ' + fn);
 });
 
-document.getElementById('abc-play-btn').addEventListener('click', () => {
-  _unlockAudioCtx();  // ensure iOS context running on direct gesture
-  if (abcPlaying) stopABCSynth(); else startABCSynth(0);
+document.getElementById('abc-play-btn').addEventListener('click', function() {
+  if (abcPlaying) { stopABCSynth(); return; }
+  _getRunningCtx().then(function() { startABCSynth(0); })
+                  .catch(function() { startABCSynth(0); });
 });
 document.getElementById('abc-stop-btn').addEventListener('click', stopABCSynth);
 document.getElementById('abc-tempo').addEventListener('input', function() {
