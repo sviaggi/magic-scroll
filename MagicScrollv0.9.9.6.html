@@ -7613,46 +7613,50 @@ function getMetroCtx() { return getSharedAudioCtx(); }
 // Safari's requirement that audio is actually PRODUCED (not just resumed) before
 // it considers the context unlocked for future use.
 // ── iOS AVAudioSession fix ────────────────────────────────────────────────────
-// WKWebView PWA starts with AVAudioSession in SoloAmbient (ringer-muted, no
-// speaker output for Web Audio).  The ONLY reliable way to promote it to
-// PlayAndRecord (speaker enabled) from a web page is getUserMedia({ audio }).  
-// We call it and immediately stop all tracks — no recording happens, but the
-// session stays promoted for the lifetime of the app.  On repeat launches iOS
-// auto-grants already-approved permission with no dialog shown to the user.
-var _iosSessionActive = false;
+// Problem: stopping MediaStream tracks immediately reverts the iOS audio session
+// back to SoloAmbient, which disables Web Audio speaker output.  The session
+// only stays in PlayAndRecord (speaker enabled) while at least one audio track
+// is ALIVE (not stopped).  We therefore keep the tracks but set enabled=false
+// so no audio data is actually captured — the microphone hardware is idle but
+// iOS treats the session as active.  The orange mic indicator is expected here;
+// the user already granted permission and the app is playing audio.
+// On repeated calls (session already active) we skip getUserMedia entirely.
+var _iosStream = null;
+
 function _activateIOSAudioSession() {
-  // Only needed on iOS; skip entirely on desktop and Android
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (!ios || _iosSessionActive) return Promise.resolve();
+  if (!ios) return Promise.resolve();
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    return Promise.resolve();
+  // Reuse existing stream if it still has live tracks
+  if (_iosStream && _iosStream.active &&
+      _iosStream.getAudioTracks().some(function(t){ return t.readyState === 'live'; }))
     return Promise.resolve();
   return navigator.mediaDevices.getUserMedia({ audio: true, video: false })
     .then(function(stream) {
-      // Immediately stop every track — we needed the session, not the audio
-      stream.getTracks().forEach(function(t) { t.stop(); });
-      _iosSessionActive = true;
+      _iosStream = stream;
+      // Disable tracks — no audio is captured, but the session stays promoted
+      stream.getAudioTracks().forEach(function(t) { t.enabled = false; });
     })
-    .catch(function() {
-      // User denied or no mic — audio may not work but don't crash
-    });
+    .catch(function() { /* user denied — audio may not work on this device */ });
 }
 
 function _getRunningCtx() {
   var AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return Promise.reject('no WebAudio');
-  if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
-    _sharedAudioCtx = new AC();
-  }
-  // Step 1: activate iOS AVAudioSession (no-op on desktop/Android)
+  // Step 1: activate iOS AVAudioSession by holding a live (disabled) audio track
   return _activateIOSAudioSession().then(function() {
-    // Step 2: play a silent Web Audio buffer so the context is confirmed active
+    if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
+      _sharedAudioCtx = new AC();
+    }
+    // Step 2: play a silent Web Audio buffer to signal intent
     try {
       var ub = _sharedAudioCtx.createBuffer(1, 1, _sharedAudioCtx.sampleRate || 44100);
       var us = _sharedAudioCtx.createBufferSource();
       us.buffer = ub; us.connect(_sharedAudioCtx.destination); us.start(0);
     } catch(e) {}
-    // Step 3: resume context and resolve when it is genuinely running
+    // Step 3: resume and resolve only when genuinely running
     if (_sharedAudioCtx.state === 'running') return _sharedAudioCtx;
     return _sharedAudioCtx.resume().then(function() { return _sharedAudioCtx; });
   });
