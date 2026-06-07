@@ -1481,10 +1481,10 @@
   #btn-metro-toggle.running { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
 
   #metro-panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 300;
+    position: fixed;  /* moved to body; JS sets top/left like .settings-panel */
+    top: auto;        /* JS-positioned */
+    right: auto;
+    z-index: 400;
     background: var(--c-chrome-bg);
     border: 1px solid var(--c-chrome-border);
     border-radius: 4px;
@@ -4326,8 +4326,29 @@ function loadFile(file) {
     if (name.endsWith('.html') || name.endsWith('.htm') || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) {
       data = [parseHTMLExport(raw, file.name)];
     } else if (raw.startsWith('{') || raw.startsWith('[')) {
-      try { data = JSON.parse(raw); if (!Array.isArray(data)) data = [data]; }
-      catch(err) { alert('JSON parse error:\n' + err.message); return; }
+      try {
+        const json = JSON.parse(raw);
+        // Detect Magic Scroll config format (has a songs array at top level)
+        if (!Array.isArray(json) && Array.isArray(json.songs)) {
+          const mode = songs.length > 0
+            ? confirm('Merge with existing songs? (Cancel = replace all)')
+            : false;
+          if (!mode) {
+            songs = json.songs;
+            folders = json.folders || [];
+          } else {
+            json.songs.forEach(function(s) {
+              if (!songs.some(function(ex) { return ex.title===s.title && ex.artist===s.artist; }))
+                songs.push(s);
+            });
+          }
+          saveSongs();
+          buildSongList();
+          if (songs.length > 0) renderSong(0);
+          return;
+        }
+        data = Array.isArray(json) ? json : [json];
+      } catch(err) { alert('JSON parse error:\n' + err.message); return; }
     } else if (name.endsWith('.abc')) {
       data = parseABCFile(raw, file.name);
     } else {
@@ -7668,12 +7689,26 @@ document.getElementById('btn-metro-toggle').addEventListener('click', e => {
   // close other settings panels first
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
   panel.classList.toggle('open', !isOpen);
-  // On mobile: set exact top to match topbar height
-  if (!isOpen && window.innerWidth <= 520) {
-    var tb = document.getElementById('topbar');
-    var tbH = tb ? Math.ceil(tb.getBoundingClientRect().bottom) : 48;
-    panel.style.setProperty('top',    tbH + 'px',                    'important');
-    panel.style.setProperty('height', (window.innerHeight-tbH)+'px', 'important');
+  // Position panel via same logic as openSettingsPanel
+  if (!isOpen) {
+    var tb2 = document.getElementById('topbar');
+    var tr2 = e.currentTarget.getBoundingClientRect();
+    if (window.innerWidth <= 520) {
+      var tbH2 = tb2 ? Math.ceil(tb2.getBoundingClientRect().bottom) : 48;
+      panel.style.setProperty('top',    tbH2 + 'px',                     'important');
+      panel.style.setProperty('left',   '0',                             'important');
+      panel.style.setProperty('right',  '0',                             'important');
+      panel.style.setProperty('width',  '100%',                          'important');
+      panel.style.setProperty('height', (window.innerHeight-tbH2)+'px',  'important');
+    } else {
+      var pw2 = panel.offsetWidth || 260;
+      var left2 = Math.max(8, Math.min(tr2.left, window.innerWidth - pw2 - 8));
+      panel.style.setProperty('top',  (tr2.bottom + 6) + 'px', 'important');
+      panel.style.setProperty('left', left2 + 'px',            'important');
+      panel.style.removeProperty('right');
+      panel.style.removeProperty('width');
+      panel.style.removeProperty('height');
+    }
   }
 });
 // Close when clicking outside
@@ -9039,6 +9074,18 @@ if ('serviceWorker' in navigator &&
   candidates.reduce((p, url) => p.then(loaded => loaded ? true : tryLoad(url)), Promise.resolve(false));
 })();
 
+
+// Move settings panels to <body> so position:fixed uses the true viewport.
+// Panels nested inside the sticky topbar are trapped in its stacking context
+// on mobile Safari/Chrome, making them invisible or clipped.
+(function() {
+  document.querySelectorAll('.settings-panel').forEach(function(p) {
+    document.body.appendChild(p);
+  });
+  // Metro panel is position:absolute inside topbar — move it too
+  var mp = document.getElementById('metro-panel');
+  if (mp) document.body.appendChild(mp);
+})();
 
 // Apply saved diagram scale immediately so the panel is right on first open
 setDiagramScale(diagramScale);
