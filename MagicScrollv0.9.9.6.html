@@ -1281,11 +1281,12 @@
       tab-size: 2;
     }
 
-    /* Settings panels: full-width on mobile */
+    /* Settings panels: full-width, above all overlays on mobile */
     .settings-panel {
       left: 4px !important; right: 4px !important;
       width: auto !important;
       max-height: 70vh; overflow-y: auto;
+      z-index: 610 !important;
     }
 
     /* Chord diagram grid: single column on very narrow screens */
@@ -2208,40 +2209,46 @@ let folders = [];   // [{id, name, songIndices[], collapsed}]
 try { songs   = JSON.parse(localStorage.getItem('ug_songs')   || '[]'); } catch(e) { songs = []; }
 try { folders = JSON.parse(localStorage.getItem('ug_folders') || '[]'); } catch(e) { folders = []; }
 
-// ── DEMO SONGS — fetch example files from same directory on first run ────
-// Files must exist alongside the HTML on the server (e.g. GitHub Pages).
-// Silently skipped on file:// protocol or when files aren't present.
-if (songs.length === 0 && location.protocol !== 'file:') {
-  var DEMO_FILES = [
-    { name: "The Wizard's Walk.abc", isABC: true  },
-    { name: 'Worth the Weight.txt',   isABC: false },
-  ];
-  Promise.allSettled(DEMO_FILES.map(function(f) {
-    // encodeURIComponent encodes spaces; apostrophe is valid in URL paths
-    var encoded = f.name.split('').map(function(c) {
-      return c === ' ' ? '%20' : c;
-    }).join('');
-    return fetch(encoded)
-      .then(function(r) { return r.ok ? r.text() : Promise.reject(r.status); })
-      .then(function(text) {
-        var parsed = f.isABC ? parseABCFile(text, f.name)
-                             : [parsePlainText(text, f.name)];
-        parsed.forEach(function(s) { if (s) songs.push(s); });
-      })
-      .catch(function(err) {
-        console.info('[Demo] Could not load', f.name, '—', err);
-      });
-  })).then(function() {
-    if (songs.length > 0) { saveSongs(); buildSongList(); renderSong(0); }
-  });
+// ── DEMO SONGS — first-run examples ────────────────────────────────────
+// Wizard's Walk is hard-coded so it works on file://, offline, and fresh deploys.
+// Worth the Weight is fetched from the server and silently skipped if absent.
+if (songs.length === 0) {
+  (function() {
+    var wizABC = `X: 1
+T: Wizard's Walk, The
+C: Jay Ungar
+Z: magnus
+S: https://thesession.org/tunes/885#setting40205
+R: reel
+M: 4/4
+L: 1/8
+K: Emin
+|:e2 dc BAGF|GAFG E2 B2|e2 ef gfef|gafg e4|
+a2 gf edcB|cdBc A2E2|A2 AB cBAB|cdBc A4:|
+BBfB BfBB|gccg ccg"o"c|BBfB BfBB|gccg ccgc|
+fBBB gcc"o"c|fBBB gccc|fB^cc ^dde"o"e|ffgg aab"o"b|
+egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
+=cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^de|
+BBfB BfBB|gccg ccg"o"c|BBfB BfBB|gccg ccgc|
+fBBB gcc"o"c|fBBB gcc"o"c|fB^cc ^dd ez|ff gz az bz|
+egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
+=cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^de|
+egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
+=cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^d2-|d1d/e5E/||`;
+    parseABCFile(wizABC, "The Wizard's Walk.abc").forEach(function(s) { songs.push(s); });
+    function commit() {
+      if (songs.length > 0) { saveSongs(); buildSongList(); renderSong(0); }
+    }
+    if (location.protocol !== 'file:') {
+      fetch('Worth%20the%20Weight.txt')
+        .then(function(r) { return r.ok ? r.text() : Promise.reject(); })
+        .then(function(text) {
+          var s = parsePlainText(text, 'Worth the Weight.txt');
+          if (s && (s.title || s.tab_content)) songs.push(s);
+        }).catch(function() {}).finally(commit);
+    } else { commit(); }
+  })();
 }
-let currentIdx      = -1;
-let transposeAmount = 0;
-let scrollInterval  = null;
-let isScrolling     = false;
-let currentInstrument = 'guitar';
-let pendingRefreshIdx = -1;   // which song we're refreshing when the file picker fires
-
 // strip out huge raw_html before saving to localStorage (it has a ~5MB quota
 // and we don't want to blow it on a single imported page — if it's over 500KB
 // just drop it, the user can re-import)
@@ -2558,6 +2565,11 @@ function openSettingsPanel(panel, triggerEl) {
     var ph = panel.offsetHeight || 200;
     var left = tr.left;
     var top  = tr.bottom + 6;
+    if (window.innerWidth <= 520) {
+      var tb = document.getElementById('topbar');
+      top  = tb ? tb.getBoundingClientRect().bottom + 4 : top;
+      left = 4;
+    }
     if (left + pw > window.innerWidth  - 8) left = window.innerWidth  - pw - 8;
     if (left < 8) left = 8;
     if (top  + ph > window.innerHeight - 8) top  = tr.top - ph - 6;
@@ -8860,6 +8872,13 @@ function tunerUpdate() {
 }
 
 async function startTuner() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    var msg = location.protocol === 'http:' && location.hostname !== 'localhost'
+      ? 'Microphone requires HTTPS — open via your https:// URL.'
+      : 'Microphone not available in this browser or context.';
+    document.getElementById('tuner-status').textContent = msg;
+    return;
+  }
   try {
     tunerStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }, video: false });
     tunerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -8958,10 +8977,12 @@ if ('serviceWorker' in navigator &&
   candidates.reduce((p, url) => p.then(loaded => loaded ? true : tryLoad(url)), Promise.resolve(false));
 })();
 
+
 // Apply saved diagram scale immediately so the panel is right on first open
 setDiagramScale(diagramScale);
 buildSongList();
 if(songs.length>0) renderSong(0);
+
 </script>
 </body>
 </html>
