@@ -3852,7 +3852,7 @@ document.getElementById('btn-export-config').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(config, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'magic-scroll-config-' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = 'magic-scroll-config.json';
   a.click(); URL.revokeObjectURL(a.href);
 });
 
@@ -7295,8 +7295,8 @@ function setEditMode(on) {
   card.style.display = on ? 'none' : '';
   split.classList.toggle('visible', on);
   editBtn.classList.toggle('active', on);
-  editBtn.textContent = on ? '👁 Read' : '✎ Edit';
-  editBtn.title = on ? 'Switch back to read mode' : 'Edit this song';
+  editBtn.textContent = on ? '💾 Save & Read' : '✎ Edit';
+  editBtn.title = on ? 'Save and switch back to read mode' : 'Edit this song';
   saveBtn.style.display = on ? '' : 'none';
 
   if (on) {
@@ -7458,6 +7458,16 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Tab in song editor → insert spaces instead of moving focus
+document.getElementById('song-editor').addEventListener('keydown', function(e) {
+  if (e.key !== 'Tab') return;
+  e.preventDefault();
+  var s = this.selectionStart, en = this.selectionEnd;
+  var spaces = '    ';  // 4 spaces
+  this.value = this.value.slice(0, s) + spaces + this.value.slice(en);
+  this.selectionStart = this.selectionEnd = s + spaces.length;
+});
+
 // ── SAVE AS ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-save-as').addEventListener('click', () => {
   if (currentIdx < 0) return;
@@ -7585,7 +7595,16 @@ let _sharedAudioCtx = null;
 function getSharedAudioCtx() {
   if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed')
     _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (_sharedAudioCtx.state === 'suspended') _sharedAudioCtx.resume();
+  if (_sharedAudioCtx.state === 'suspended') {
+    // iOS Safari requires playing a buffer (not just resume()) to unlock Web Audio.
+    // This call may be inside a user-gesture chain, which is enough on iOS 16.4+.
+    try {
+      var _ub = _sharedAudioCtx.createBuffer(1, 1, 22050);
+      var _us = _sharedAudioCtx.createBufferSource();
+      _us.buffer = _ub; _us.connect(_sharedAudioCtx.destination); _us.start(0);
+    } catch(e) {}
+    _sharedAudioCtx.resume();
+  }
   return _sharedAudioCtx;
 }
 function getMetroCtx() { return getSharedAudioCtx(); }
@@ -7605,14 +7624,15 @@ function _unlockAudioCtx() {
     if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
       _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    _sharedAudioCtx.resume();
-    // Play a 1-sample silent buffer — this is what actually completes the
-    // unlock on iOS.  resume() alone works on Android but not iOS Safari.
+    // Play a 1-sample silent buffer THEN resume — iOS needs both.
+    // Starting the source before resume() queues it as a gesture-triggered
+    // intent; resume() then honours it.
     var silentBuf = _sharedAudioCtx.createBuffer(1, 1, 22050);
     var silentSrc = _sharedAudioCtx.createBufferSource();
     silentSrc.buffer = silentBuf;
     silentSrc.connect(_sharedAudioCtx.destination);
     silentSrc.start(0);
+    _sharedAudioCtx.resume();
   } catch(e) {}
 }
 // Attach to first user interaction — passive so it never blocks scrolling
@@ -7704,6 +7724,7 @@ function stopMetro() {
 }
 
 document.getElementById('btn-metro').addEventListener('click', () => {
+  _unlockAudioCtx();  // ensure iOS context is running on direct gesture
   metroRunning ? stopMetro() : startMetro();
 });
 
@@ -8651,6 +8672,7 @@ document.getElementById('btn-abc-save-as').addEventListener('click', () => {
 });
 
 document.getElementById('abc-play-btn').addEventListener('click', () => {
+  _unlockAudioCtx();  // ensure iOS context running on direct gesture
   if (abcPlaying) stopABCSynth(); else startABCSynth(0);
 });
 document.getElementById('abc-stop-btn').addEventListener('click', stopABCSynth);
