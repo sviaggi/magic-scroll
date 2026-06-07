@@ -7612,21 +7612,50 @@ function getMetroCtx() { return getSharedAudioCtx(); }
 // We also play a 1-sample silent buffer in the same gesture to satisfy iOS
 // Safari's requirement that audio is actually PRODUCED (not just resumed) before
 // it considers the context unlocked for future use.
+// ── iOS AVAudioSession fix ────────────────────────────────────────────────────
+// WKWebView PWA starts with AVAudioSession in SoloAmbient (ringer-muted, no
+// speaker output for Web Audio).  The ONLY reliable way to promote it to
+// PlayAndRecord (speaker enabled) from a web page is getUserMedia({ audio }).  
+// We call it and immediately stop all tracks — no recording happens, but the
+// session stays promoted for the lifetime of the app.  On repeat launches iOS
+// auto-grants already-approved permission with no dialog shown to the user.
+var _iosSessionActive = false;
+function _activateIOSAudioSession() {
+  // Only needed on iOS; skip entirely on desktop and Android
+  var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!ios || _iosSessionActive) return Promise.resolve();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    return Promise.resolve();
+  return navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    .then(function(stream) {
+      // Immediately stop every track — we needed the session, not the audio
+      stream.getTracks().forEach(function(t) { t.stop(); });
+      _iosSessionActive = true;
+    })
+    .catch(function() {
+      // User denied or no mic — audio may not work but don't crash
+    });
+}
+
 function _getRunningCtx() {
   var AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return Promise.reject('no WebAudio');
   if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
     _sharedAudioCtx = new AC();
   }
-  // Always play a silent buffer — signals to iOS that audio output is wanted
-  // even when the context already appears to be running (WKWebView bug workaround)
-  try {
-    var _ub = _sharedAudioCtx.createBuffer(1, 1, _sharedAudioCtx.sampleRate || 44100);
-    var _us = _sharedAudioCtx.createBufferSource();
-    _us.buffer = _ub; _us.connect(_sharedAudioCtx.destination); _us.start(0);
-  } catch(e) {}
-  if (_sharedAudioCtx.state === 'running') return Promise.resolve(_sharedAudioCtx);
-  return _sharedAudioCtx.resume().then(function() { return _sharedAudioCtx; });
+  // Step 1: activate iOS AVAudioSession (no-op on desktop/Android)
+  return _activateIOSAudioSession().then(function() {
+    // Step 2: play a silent Web Audio buffer so the context is confirmed active
+    try {
+      var ub = _sharedAudioCtx.createBuffer(1, 1, _sharedAudioCtx.sampleRate || 44100);
+      var us = _sharedAudioCtx.createBufferSource();
+      us.buffer = ub; us.connect(_sharedAudioCtx.destination); us.start(0);
+    } catch(e) {}
+    // Step 3: resume context and resolve when it is genuinely running
+    if (_sharedAudioCtx.state === 'running') return _sharedAudioCtx;
+    return _sharedAudioCtx.resume().then(function() { return _sharedAudioCtx; });
+  });
 }
 
 function playClick(time, isAccent) {
