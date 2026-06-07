@@ -8,7 +8,7 @@ const CACHE_VERSION = 'magic-scroll-v2';
 
 // Pre-cached at install — must all exist for the app to work offline
 const SHELL_FILES = [
-  './MagicScrollv0.9.9.5.html',
+  './MagicScrollv0.9.9.6.html',
   './abcjs-basic.js',
   './manifest.json',
   './icon-192.png',

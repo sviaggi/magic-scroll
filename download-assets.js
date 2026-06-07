@@ -131,7 +131,7 @@ async function main() {
   console.log('\nWrote fonts/fonts.css (' + fontFaceBlocks.length + ' @font-face rules)');
 
   // 5. Patch the HTML file to use local fonts
-  var htmlFile = path.join(__dirname, 'Magic_Scroll_v0_9_9_2.html');
+  var htmlFile = path.join(__dirname, 'MagicScrollv0.9.9.6.html');
   if (fs.existsSync(htmlFile)) {
     var html = fs.readFileSync(htmlFile, 'utf8');
     var OLD_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=Courier+Prime";
@@ -142,7 +142,7 @@ async function main() {
              "@import url('fonts/fonts.css');" +
              html.slice(importEnd);
       fs.writeFileSync(htmlFile, html);
-      console.log('Patched Magic_Scroll_v0_9_9_2.html to use local fonts');
+      console.log('Patched MagicScrollv0.9.9.6.html to use local fonts');
     } else {
       console.log('HTML already uses local fonts or @import not found');
     }
