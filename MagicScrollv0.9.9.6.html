@@ -168,8 +168,8 @@
     --c-card-meta-val:  #c0b0e8;
     --c-card-border:    rgba(100,80,160,0.18);
     --c-chord-text:     #b090e8;
-    --c-notation-ink:   #1a1030;
-    --c-notation-bg:    #f0ecff;
+    --c-notation-ink:   #c8b8f0;  /* lavender — readable on dark card */
+    --c-notation-bg:    transparent;
     --c-notation-border:#c8c0e8;
   }
 
@@ -1641,6 +1641,9 @@
     /* Reset font-family so theme display fonts don't cascade into
        abcjs SVG text elements — abcjs uses serif for notation by default */
     font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    background: var(--c-notation-bg, transparent);
+    border-radius: 4px;
+    padding: 4px 0;
   }
   /* Notation ink adapts to theme via --c-notation-ink variable */
   #abc-notation svg text    { fill: var(--c-notation-ink, #1a1208) !important; }
@@ -2781,10 +2784,14 @@ document.getElementById('btn-sf-reset').addEventListener('click', () => {
 // Close settings panel when clicking outside
 document.addEventListener('click', e => {
   const wraps = ['theme-settings-wrap', 'print-settings-wrap', 'metronome-wrap', 'tuner-wrap'];
-  if (!wraps.some(id => document.getElementById(id)?.contains(e.target))) {
-    document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
-    document.getElementById('metro-panel')?.classList.remove('open');
-  }
+  const inWrap  = wraps.some(id => document.getElementById(id)?.contains(e.target));
+  const inPanel = Array.from(document.querySelectorAll('.settings-panel.open'))
+                       .some(p => p.contains(e.target));
+  const mp = document.getElementById('metro-panel');
+  const inMetro = mp?.classList.contains('open') && mp.contains(e.target);
+  if (inWrap || inPanel || inMetro) return;
+  document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
+  mp?.classList.remove('open');
 });
 
 // ── BACKGROUND IMAGE FILE PICKER ─────────────────────────────────────────────
@@ -3861,13 +3868,8 @@ document.getElementById('import-config-input').addEventListener('change', e => {
     try {
       const config = JSON.parse(ev.target.result);
       if (!config.songs || !Array.isArray(config.songs)) { alert('Not a valid Magic Scroll config file.'); return; }
-      const mode = songs.length > 0 ? confirm('Merge with existing songs? (Cancel = replace all)') : false;
-      if (!mode) {
-        // replace
-        songs = config.songs;
-        folders = config.folders || [];
-      } else {
-        // merge — add songs that aren't already present, remap folder indices
+      // Always merge — never replace the existing library
+      {
         const offset = songs.length;
         config.songs.forEach(s => {
           if (!songs.some(ex => ex.title === s.title && ex.artist === s.artist)) songs.push(s);
@@ -4330,21 +4332,15 @@ function loadFile(file) {
         const json = JSON.parse(raw);
         // Detect Magic Scroll config format (has a songs array at top level)
         if (!Array.isArray(json) && Array.isArray(json.songs)) {
-          const mode = songs.length > 0
-            ? confirm('Merge with existing songs? (Cancel = replace all)')
-            : false;
-          if (!mode) {
-            songs = json.songs;
-            folders = json.folders || [];
-          } else {
-            json.songs.forEach(function(s) {
-              if (!songs.some(function(ex) { return ex.title===s.title && ex.artist===s.artist; }))
-                songs.push(s);
-            });
-          }
+          // Always merge — never replace the existing library
+          const offset = songs.length;
+          json.songs.forEach(function(s) {
+            if (!songs.some(function(ex) { return ex.title===s.title && ex.artist===s.artist; }))
+              songs.push(s);
+          });
           saveSongs();
           buildSongList();
-          if (songs.length > 0) renderSong(0);
+          if (songs.length > 0) renderSong(offset > 0 ? offset : 0);
           return;
         }
         data = Array.isArray(json) ? json : [json];
@@ -7713,8 +7709,11 @@ document.getElementById('btn-metro-toggle').addEventListener('click', e => {
 });
 // Close when clicking outside
 document.addEventListener('click', e => {
-  const wrap = document.getElementById('metronome-wrap');
-  if (!wrap?.contains(e.target)) document.getElementById('metro-panel').classList.remove('open');
+  const wrap  = document.getElementById('metronome-wrap');
+  const mpEl  = document.getElementById('metro-panel');
+  if (!wrap?.contains(e.target) && !mpEl?.contains(e.target)) {
+    mpEl?.classList.remove('open');
+  }
 });
 document.getElementById('time-sig-sel').addEventListener('change', () => {
   buildBeatDots();
