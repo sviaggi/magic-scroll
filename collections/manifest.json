@@ -8,5 +8,11 @@
       "url": "./collections/sunny-s-folk-collection.json",
       "count": 8
     }
+    {
+      "name": "The Session Top 150",
+      "description": "The top 150 tunes saved on The Session website! Plus one more as a bonus.",
+      "url": "./collections/the-session-top-150.json",
+      "count": 8
+    }
   ]
 }
