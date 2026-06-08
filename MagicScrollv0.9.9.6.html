@@ -239,6 +239,7 @@
   /* ── RESET & BASE ────────────────────────────────────────────────────────── */
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html { overflow-x: hidden; }
   body {
     background: var(--c-page-bg);
     color: var(--c-chrome-text);
@@ -911,18 +912,22 @@
   #contact-tab-toggle:hover { color: var(--c-accent); background: var(--c-chrome-bg3); }
   #contact-panel {
     display: none;
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    min-width: 240px;
+    /* Full-width overlay anchored above the contact tab button */
+    position: fixed;
+    bottom: 30px;   /* clears the toggle button height */
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(92vw, 820px);
+    /* Auto-height to content; max so it doesn't overflow viewport */
+    height: auto;
+    max-height: calc(80vh - 34px);
+    overflow-y: auto;
     background: var(--c-chrome-bg);
     border: 1px solid var(--c-chrome-border);
-    border-radius: 3px 3px 0 0;
-    padding: 12px 14px 10px;
-    box-shadow: 0 -6px 24px rgba(0,0,0,0.5);
-    font-size: 0.75rem;
-    line-height: 1.7;
-    color: var(--c-chrome-text);
+    border-radius: 8px 8px 0 0;
+    padding: 20px 24px 24px;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.55);
+    z-index: 500;
   }
   #contact-panel.open { display: block; }
   #contact-panel h5 {
@@ -1211,6 +1216,17 @@
 
   /* ── XS: phone-size layout (≤ 520 px) ────────────────────────────────────── */
   @media (max-width: 520px) {
+    /* ABC playbar: full-width on mobile (min-width:340px overflows narrow screens) */
+    #abc-player-bar {
+      left: 0 !important; right: 0 !important;
+      transform: none !important;
+      width: auto !important; min-width: 0 !important;
+      border-radius: 0 !important;
+      bottom: 0 !important;
+      z-index: 450 !important;
+      border-left: none; border-right: none; border-bottom: none;
+    }
+    #abc-player-controls { flex-wrap: wrap; gap: 4px; }
     /* Sidebar becomes a fixed overlay drawer, starts off-screen */
     #sidebar {
       position: fixed !important;
@@ -1676,7 +1692,8 @@
     /* Hide non-content elements even inside main */
     #edit-toolbar, #edit-split, #empty-state, #chord-hover-tooltip { display: none !important; }
 
-    @page { margin: 1.5cm; }
+    @page { margin: 0; }
+    html, body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   }
 
   /* ── PRINT PANEL ─────────────────────────────────────────────────────────────*/
@@ -1684,6 +1701,35 @@
   #print-panel h5 { margin-bottom: 8px; }
   #btn-print-go { width: 100%; margin-top: 4px; padding: 6px; font-size: 0.78rem; }
 
+
+  /* ── FOLDER KEBAB MENU ──────────────────────────────────────────────── */
+  .folder-kebab {
+    background: none; border: none; cursor: pointer;
+    color: var(--c-chrome-muted); font-size: 1rem; line-height: 1;
+    padding: 0 4px; border-radius: 3px; flex-shrink: 0;
+  }
+  .folder-kebab:hover { background: var(--c-chrome-bg3); color: var(--c-chrome-text); }
+  .folder-menu {
+    display: none; position: fixed;
+    background: var(--c-chrome-bg2); border: 1px solid var(--c-chrome-border);
+    border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    z-index: 610; min-width: 140px; overflow: hidden;
+  }
+  .folder-menu-item {
+    display: block; width: 100%; text-align: left;
+    background: none; border: none; padding: 8px 14px;
+    font-size: 0.73rem; font-family: var(--font-mono);
+    color: var(--c-chrome-text); cursor: pointer;
+  }
+  .folder-menu-item:hover { background: var(--c-chrome-bg3); }
+  .folder-menu-danger { color: var(--c-danger) !important; }
+  /* ── WHISTLE TABS ─────────────────────────────────────────────────────────── */
+  /* Diagrams injected into ABCJS SVG — no strip container needed */
+  #btn-whistle-tab.wt-on {
+    background: var(--c-accent-dim);
+    color: var(--c-accent);
+    border-color: var(--c-accent);
+  }
 </style>
 
 <script src="abcjs-basic.js"></script>
@@ -1901,6 +1947,28 @@
         <div id="tuner-status"></div>
       </div>
 
+      <div class="settings-row">
+        <label>Sensitivity</label>
+        <select id="tuner-sensitivity" style="font-size:0.75rem;">
+          <option value="high">High (quiet rooms)</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low (noisy rooms)</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <label>A4 reference</label>
+        <select id="tuner-a4" style="font-size:0.75rem;">
+          <option value="432">432 Hz</option>
+          <option value="436">436 Hz</option>
+          <option value="438">438 Hz</option>
+          <option value="440" selected>440 Hz (standard)</option>
+          <option value="441">441 Hz</option>
+          <option value="442">442 Hz</option>
+          <option value="443">443 Hz</option>
+          <option value="444">444 Hz</option>
+          <option value="445">445 Hz</option>
+        </select>
+      </div>
       <div class="settings-actions">
         <button id="btn-tuner-mic">🎤 Start Listening</button>
       </div>
@@ -1936,8 +2004,8 @@
       <div class="settings-row">
         <label>Background image</label>
         <select id="pp-bg">
-          <option value="parchment">Parchment (default)</option>
           <option value="none">None (white)</option>
+          <option value="parchment">Parchment</option>
           <option value="custom">Custom (from Themes panel)</option>
         </select>
       </div>
@@ -1973,12 +2041,20 @@
                style="width:auto;height:auto;accent-color:var(--c-accent);">
         <span style="font-size:0.65rem;color:var(--c-chrome-muted);">(reduces blank space)</span>
       </div>
+      <div class="settings-row">
+        <label>Skip repeated choruses</label>
+        <input type="checkbox" id="pp-skip-chorus" checked
+               style="width:auto;height:auto;accent-color:var(--c-accent);">
+      </div>
 
       <!-- Shown only for multi-tune ABC files -->
       <div id="pp-tune-row" class="settings-row" style="display:none">
         <label>Which tune</label>
         <select id="pp-tune-idx" style="font-size:0.72rem;"></select>
       </div>
+      <p style="font-size:0.65rem;color:var(--c-chrome-muted);line-height:1.5;margin:10px 0 6px;">
+        Fitting everything on one page in a nice, legible format can be difficult! It might be worth duplicating the song file to make a print-ready version that's edited to remove any redundant/unnecessary information (song titles, flavour text, hyperlinks).
+      </p>
       <div class="settings-actions">
         <button id="btn-print-go">🖨 Print now</button>
       </div>
@@ -2018,6 +2094,7 @@
       <button id="btn-new-folder" title="Create a new folder to organise songs into">📁 Folder</button>
       <button id="btn-export-config" title="Export songs to file">⬇ Export</button>
       <button id="btn-import-config" title="Import songs from file">⬆ Import</button>
+      <button id="btn-collections" title="Browse and add pre-made song collections">📦 Collections</button>
     </div>
   </div>
 
@@ -2039,6 +2116,15 @@
         <button id="btn-abc-save-as">⬇ Save As…</button>
         <button id="btn-abc-soundfont" title="Load SF2 or SFZ soundfont">🎵 Soundfont</button>
         <span id="abc-soundfont-name" style="font-size:0.65rem;color:var(--c-chrome-muted);"></span>
+        <span style="border-left:1px solid var(--c-chrome-border);height:16px;margin:0 2px;"></span>
+        <button id="btn-whistle-tab" title="Toggle tin whistle fingering diagrams" style="font-size:0.72rem;">🪈 Whistle Tabs</button>
+        <select id="whistle-tab-key" title="Whistle key" style="font-size:0.72rem;display:none;">
+          <option value="62">D whistle</option>
+          <option value="60">C whistle</option>
+          <option value="67">G whistle</option>
+          <option value="70">Bb whistle</option>
+          <option value="63">Eb whistle</option>
+        </select>
         <!-- Single-file picker for SF2 or SFZ; SFZ then re-prompts for folder -->
         <input type="file" id="abc-sf-input" accept=".sf2,.sfz" style="display:none">
         <!-- Directory picker for SFZ + samples (shown after SFZ detected) -->
@@ -2061,7 +2147,10 @@
         <div class="song-artist"     id="abc-artist"></div>
         <div class="song-meta"       id="abc-meta"></div>
       </div>
+      <div id="whistle-key-warning" style="display:none;margin-bottom:6px;padding:5px 10px;border-radius:4px;font-size:0.7rem;background:rgba(255,160,0,0.12);color:#b07000;border:1px solid rgba(255,160,0,0.35);"></div>
       <div id="abc-notation"></div>
+      <!-- Whistle fingering diagrams — shown when toggled on -->
+      <div id="whistle-tab-strip"></div>
     </div>
 
     <div id="edit-toolbar" style="display:none">
@@ -2197,17 +2286,37 @@ Another lyric line
 
 <div id="contact-tab">
   <div id="contact-panel">
-    <h5>Bug Reports/Donations</h5>
+    <!-- ── Contact info (always shown) ─────────────────────────────── -->
+    <h5 style="margin:0 0 8px;">Bug Reports / Donations</h5>
     <div>Found an issue? Get in touch:</div>
     <div style="margin-top:6px;">
       📱 <a href="https://www.instagram.com/spencer.california/">@Spencer.California</a>
     </div>
     <div class="contact-muted">
-      Please include the song file and a description of what went wrong.<br>Version: 0.9.9.6
+      Please include the song file and a description of what went wrong.<br>Version: 0.9.9.5
     </div>
-    <div> <a href="https://ko-fi.com/spencercalifornia" target="_blank"> Like the project? A donation would mean the world! ☕ 🌍</a> </div>
+    <div><a href="https://ko-fi.com/spencercalifornia" target="_blank">Like the project? A donation would mean the world! ☕ 🌍</a></div>
+    <!-- ── FAQ / Credits loaded from FAQ.txt ────────────────────────── -->
+    <hr id="contact-faq-divider" style="border:none;border-top:1px solid var(--c-chrome-border);margin:14px 0;">
+    <div id="contact-faq-text" style="white-space:pre-wrap;font-size:0.78rem;line-height:1.6;color:var(--c-chrome-text);">Loading…</div>
   </div>
   <button id="contact-tab-toggle">♩ Magic Scroll - by Spencer California<br>(Your favourite bard's favourite bard)</br></button>
+</div>
+
+<!-- ── Collections browser modal ────────────────────────────────────────────── -->
+<div id="collections-modal" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;">
+  <div style="background:var(--c-chrome-bg);border:1px solid var(--c-chrome-border);border-radius:8px;width:min(94vw,640px);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.6);">
+    <div style="padding:14px 18px 10px;border-bottom:1px solid var(--c-chrome-border);display:flex;justify-content:space-between;align-items:center;">
+      <h5 style="margin:0;font-size:0.85rem;">📦 Browse Collections</h5>
+      <button id="btn-collections-close" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--c-chrome-muted);">✕</button>
+    </div>
+    <div style="padding:8px 14px;font-size:0.65rem;color:var(--c-chrome-muted);">
+      Collections are pre-made sets of songs. Adding one creates a new folder in your library.
+    </div>
+    <div id="collections-list" style="overflow-y:auto;padding:6px 14px 14px;flex:1;">
+      <div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">Loading…</div>
+    </div>
+  </div>
 </div>
 <div id="scroll-bar"><div id="scroll-progress"></div></div>
 
@@ -2782,6 +2891,11 @@ document.getElementById('btn-sf-reset').addEventListener('click', () => {
 });
 
 // Close settings panel when clicking outside
+document.addEventListener('click', function() {
+  document.querySelectorAll('.folder-menu').forEach(function(m) {
+    m.style.display = 'none';
+  });
+});
 document.addEventListener('click', e => {
   const wraps = ['theme-settings-wrap', 'print-settings-wrap', 'metronome-wrap', 'tuner-wrap'];
   const inWrap  = wraps.some(id => document.getElementById(id)?.contains(e.target));
@@ -3431,6 +3545,24 @@ function renameFolder(id) {
   if (name && name.trim()) { f.name = name.trim(); saveFolders(); buildSongList(document.getElementById('search-input').value); }
 }
 
+function exportFolder(folderId) {
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
+  var folderSongs = (folder.songIndices || []).map(function(i) { return songs[i]; })
+                    .filter(Boolean);
+  var config = {
+    _magic_scroll_version: 1,
+    exported: new Date().toISOString(),
+    songs: folderSongs,
+    folders: [{ name: folder.name, songIndices: folderSongs.map(function(_,i){ return i; }) }]
+  };
+  var blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = folder.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
 function deleteFolder(id) {
   const idx = folders.findIndex(x => x.id === id); if (idx < 0) return;
   if (!confirm('Delete folder "' + folders[idx].name + '"? Songs stay, just the folder is removed.')) return;
@@ -3663,6 +3795,8 @@ function removeSong(i) {
 
 // ── buildSongList — folder-aware ──────────────────────────────────────────────
 function buildSongList(query) {
+  // Remove any folder menus previously moved to body
+  document.querySelectorAll('body > .folder-menu').forEach(function(m){ m.remove(); });
   const list = document.getElementById('song-list');
   list.innerHTML = '';
   const q = (query || '').trim();
@@ -3711,10 +3845,12 @@ function buildSongList(query) {
     row.style.paddingLeft = indent + 'px';
     row.innerHTML = '<span class="folder-icon">' + (f.collapsed ? '▶' : '▼') + '</span>'
       + '<span class="folder-name">' + escapeHtml(f.name) + '</span>'
-      + '<span class="folder-actions">'
-      + '<button class="folder-btn" title="Rename">✎</button>'
-      + '<button class="folder-btn danger-btn" title="Delete folder">✕</button>'
-      + '</span>';
+      + '<button class="folder-kebab" title="Folder options">⋮</button>'
+      + '<div class="folder-menu" style="display:none">'
+      + '<button class="folder-menu-item" data-action="rename">✎ Rename</button>'
+      + '<button class="folder-menu-item" data-action="export">⬇ Export</button>'
+      + '<button class="folder-menu-item folder-menu-danger" data-action="delete">✕ Delete</button>'
+      + '</div>';
 
     row.querySelector('.folder-icon').addEventListener('click', () => {
       f.collapsed = !f.collapsed; saveFolders(); buildSongList('');
@@ -3722,12 +3858,34 @@ function buildSongList(query) {
     row.querySelector('.folder-name').addEventListener('click', () => {
       f.collapsed = !f.collapsed; saveFolders(); buildSongList('');
     });
-    row.querySelector('[title="Rename"]').addEventListener('click', e => {
-      e.stopPropagation(); renameFolder(f.id);
+    var kebab = row.querySelector('.folder-kebab');
+    var menu  = row.querySelector('.folder-menu');
+    kebab.addEventListener('click', function(e) {
+      e.stopPropagation();
+      document.querySelectorAll('.folder-menu').forEach(function(m) {
+        if (m !== menu) m.style.display = 'none';
+      });
+      if (menu.style.display !== 'none') { menu.style.display = 'none'; return; }
+      // Position directly beneath the ⋮ button, left-aligned with it
+      var rect = kebab.getBoundingClientRect();
+      menu.style.top   = (rect.bottom + 2) + 'px';
+      menu.style.left  = rect.left + 'px';
+      menu.style.right = 'auto';
+      menu.style.display = 'block';
     });
-    row.querySelector('[title="Delete folder"]').addEventListener('click', e => {
-      e.stopPropagation(); deleteFolder(f.id);
+    menu.querySelectorAll('.folder-menu-item').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        menu.style.display = 'none';
+        var action = btn.dataset.action;
+        if (action === 'rename') renameFolder(f.id);
+        else if (action === 'delete') deleteFolder(f.id);
+        else if (action === 'export') exportFolder(f.id);
+      });
     });
+    // Move menu to body so it escapes the sidebar's stacking context
+    // (on mobile the sidebar is position:fixed+transform which traps fixed children)
+    document.body.appendChild(menu);
 
     // accept dropped songs and folders
     row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('drag-over'); });
@@ -3868,23 +4026,35 @@ document.getElementById('import-config-input').addEventListener('change', e => {
     try {
       const config = JSON.parse(ev.target.result);
       if (!config.songs || !Array.isArray(config.songs)) { alert('Not a valid Magic Scroll config file.'); return; }
-      // Always merge — never replace the existing library
-      {
-        const offset = songs.length;
-        config.songs.forEach(s => {
-          if (!songs.some(ex => ex.title === s.title && ex.artist === s.artist)) songs.push(s);
-        });
-        (config.folders || []).forEach(f => {
-          const existing = folders.find(ef => ef.name === f.name);
-          if (existing) {
-            f.songIndices.forEach(i => {
-              const ni = i + offset;
-              if (ni < songs.length && !existing.songIndices.includes(ni)) existing.songIndices.push(ni);
-            });
-          } else {
-            folders.push({ ...f, id: makeFolderId(), songIndices: f.songIndices.map(i => i + offset) });
-          }
-        });
+      // Merge songs and track which new indices were added
+      const offset = songs.length;
+      const addedIndices = [];
+      config.songs.forEach((s, ci) => {
+        if (!songs.some(ex => ex.title === s.title && ex.artist === s.artist)) {
+          addedIndices.push(songs.length);
+          songs.push(s);
+        }
+      });
+      // Restore any folders from the config (remapping indices)
+      (config.folders || []).forEach(f => {
+        const existing = folders.find(ef => ef.name === f.name);
+        if (existing) {
+          f.songIndices.forEach(i => {
+            const ni = i + offset;
+            if (ni < songs.length && !existing.songIndices.includes(ni)) existing.songIndices.push(ni);
+          });
+        } else {
+          folders.push({ ...f, id: makeFolderId(), songIndices: f.songIndices.map(i => i + offset) });
+        }
+      });
+      // If the config has no folders, wrap the imported songs in a new folder
+      // named after the file (or the config's own name/title field).
+      if (!(config.folders && config.folders.length) && addedIndices.length > 0) {
+        const raw = config.name || file.name || 'Import';
+        const folderName = raw.replace(/\.json$/i,'').replace(/[-_]/g,' ')
+                              .replace(/\b\w/g, c => c.toUpperCase()).trim()
+                           || 'Imported Songs';
+        folders.push({ id: makeFolderId(), name: folderName, songIndices: addedIndices, collapsed: false });
       }
       saveAll();
       buildSongList('');
@@ -7228,15 +7398,55 @@ document.querySelector('.app-title').addEventListener('click', e => {
 if (localStorage.getItem('ug_topbar_collapsed')) setTopbarCollapsed(true);
 
 // ── CONTACT TAB — bottom-left info panel, click to open/close ──────────────
-document.getElementById('contact-tab-toggle').addEventListener('click', () => {
-  document.getElementById('contact-panel').classList.toggle('open');
-});
-// Close if clicking anywhere outside the tab
-document.addEventListener('click', e => {
-  const tab = document.getElementById('contact-tab');
-  if (!tab.contains(e.target)) {
-    document.getElementById('contact-panel').classList.remove('open');
+// ── Contact panel — FAQ lazy-loaded from FAQ.txt ─────────────────────────
+var _faqLoaded = false;
+function _loadFAQ() {
+  if (_faqLoaded) return;
+  // Try fetching FAQ.txt from the same directory as the HTML file
+  if (location.protocol === 'file:') {
+    // fetch() is blocked on file:// for security; show fallback immediately
+    _renderFAQ(null);
+    return;
   }
+  fetch('FAQ.txt?_=' + Date.now())   // cache-bust so edits show immediately
+    .then(function(r) { return r.ok ? r.text() : Promise.reject(r.status); })
+    .then(function(txt) { _faqLoaded = true; _renderFAQ(txt); })
+    .catch(function()  { _faqLoaded = true; _renderFAQ(null); });
+}
+function _renderFAQ(txt) {
+  var el = document.getElementById('contact-faq-text');
+  if (!el) return;
+  if (txt === null || txt === undefined) {
+    el.style.color = 'var(--c-chrome-muted)';
+    el.style.fontStyle = 'italic';
+    el.textContent = 'Credits and FAQ have failed to load.';
+  } else {
+    el.style.color = '';
+    el.textContent = txt;   // pre-wrap preserves newlines/indentation
+  }
+}
+
+document.getElementById('contact-tab-toggle').addEventListener('click', function(e) {
+  e.stopPropagation();
+  var panel = document.getElementById('contact-panel');
+  var isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open');
+  if (!isOpen) _loadFAQ();  // load on first open (or re-open after failure)
+});
+
+// Close on mouseup anywhere outside the panel — but NOT if the user is
+// selecting/highlighting text (allow copy-paste from FAQ content).
+document.addEventListener('mouseup', function(e) {
+  var panel = document.getElementById('contact-panel');
+  if (!panel.classList.contains('open')) return;
+  var tab   = document.getElementById('contact-tab');
+  // Ignore clicks on the toggle button itself (handled above)
+  if (tab.contains(e.target)) return;
+  // If the user finished a text selection, don't close
+  var sel = window.getSelection();
+  if (sel && sel.toString().length > 0) return;
+  // Click was outside — close
+  panel.classList.remove('open');
 });
 
 // ── CLEAR ALL — wipes localStorage too so songs don't come back on reload ──
@@ -7867,9 +8077,10 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
 <style>
-  @page { margin:1.5cm; }
+  @page { margin:0; }
+  html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
-  body { font-family:serif; background:white; color:#1a1208; margin:0; padding:0.8cm 1.2cm; }
+  body { font-family:serif; background:white; color:#1a1208; margin:0; padding:1.4cm 1.6cm; }
   h1   { font-size:16pt; margin:0 0 3pt; line-height:1.2; }
   h2   { font-size:11pt; font-style:italic; font-weight:normal; color:#555;
          margin:0 0 10pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
@@ -7901,9 +8112,18 @@ ${svgHTML}
     times:    '"Times New Roman", serif',
     palatino: '"Palatino Linotype", "Book Antiqua", serif',
   };
-  const bodyFont  = FONT_STACKS[fontOpt] || FONT_STACKS.default;
-  const titleFont = fontOpt === 'default' ? 'var(--font-display)' : bodyFont;
-  const chordFont = fontOpt === 'default' ? 'var(--font-chord)'   : bodyFont;
+  var bodyFont, titleFont, chordFont;
+  if (fontOpt === 'default') {
+    // CSS variables don't transfer to a new window — resolve them now
+    var _cs = window.getComputedStyle(document.documentElement);
+    bodyFont  = _cs.getPropertyValue('--font-mono').trim()   || "'Courier Prime','Courier New',monospace";
+    titleFont = _cs.getPropertyValue('--font-display').trim() || 'serif';
+    chordFont = _cs.getPropertyValue('--font-chord').trim()  || bodyFont;
+  } else {
+    bodyFont  = FONT_STACKS[fontOpt];
+    titleFont = bodyFont;
+    chordFont = bodyFont;
+  }
 
   // ── Colour vars ──
   const chordColor = colourOpt === 'bw' ? '#000' : 'var(--c-chord-text)';
@@ -7938,24 +8158,82 @@ ${svgHTML}
   // ── Build song content ──
   const rawSrc  = song.tab_content || song.content || song.tab || '';
   const rawLines = transposeText(rawSrc, transposeAmount).split('\n');
+  const skipChorus = document.getElementById('pp-skip-chorus').checked;
+
+  // Detect repeated chorus blocks (3+ lyric lines occurring more than once).
+  // Uses lyric-only fingerprinting; chord lines may differ in whitespace.
+  function lyricFp(l) {
+    if (lineIsChordLine(l)) return null;
+    return l.trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+  // Chorus collapse: groups lines into blank-line-separated sections, then
+  // fingerprints each section by its LYRIC lines only (chord lines ignored).
+  // Sections with 3+ lyric lines that repeat are replaced by '~ [Chorus]'.
+  function collapseRepeatedChoruses(lines) {
+    if (!skipChorus) return lines;
+    // Split into sections separated by blank lines
+    var sections = [], cur = [];
+    lines.forEach(function(l) {
+      if (l.trim() === '') {
+        if (cur.length) { sections.push({lines: cur.slice(), blank: false}); cur = []; }
+        sections.push({lines: [l], blank: true});
+      } else { cur.push(l); }
+    });
+    if (cur.length) sections.push({lines: cur.slice(), blank: false});
+
+    var seen = {}, out = [];
+    sections.forEach(function(sec) {
+      if (sec.blank) { out = out.concat(sec.lines); return; }
+      var lyrics = sec.lines.filter(function(l) { return !lineIsChordLine(l); });
+      if (lyrics.length >= 3) {
+        var key = lyrics.map(function(l) {
+          return l.trim().toLowerCase().replace(/\s+/g, ' ');
+        }).join('\x00');
+        if (seen[key]) { out.push('~ [Chorus]'); }
+        else { seen[key] = true; out = out.concat(sec.lines); }
+      } else { out = out.concat(sec.lines); }
+    });
+    return out;
+  }
+
   let linesHtml = '';
-  rawLines.forEach(line => {
-    const disp = (line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line;
+  // Pair each chord line with the lyric line below it (break-inside:avoid)
+  // so column breaks never split a chord from its lyric.
+  const pLines = collapseRepeatedChoruses(rawLines);
+  function renderChordDiv(l) {
+    var d = (l.startsWith('!') || l.startsWith('~')) ? l.slice(1) : l;
+    var h = '<div class="pl-chord">';
+    d.split(/(\s+)/).forEach(function(part) {
+      if (/^\s+$/.test(part)) { h += part; }
+      else if (isChordToken(part)) { h += '<span class="pl-ct">' + escapeHtml(part) + '</span>'; }
+      else { h += escapeHtml(part); }
+    });
+    return h + '</div>';
+  }
+  function renderLyricDiv(l) {
+    var d = (l.startsWith('!') || l.startsWith('~')) ? l.slice(1) : l;
+    return '<div class="pl-lyric">' + (escapeHtml(d) || '&nbsp;') + '</div>';
+  }
+  for (var li = 0; li < pLines.length; li++) {
+    var line = pLines[li];
     if (lineIsChordLine(line)) {
-      linesHtml += '<div class="pl-chord">';
-      disp.split(/(\s+)/).forEach(part => {
-        if (/^\s+$/.test(part)) { linesHtml += part; }
-        else if (isChordToken(part)) { linesHtml += '<span class="pl-ct">' + escapeHtml(part) + '</span>'; }
-        else { linesHtml += escapeHtml(part); }
-      });
-      linesHtml += '</div>';
+      var nextLine = pLines[li + 1];
+      var hasLyric = nextLine !== undefined && !lineIsChordLine(nextLine) && nextLine.trim() !== '';
+      if (hasLyric) {
+        linesHtml += '<div class="pl-pair">' + renderChordDiv(line) + renderLyricDiv(nextLine) + '</div>';
+        li++;  // consumed nextLine
+      } else {
+        linesHtml += renderChordDiv(line);
+      }
     } else {
-      linesHtml += '<div class="pl-lyric">' + (escapeHtml(disp) || '&nbsp;') + '</div>';
+      linesHtml += renderLyricDiv(line);
     }
-  });
+  }
 
   // ── Layout CSS ──
-  const pageSize  = onePage ? '@page{size:8.5in 11in;margin:0.5in;}' : '@page{margin:1cm;}';
+  const pageSize  = onePage
+    ? '@page{size:8.5in 11in;margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}'
+    : '@page{margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}';
   const colCSS    = (onePage && multiCol)
     ? 'column-count:2;column-gap:1.2em;column-rule:1px solid #ccc;'
     : '';
@@ -7971,11 +8249,12 @@ ${svgHTML}
   ${pageSize}
   ${scalingCSS}
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:${bodyFont};font-size:11pt;color:${textColor};${bgCSS}background-attachment:fixed;}
-  #pd-wrap{padding:0.3in;}
+  body{font-family:${bodyFont};font-size:9pt;color:${textColor};${bgCSS}background-size:cover;background-attachment:local;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+  #pd-wrap{padding:0.65in 0.75in;}
   h1{font-family:${titleFont};font-size:18pt;font-weight:700;margin-bottom:2pt;}
   h2{font-family:${titleFont};font-size:12pt;font-style:italic;font-weight:normal;margin-bottom:10pt;padding-bottom:6pt;border-bottom:1px solid #aaa;}
   .pd-content{${colCSS}}
+  .pl-pair{break-inside:avoid;page-break-inside:avoid;-webkit-column-break-inside:avoid;}
   .pl-chord{font-family:${chordFont};font-weight:bold;color:${chordColor};white-space:pre-wrap;line-height:1.4;margin-top:4pt;}
   .pl-ct{font-weight:bold;}
   .pl-lyric{white-space:pre-wrap;line-height:1.5;margin-bottom:1pt;}
@@ -8615,8 +8894,11 @@ function renderABCSong(song) {
     notationEl.appendChild(hdr);
     notationEl.appendChild(notDiv);
     var vo = ABCJS.renderAbc('abc-notation-' + i, block, {
-      responsive: 'resize', scale: 1.0, add_classes: true,
-      staffwidth: 760, paddingbottom: 20, paddingtop: 15,
+      responsive: 'resize', add_classes: true,
+      staffwidth: _wtActive ? 580 : 760,
+      paddingbottom: _wtActive ? 110 : 20,
+      paddingtop: 15,
+      scale: _wtActive ? 1.3 : 1.0,  // 1.3 spreads staves ~1.5x further apart
       visualTranspose: transposeAmount,
       // Explicit font stack prevents theme display-fonts cascading into SVG text
       format: {
@@ -8633,6 +8915,7 @@ function renderABCSong(song) {
       },
     });
     abcVisualObj.push(vo && vo[0] ? vo[0] : null);
+    if (_wtActive && vo && vo[0]) _wtInjectTabs(notDiv, vo[0]);
     (function(capturedIdx) {
       hdr.querySelector('button').addEventListener('click', function() {
         stopABCSynth();
@@ -8648,6 +8931,13 @@ function renderABCSong(song) {
   // Web Audio API player is always available  // Web Audio API player is always available
   document.getElementById('abc-play-btn').disabled = false;
   document.getElementById('abc-stop-btn').disabled = false;
+  if (_wtActive) {
+    // Apply transposition to the key before checking compatibility
+    var _warnKey = transposeAmount
+      ? (transposeKey(song.key || '', transposeAmount) || song.key || '')
+      : (song.key || '');
+    _wtShowWarning(_warnKey, _wtBaseMidi);
+  }
 }
 
 // Wire up ABC player controls once DOM is ready
@@ -8746,50 +9036,61 @@ function noteNameToMidi(name) {
   const acc  = {''  :0,'#':1,'♯':1,'b':-1,'♭':-1}[m[2]] || 0;
   return (parseInt(m[3]) + 1) * 12 + BASE[m[1]] + acc;
 }
-function midiToFreq(midi)  { return 440 * Math.pow(2, (midi - 69) / 12); }
-function freqToMidi(freq)  { return 69 + 12 * Math.log2(freq / 440); }
+function midiToFreq(midi)  { return _tunerA4Hz * Math.pow(2, (midi - 69) / 12); }
+function freqToMidi(freq)  { return 69 + 12 * Math.log2(freq / _tunerA4Hz); }
 
-// ── Autocorrelation pitch detection ──────────────────────────────────────────
+// ── YIN pitch detection (de Cheveigné & Kawahara 2002) ─────────────────────
+// CMND makes harmonics compete fairly — fundamental wins even when weaker.
+// Explicit threshold rejects noise. Sensitivity/A4 controls feed variables below.
+
+let _tunerRmsGate = 0.02;
+let _tunerA4Hz    = 440;
+
+// ── YIN pitch detection ──────────────────────────────────────────
 // Searches only lags corresponding to 40–2000 Hz to stay fast.
 function detectPitch(buf, sampleRate) {
   const SIZE = buf.length;
-  // RMS silence gate
+  const W    = SIZE >> 1;
   let rms = 0;
   for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
-  if (Math.sqrt(rms / SIZE) < 0.01) return -1;
+  if (Math.sqrt(rms / SIZE) < _tunerRmsGate) return -1;
 
-  const minLag = Math.floor(sampleRate / 2000);   // ~22 at 44100
-  const maxLag = Math.min(Math.ceil(sampleRate / 40), SIZE - 1); // ~1103
-
-  let bestCorr = 0, bestLag = -1;
-  // Normalise by zero-lag energy for relative comparison
-  let e0 = 0;
-  for (let i = 0; i < SIZE; i++) e0 += buf[i] * buf[i];
-
-  for (let lag = minLag; lag <= maxLag; lag++) {
-    let c = 0;
-    const n = SIZE - lag;
-    for (let i = 0; i < n; i++) c += buf[i] * buf[i + lag];
-    c /= n;
-    if (c > bestCorr) { bestCorr = c; bestLag = lag; }
+  // YIN Step 1: difference function
+  const d = new Float32Array(W);
+  for (let tau = 1; tau < W; tau++) {
+    let sum = 0;
+    for (let i = 0; i < W; i++) { const delta = buf[i]-buf[i+tau]; sum+=delta*delta; }
+    d[tau] = sum;
   }
-  if (bestLag < 1 || bestCorr < e0 * 0.01 / SIZE) return -1;
-
-  // Parabolic interpolation for sub-sample accuracy
-  if (bestLag > 0 && bestLag < maxLag) {
-    let cA = 0, cB = 0, cC = 0, n = SIZE - bestLag;
-    for (let i = 0; i < n; i++) {
-      cA += buf[i] * buf[i + bestLag - 1];
-      cB += buf[i] * buf[i + bestLag];
-      cC += buf[i] * buf[i + bestLag + 1];
+  // YIN Step 2: cumulative mean normalised difference (CMND)
+  const yin = new Float32Array(W);
+  yin[0] = 1;
+  let running = 0;
+  for (let tau = 1; tau < W; tau++) {
+    running += d[tau];
+    yin[tau] = running > 0 ? d[tau] * tau / running : 0;
+  }
+  // YIN Step 3: threshold search — rejects uncertain readings
+  const YIN_THRESH = 0.12;
+  const minTau = Math.floor(sampleRate / 2000);
+  const maxTau = Math.min(Math.ceil(sampleRate / 40), W - 2);
+  let tau = minTau;
+  while (tau <= maxTau) {
+    if (yin[tau] < YIN_THRESH) {
+      while (tau+1 <= maxTau && yin[tau+1] < yin[tau]) tau++;
+      break;
     }
-    cA /= n; cB /= n; cC /= n;
-    const denom = 2 * (cA + cC - 2 * cB);
-    if (denom < 0) bestLag -= (cC - cA) / denom;
+    tau++;
   }
-  return sampleRate / bestLag;
+  if (tau > maxTau) return -1;
+  // YIN Step 4: parabolic interpolation for sub-sample accuracy
+  if (tau > minTau && tau < maxTau) {
+    const s0=yin[tau-1], s1=yin[tau], s2=yin[tau+1];
+    const denom = 2*(2*s1-s2-s0);
+    if (denom !== 0) tau += (s2-s0)/denom;
+  }
+  return sampleRate / tau;
 }
-
 // Resolve CSS vars and apply real colors to SVG text — CSS fill is unreliable in SVG
 function applyTunerColors() {
   var cs  = getComputedStyle(document.documentElement);
@@ -9059,7 +9360,7 @@ async function startTuner() {
     tunerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const src = tunerAudioCtx.createMediaStreamSource(tunerStream);
     tunerAnalyser = tunerAudioCtx.createAnalyser();
-    tunerAnalyser.fftSize = 4096;  // larger = better low-freq resolution
+    tunerAnalyser.fftSize = 8192;  // 8192 → better resolution for low strings (82Hz)
     tunerBuf = new Float32Array(tunerAnalyser.fftSize);
     src.connect(tunerAnalyser);
     tunerActive = true;
@@ -9103,6 +9404,13 @@ document.getElementById('btn-tuner-mic').addEventListener('click', function() {
 document.getElementById('tuner-instrument').addEventListener('change', function() {
   tunerStringButtons();
 });
+document.getElementById('tuner-sensitivity').addEventListener('change', function() {
+  _tunerRmsGate = {high:0.008,medium:0.02,low:0.045}[this.value]||0.02;
+});
+document.getElementById('tuner-a4').addEventListener('change', function() {
+  _tunerA4Hz = parseInt(this.value)||440;
+  _tunerSmoothedMidi = -1; _tunerMidiHistory.length = 0;
+});
 
 // Close tuner mic when tuner panel closes
 document.addEventListener('click', function(e) {
@@ -9110,6 +9418,335 @@ document.addEventListener('click', function(e) {
   if (!wrap.contains(e.target) && tunerActive) {
     // Keep tuner running in background — don't auto-stop
   }
+});
+
+// ── TIN WHISTLE FINGERING TABS ───────────────────────────────────────────────
+// Injects per-note fingering diagrams into ABCJS SVG, positioned below each
+// notehead.  Simplified design: 6 dots (● covered ○ open ◑ half) + '+' for the
+// mouthpiece, no tube outline, fill=currentColor (matches sheet-music ink).
+
+const WT_FINGERS = {
+  // Diatonic — three octaves (0–35 semitones above root)
+   0:[1,1,1,1,1,1],  2:[0,1,1,1,1,1],  4:[0,0,1,1,1,1],
+   5:[0,0,0,1,1,1],  7:[0,0,0,0,1,1],  9:[0,0,0,0,0,1], 11:[0,0,0,0,0,0],
+  12:[1,1,1,1,1,1], 14:[0,1,1,1,1,1], 16:[0,0,1,1,1,1],
+  17:[0,0,0,1,1,1], 19:[0,0,0,0,1,1], 21:[0,0,0,0,0,1], 23:[0,0,0,0,0,0],
+  24:[1,1,1,1,1,1], 26:[0,1,1,1,1,1], 28:[0,0,1,1,1,1],
+  29:[0,0,0,1,1,1], 31:[0,0,0,0,1,1], 33:[0,0,0,0,0,1], 35:[0,0,0,0,0,0],
+  // Cross-fingerings for chromatic notes
+   1:[0,1,1,1,1,0], 13:[0,1,1,1,1,0], 25:[0,1,1,1,1,0],
+   3:[0,0,1,0,1,1], 15:[0,0,1,0,1,1], 27:[0,0,1,0,1,1],
+   6:[0,0,0,1,1,0], 18:[0,0,0,1,1,0], 30:[0,0,0,1,1,0],
+   8:[0,0,0,0,1,0], 20:[0,0,0,0,1,0], 32:[0,0,0,0,1,0],
+  10:[0,0,0,0,.5,.5], 22:[0,0,0,0,.5,.5], 34:[0,0,0,0,.5,.5],
+};
+let _wtActive   = false;
+let _wtBaseMidi = 62;
+var _wtRafMap   = {};  // notDiv.id → pending rAF id, for cancellation
+
+// ── Key compatibility ────────────────────────────────────────────────────────
+function _wtCrossFingerCount(keyStr, baseMidi) {
+  var km = (keyStr||'').match(/^([A-G][b#]?)\s*(m(?:in)?|dor|mix|lyd|phr)?/i);
+  if (!km) return 0;
+  var nm = {C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11,Cb:11};
+  var root = nm[km[1]]; if (root===undefined) return 0;
+  var mode = (km[2]||'').toLowerCase().slice(0,3);
+  var MI = {'':  [0,2,4,5,7,9,11],'maj':[0,2,4,5,7,9,11],
+            'm': [0,2,3,5,7,8,10],'min':[0,2,3,5,7,8,10],
+            'dor':[0,2,3,5,7,9,10],'mix':[0,2,4,5,7,9,10],
+            'lyd':[0,2,4,6,7,9,11],'phr':[0,1,3,5,7,8,10]};
+  var ivals = MI[mode]||MI[''];
+  var wbase = baseMidi%12;
+  var wNat  = new Set([0,2,4,5,7,9,11].map(function(i){return(wbase+i)%12;}));
+  return ivals.filter(function(i){return !wNat.has((root+i)%12);}).length;
+}
+function _wtShowWarning(keyStr, baseMidi) {
+  var el = document.getElementById('whistle-key-warning'); if (!el) return;
+  var cross = _wtCrossFingerCount(keyStr, baseMidi);
+  var wName = (document.getElementById('whistle-tab-key').selectedOptions[0]||{}).text||'';
+  if (!cross) { el.style.display='none'; return; }
+  el.style.display = '';
+  el.textContent = cross<=2
+    ? '⚠ '+keyStr+' needs cross-fingering for '+cross+' note(s) on the '+wName+'.'
+    : '⚠ '+keyStr+' is difficult on the '+wName+' ('+cross+' notes need cross-fingering). Try a different whistle key.';
+}
+
+// ── SVG injection ────────────────────────────────────────────────────────────
+function _wtInjectTabs(notDiv, visualObj) {
+  var _rafKey = notDiv.id || 'default';
+  if (_wtRafMap[_rafKey]) cancelAnimationFrame(_wtRafMap[_rafKey]);
+  _wtRafMap[_rafKey] = requestAnimationFrame(function() {
+    delete _wtRafMap[_rafKey];
+    if (!_wtActive) return;
+    var svgEl = notDiv.querySelector('svg');
+    if (!svgEl) return;
+
+    // Remove previously-injected tabs
+    var prev = svgEl.querySelectorAll('.wt-tab');
+    for (var p = 0; p < prev.length; p++) prev[p].parentNode.removeChild(prev[p]);
+
+    // ── MIDI sequence: use abcToNotes() for guaranteed-correct pitches ────────
+    // abcjs-basic's pitches[0].pitch encoding is unreliable across note types.
+    // abcToNotes() uses the same freq-based audio path that plays the tune —
+    // the values are always correct including key-sig accidentals + transposition.
+    // If it returns more notes than the SVG shows (expanded repeats), we just use
+    // as many as there are visual note elements (Math.min caps the loop).
+    var midiSeq = [];
+    var song = currentIdx >= 0 ? songs[currentIdx] : null;
+    if (song && song.abc_text) {
+      try {
+        var noteObjs = abcToNotes(song.abc_text, 120, transposeAmount || 0);
+        noteObjs.filter(function(n){ return n.freq > 0; }).forEach(function(n){
+          midiSeq.push(Math.round(freqToMidi(n.freq)));
+        });
+      } catch(e) {}
+    }
+    // Fallback: VisualObj pitches (chromatic offset from C4, +60 = MIDI)
+    if (!midiSeq.length) {
+      (visualObj.lines || []).forEach(function(line) {
+        (line.staff || []).forEach(function(staff) {
+          (staff.voices || []).forEach(function(voice) {
+            (voice || []).forEach(function(elem) {
+              if (elem.el_type !== 'note') return;
+              if (elem.midiPitches && elem.midiPitches.length) {
+                midiSeq.push(elem.midiPitches[0].pitch);
+              } else if (elem.pitches && elem.pitches.length) {
+                midiSeq.push(elem.pitches[0].pitch + 60);
+              }
+            });
+          });
+        });
+      });
+    }
+
+    // SVG note elements — exclude grace notes
+    var noteEls = Array.from(
+      svgEl.querySelectorAll('.abcjs-note')
+    ).filter(function(el) {
+      return !el.classList.contains('abcjs-gracenote') &&
+             !el.closest('.abcjs-gracenote');
+    });
+
+    // ── Position: midpoint between current staff-system bottom + next top ─────
+    // Cluster notes into horizontal systems by y-proximity, track each system's
+    // maxBottom (lowest element) and minTop (highest element).  After collecting
+    // all notes, sort systems top→bottom and compute each system's tab baseline
+    // as the exact midpoint between that system's maxBottom and the next system's
+    // minTop (or SVG height for the last system).  This places every tab column
+    // in the clear space between staves regardless of note pitch or ornaments.
+    var SYS_GAP = 50;  // SVG units — larger gap implies a new system
+    var systemList = [];
+    var noteInfo   = [];
+
+    for (var i = 0; i < noteEls.length; i++) {
+      try {
+        var bb = noteEls[i].getBBox();
+        if (!bb || (bb.width === 0 && bb.height === 0)) { noteInfo.push(null); continue; }
+        var nCY  = bb.y + bb.height / 2;
+        var nBot = bb.y + bb.height;
+        var nTop = bb.y;
+        var sys = null;
+        for (var s = 0; s < systemList.length; s++) {
+          if (Math.abs(systemList[s].cy - nCY) < SYS_GAP) { sys = systemList[s]; break; }
+        }
+        if (!sys) {
+          sys = { cy: nCY, maxBot: nBot, minTop: nTop };
+          systemList.push(sys);
+        }
+        if (nBot > sys.maxBot)   sys.maxBot  = nBot;
+        if (nTop < sys.minTop)   sys.minTop  = nTop;
+        noteInfo.push({ x: bb.x + bb.width / 2, sys: sys });
+      } catch(e) { noteInfo.push(null); }
+    }
+
+    // Sort systems top→bottom and compute tab Y = midpoint to next system
+    systemList.sort(function(a, b) { return a.cy - b.cy; });
+    var svgH = (svgEl.viewBox && svgEl.viewBox.baseVal.height > 0)
+               ? svgEl.viewBox.baseVal.height
+               : parseFloat(svgEl.getAttribute('height') || '800');
+    for (var s = 0; s < systemList.length; s++) {
+      var nextTop = (s + 1 < systemList.length)
+                   ? systemList[s + 1].minTop
+                   : svgH;
+      // Place tabs at 35% of the gap from the current staff's bottom.
+      // This keeps the tab column away from both the current staff's lowest
+      // elements AND the next staff's topmost notes/stems.
+      systemList[s].tabY = systemList[s].maxBot
+                         + (nextTop - systemList[s].maxBot) * 0.35;
+    }
+
+    var n = Math.min(midiSeq.length, noteInfo.length);
+    for (var i = 0; i < n; i++) {
+      var ni = noteInfo[i];
+      if (!ni) continue;
+      var g = _wtDiagramGroup(midiSeq[i]);
+      g.setAttribute('transform', 'translate(' + ni.x + ',' + ni.sys.tabY + ')');
+      svgEl.appendChild(g);
+    }
+  });
+}
+
+// One fingering diagram <g> (origin = top-centre)
+function _wtDiagramGroup(midi) {
+  // Holes drawn h5→h0 top-to-bottom (bell end at top, mouthpiece at bottom).
+  // This matches the player's view looking DOWN the whistle while playing:
+  // the bottom holes (right hand) are farthest away (top of diagram) and the
+  // top holes (left hand, nearest mouthpiece) are closest (bottom of diagram).
+  // The + mouthpiece marker sits at the very bottom, just below the last hole.
+  var ns='http://www.w3.org/2000/svg', HR=1.7, HS=4.5, GAP=2.0;
+  var raw=midi-_wtBaseMidi, inR=raw>=0&&raw<=35;
+  var rel=((raw%36)+36)%36, fingers=inR?WT_FINGERS[rel]:null;
+  var g=document.createElementNS(ns,'g'); g.classList.add('wt-tab');
+  g.setAttribute('fill','currentColor');
+
+  // Draw holes h5→h0 (reversed: right-hand holes at top, left-hand at bottom)
+  for (var di=0;di<6;di++) {
+    var h = 5 - di;  // physical hole index (5=right-ring … 0=left-index)
+    var hy = di*HS + (di>=3 ? GAP : 0);
+    var v  = fingers ? fingers[h] : null;
+    var c  = document.createElementNS(ns,'circle');
+    c.setAttribute('cx','0'); c.setAttribute('cy',''+hy); c.setAttribute('r',''+HR);
+    if (v===null) {
+      c.setAttribute('opacity','0.18'); g.appendChild(c);
+    } else if (v===1) {
+      g.appendChild(c);
+    } else if (v===0.5) {
+      var arc=document.createElementNS(ns,'path');
+      arc.setAttribute('d','M0,'+(hy-HR)+' A'+HR+','+HR+' 0 0,1 0,'+(hy+HR)+' Z');
+      g.appendChild(arc);
+      c.setAttribute('fill','none'); c.setAttribute('stroke','currentColor'); c.setAttribute('stroke-width','0.6');
+      g.appendChild(c);
+    } else {
+      c.setAttribute('fill','none'); c.setAttribute('stroke','currentColor'); c.setAttribute('stroke-width','0.65');
+      g.appendChild(c);
+    }
+  }
+  // + mouthpiece marker at bottom
+  var totalH = 5*HS + GAP;
+  var pl=document.createElementNS(ns,'text');
+  pl.setAttribute('text-anchor','middle'); pl.setAttribute('font-size','5');
+  pl.setAttribute('font-family','sans-serif');
+  pl.setAttribute('y',''+( totalH + 5.5 ));
+  pl.textContent='+'; g.appendChild(pl);
+  return g;
+}
+
+// ── Wire controls ────────────────────────────────────────────────────────────
+document.getElementById('btn-whistle-tab').addEventListener('click', function() {
+  _wtActive = !_wtActive;
+  this.classList.toggle('wt-on', _wtActive);
+  document.getElementById('whistle-tab-key').style.display = _wtActive ? '' : 'none';
+  if (!_wtActive) {
+    // Cancel any pending tab-injection frames and scrub existing diagrams
+    Object.keys(_wtRafMap).forEach(function(k) {
+      cancelAnimationFrame(_wtRafMap[k]); delete _wtRafMap[k];
+    });
+    document.querySelectorAll('.wt-tab').forEach(function(el) {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    document.getElementById('whistle-key-warning').style.display='none';
+  }
+  var song = currentIdx>=0 ? songs[currentIdx] : null;
+  if (song && song._source==='abc') renderABCSong(song);
+});
+
+document.getElementById('whistle-tab-key').addEventListener('change', function() {
+  _wtBaseMidi = parseInt(this.value)||62;
+  var song = currentIdx>=0 ? songs[currentIdx] : null;
+  if (_wtActive && song && song._source==='abc') renderABCSong(song);
+});
+
+// ── COLLECTIONS BROWSER ───────────────────────────────────────────────────────
+// Pre-made song sets hosted as JSON files. Change this URL to point at your own
+// collections manifest (a JSON file listing available collections with download URLs).
+var COLLECTIONS_MANIFEST_URL = './collections/manifest.json';
+
+function openCollectionsModal() {
+  var modal = document.getElementById('collections-modal');
+  modal.style.display = 'flex';
+  var list = document.getElementById('collections-list');
+  list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">Loading collections…</div>';
+
+  if (location.protocol === 'file:') {
+    list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
+      + 'Collections require an HTTP server. Open Magic Scroll via a web URL to use this feature.</div>';
+    return;
+  }
+
+  fetch(COLLECTIONS_MANIFEST_URL + '?_=' + Date.now())
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(data) {
+      var cols = data.collections || [];
+      if (!cols.length) {
+        list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
+          + 'No collections available yet.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      cols.forEach(function(col) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;'
+          + 'border-bottom:1px solid var(--c-chrome-border);';
+        var info = document.createElement('div');
+        info.style.flex = '1';
+        info.innerHTML = '<div style="font-size:0.75rem;font-weight:bold;color:var(--c-chrome-text);">'
+          + escapeHtml(col.name || 'Unnamed') + '</div>'
+          + '<div style="font-size:0.65rem;color:var(--c-chrome-muted);">'
+          + escapeHtml(col.description || '') + (col.count ? ' · ' + col.count + ' songs' : '') + '</div>';
+        var btn = document.createElement('button');
+        btn.textContent = '+ Add';
+        btn.style.cssText = 'font-size:0.7rem;padding:3px 10px;flex-shrink:0;';
+        btn.addEventListener('click', function() {
+          btn.disabled = true; btn.textContent = 'Adding…';
+          fetchAndAddCollection(col, btn);
+        });
+        row.appendChild(info); row.appendChild(btn);
+        list.appendChild(row);
+      });
+    })
+    .catch(function() {
+      list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
+        + 'Could not load collections manifest. Check that the file exists at:<br>'
+        + '<code style="font-size:0.62rem;">' + COLLECTIONS_MANIFEST_URL + '</code></div>';
+    });
+}
+
+function fetchAndAddCollection(col, btn) {
+  fetch(col.url + '?_=' + Date.now())
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(config) {
+      if (!config.songs || !Array.isArray(config.songs)) throw new Error('Invalid collection format');
+      var offset = songs.length;
+      var addedIndices = [];
+      config.songs.forEach(function(s) {
+        if (!songs.some(function(ex){ return ex.title === s.title && ex.artist === s.artist; })) {
+          addedIndices.push(songs.length);
+          songs.push(s);
+        }
+      });
+      if (addedIndices.length > 0) {
+        var folderName = col.name || config.name || 'Collection';
+        folders.push({ id: makeFolderId(), name: folderName, songIndices: addedIndices, collapsed: false });
+        saveAll(); buildSongList('');
+        if (currentIdx < 0 && songs.length > 0) renderSong(0);
+        btn.textContent = '✓ Added (' + addedIndices.length + ')';
+      } else {
+        btn.textContent = 'Already in library';
+        btn.disabled = false;
+      }
+    })
+    .catch(function(e) {
+      btn.textContent = 'Failed'; btn.disabled = false;
+      console.error('Collection fetch failed:', e);
+    });
+}
+
+document.getElementById('btn-collections').addEventListener('click', openCollectionsModal);
+document.getElementById('btn-collections-close').addEventListener('click', function() {
+  document.getElementById('collections-modal').style.display = 'none';
+});
+document.getElementById('collections-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
 });
 
 // ── SERVICE WORKER — offline caching for PWA install ─────────────────────────
