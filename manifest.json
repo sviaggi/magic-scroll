@@ -26,6 +26,15 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  "_comment": "Magic Scroll collections manifest. Add entries here to make collections available in the Browse Collections panel.",
+  "version": 1,
+  "collections": [
+    {
+      "name": "Sunny's Folk Collection",
+      "description": "A handful of folk & folk-adjacent songs I'd compiled for my repertoire!",
+      "url": "./sunny-s-folk-collection.json",
+      "count": 8
+    }
   ],
   "lang": "en"
 }

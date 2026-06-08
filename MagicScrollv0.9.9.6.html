@@ -4026,35 +4026,37 @@ document.getElementById('import-config-input').addEventListener('change', e => {
     try {
       const config = JSON.parse(ev.target.result);
       if (!config.songs || !Array.isArray(config.songs)) { alert('Not a valid Magic Scroll config file.'); return; }
-      // Merge songs and track which new indices were added
-      const offset = songs.length;
-      const addedIndices = [];
+      // Map every config song to a library index — new songs are appended,
+      // songs already in the library are found by title+artist and reused.
+      // Using all library indices (not just new ones) means re-importing the
+      // same file still places songs in a folder even if they already existed.
+      const configToLib = {};
       config.songs.forEach((s, ci) => {
-        if (!songs.some(ex => ex.title === s.title && ex.artist === s.artist)) {
-          addedIndices.push(songs.length);
+        const existIdx = songs.findIndex(
+          ex => ex.title === s.title && ex.artist === s.artist);
+        if (existIdx >= 0) {
+          configToLib[ci] = existIdx;
+        } else {
+          configToLib[ci] = songs.length;
           songs.push(s);
         }
       });
-      // Restore any folders from the config (remapping indices)
-      (config.folders || []).forEach(f => {
-        const existing = folders.find(ef => ef.name === f.name);
+      const allLibIndices = Object.values(configToLib);
+      if (allLibIndices.length > 0) {
+        // Derive folder name from the .json filename
+        const raw = (file.name || config.name || 'Import')
+          .replace(/\.json$/i, '').replace(/[-_]/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase()).trim() || 'Imported Songs';
+        // Update existing folder of that name, or create a new one
+        const existing = folders.find(f => f.name === raw);
         if (existing) {
-          f.songIndices.forEach(i => {
-            const ni = i + offset;
-            if (ni < songs.length && !existing.songIndices.includes(ni)) existing.songIndices.push(ni);
+          allLibIndices.forEach(i => {
+            if (!existing.songIndices.includes(i)) existing.songIndices.push(i);
           });
         } else {
-          folders.push({ ...f, id: makeFolderId(), songIndices: f.songIndices.map(i => i + offset) });
+          folders.push({ id: makeFolderId(), name: raw,
+                         songIndices: allLibIndices, collapsed: false });
         }
-      });
-      // If the config has no folders, wrap the imported songs in a new folder
-      // named after the file (or the config's own name/title field).
-      if (!(config.folders && config.folders.length) && addedIndices.length > 0) {
-        const raw = config.name || file.name || 'Import';
-        const folderName = raw.replace(/\.json$/i,'').replace(/[-_]/g,' ')
-                              .replace(/\b\w/g, c => c.toUpperCase()).trim()
-                           || 'Imported Songs';
-        folders.push({ id: makeFolderId(), name: folderName, songIndices: addedIndices, collapsed: false });
       }
       saveAll();
       buildSongList('');
