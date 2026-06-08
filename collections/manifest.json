@@ -10,7 +10,7 @@
     },
     {
       "name": "The Session Top 150",
-      "description": "The top 150 tunes saved on The Session website! Plus one more as a bonus.",
+      "description": "The top 150 tunes saved on The Session website!",
       "url": "./collections/the-session-top-150.json",
       "count": 8
     }
