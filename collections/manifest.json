@@ -1,0 +1,40 @@
+{
+  "name": "Magic Scroll",
+  "short_name": "Magic Scroll",
+  "description": "Song/Sheet Music offline reader with chord diagrams, tuner, and metronome",
+  "start_url": "./MagicScrollv0.9.9.6.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f0d09",
+  "theme_color": "#0f0d09",
+  "categories": [
+    "music",
+    "entertainment",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  "_comment": "Magic Scroll collections manifest. Add entries here to make collections available in the Browse Collections panel.",
+  "version": 1,
+  "collections": [
+    {
+      "name": "Sunny's Folk Collection",
+      "description": "A handful of folk & folk-adjacent songs I'd compiled for my repertoire!",
+      "url": "./sunny-s-folk-collection.json",
+      "count": 8
+    }
+  ],
+  "lang": "en"
+}
