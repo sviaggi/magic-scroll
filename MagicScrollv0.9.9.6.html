@@ -2082,8 +2082,8 @@
       <button id="btn-bulk-delete" class="danger" title="Delete selected">✕ Delete</button>
       <button id="btn-bulk-cancel" title="Cancel selection">Cancel</button>
     </div>
-    <label id="drop-zone" for="file-input">
-      <div>Drop files here</div>
+    <label id="drop-zone" style="cursor:pointer;">
+      <div>Open files here</div>
       <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl · .midi</div>
     </label>
     <input type="file" id="file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" multiple>
@@ -2092,8 +2092,7 @@
     <div id="sidebar-footer">
       <button id="btn-new-song-sidebar" title="Create a new blank song">✦ New</button>
       <button id="btn-new-folder" title="Create a new folder to organise songs into">📁 Folder</button>
-      <button id="btn-export-config" title="Export songs to file">⬇ Export</button>
-      <button id="btn-import-config" title="Import songs from file">⬆ Import</button>
+      <button id="btn-export-config" title="Save library to file · Shift+click for Save As">Export library</button>
       <button id="btn-collections" title="Browse and add pre-made song collections">📦 Collections</button>
     </div>
   </div>
@@ -4000,18 +3999,147 @@ document.getElementById('btn-new-folder').addEventListener('click', () => {
 
 // ── EXPORT CONFIG ─────────────────────────────────────────────────────────────
 // saves songs + folder structure to a .json file the user can move between devices
-document.getElementById('btn-export-config').addEventListener('click', () => {
-  const config = {
+// ── FILE SYSTEM ACCESS API — in-place save/open ──────────────────────────────
+// Stored when the user opens or saves a file via the FSA picker.
+// Subsequent saves write directly to this handle (no download prompt).
+var _configFileHandle = null;
+
+// showOpenFilePicker: Chrome 86+, Firefox 111+, Safari 15.2+
+// showSaveFilePicker: Chrome 86+, Safari 16.4+ (Firefox: behind flag)
+// createWritable():   available wherever showOpenFilePicker is
+function _hasOpenPicker() { return typeof window.showOpenFilePicker === 'function'; }
+function _hasSavePicker() { return typeof window.showSaveFilePicker === 'function'; }
+
+function _buildConfigJSON() {
+  return JSON.stringify({
     _magic_scroll_version: 8,
     exported: new Date().toISOString(),
-    songs: songs.map(s => { const c = Object.assign({}, s); if (c.raw_html && c.raw_html.length > 512000) delete c.raw_html; return c; }),
-    folders,
-  };
-  const blob = new Blob([JSON.stringify(config, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
+    songs: songs.map(function(s) {
+      var c = Object.assign({}, s);
+      if (c.raw_html && c.raw_html.length > 512000) delete c.raw_html;
+      return c;
+    }),
+    folders: folders,
+  }, null, 2);
+}
+
+function _downloadConfigBlob(data, name) {
+  var blob = new Blob([data], {type: 'application/json'});
+  var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'magic-scroll-config.json';
-  a.click(); URL.revokeObjectURL(a.href);
+  a.download = name || 'magic-scroll-config.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function _showSavedToast(msg) {
+  var t = document.getElementById('save-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'save-toast';
+    t.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);'
+      + 'background:var(--c-accent,#6a4);color:#fff;padding:5px 16px;border-radius:20px;'
+      + 'font-size:0.72rem;z-index:9999;pointer-events:none;transition:opacity .4s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg || '✓ Saved';
+  t.style.opacity = '1';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function() { t.style.opacity = '0'; }, 1800);
+}
+
+var _FSA_OPTS = {
+  types: [{ description: 'Magic Scroll library', accept: { 'application/json': ['.json'] } }],
+  excludeAcceptAllOption: false,
+};
+
+// Save: write to known handle silently; first time (or Shift+click) → pick location
+document.getElementById('btn-export-config').addEventListener('click', async function(e) {
+  var data = _buildConfigJSON();
+  var saveAs = e.shiftKey;
+
+  // ── In-place save: we already have a handle (opened via FSA picker) ────
+  // createWritable works in Chrome, Firefox 111+, Safari 15.2+ — wherever
+  // showOpenFilePicker is available, so Firefox/Safari get silent saves too.
+  if (!saveAs && _configFileHandle) {
+    try {
+      var writable = await _configFileHandle.createWritable();
+      await writable.write(data);
+      await writable.close();
+      _showSavedToast('✓ Saved — ' + (await _configFileHandle.getFile()).name);
+      return;
+    } catch(err) {
+      if (err && err.name === 'AbortError') return;
+      console.warn('In-place save failed:', err);
+      // fall through to Save As
+    }
+  }
+
+  // ── Save As: pick a new location (Chrome/Edge/Safari 16.4+) ─────────
+  if (_hasSavePicker()) {
+    try {
+      var handle = await window.showSaveFilePicker(
+        Object.assign({ suggestedName: 'magic-scroll-config.json' }, _FSA_OPTS));
+      var writable2 = await handle.createWritable();
+      await writable2.write(data);
+      await writable2.close();
+      _configFileHandle = handle;   // future saves go here
+      _showSavedToast('✓ Saved — ' + (await handle.getFile()).name);
+      return;
+    } catch(err) {
+      if (err && err.name === 'AbortError') return;
+      console.warn('Save As failed, falling back to download:', err);
+    }
+  }
+
+  // ── Fallback: download blob (Firefox Save As, or no FSA support) ─────
+  _downloadConfigBlob(data);
+});
+
+// Open: use FSA showOpenFilePicker to get a writable handle when available
+// Drop zone click: open file picker — FSA when available for writable handle.
+// Supports all file types; Magic Scroll JSON configs also store the file handle
+// so that 'Export library' can write back in place (works in Chrome, Firefox
+// 111+, Safari 15.2+ — the full range of showOpenFilePicker support).
+var _ALL_FILE_TYPES = {
+  types: [
+    { description: 'All supported files',
+      accept: { 'application/json':['json'], 'text/plain':['txt','abc'],
+                'text/html':['html','htm'], 'audio/midi':['mid','midi'],
+                'application/vnd.recordare.musicxml+xml':['xml','mxl'] } }
+  ], multiple: true, excludeAcceptAllOption: false
+};
+document.getElementById('drop-zone').addEventListener('click', async function() {
+  if (_hasOpenPicker()) {
+    try {
+      var handles = await window.showOpenFilePicker(_ALL_FILE_TYPES);
+      for (var hi = 0; hi < handles.length; hi++) {
+        var handle = handles[hi];
+        var file   = await handle.getFile();
+        var lname  = file.name.toLowerCase();
+        if (lname.endsWith('.json')) {
+          try {
+            var text = await file.text();
+            var json = JSON.parse(text);
+            if (json.songs && Array.isArray(json.songs)) {
+              // Magic Scroll library — store handle for in-place saves
+              _configFileHandle = handle;
+              importMagicScrollConfig(json, file.name);
+              continue;
+            }
+          } catch(pe) { /* not valid JSON — fall through to loadFile */ }
+        }
+        // Non-config or non-JSON: use the standard song importer
+        loadFile(file);
+      }
+    } catch(err) {
+      if (err && err.name === 'AbortError') return;
+      console.warn('FSA open failed, falling back to file input:', err);
+      document.getElementById('file-input').click();
+    }
+  } else {
+    document.getElementById('file-input').click();
+  }
 });
 
 
@@ -4080,9 +4208,7 @@ function importMagicScrollConfig(config, filename) {
 }
 
 // ── IMPORT CONFIG ─────────────────────────────────────────────────────────────
-document.getElementById('btn-import-config').addEventListener('click', () => {
-  document.getElementById('import-config-input').click();
-});
+
 document.getElementById('import-config-input').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   e.target.value = '';
