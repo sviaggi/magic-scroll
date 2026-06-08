@@ -25,7 +25,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    }
+    },
   "_comment": "Magic Scroll collections manifest. Add entries here to make collections available in the Browse Collections panel.",
   "version": 1,
   "collections": [
@@ -33,7 +33,7 @@
       "name": "Sunny's Folk Collection",
       "description": "A handful of folk & folk-adjacent songs I'd compiled for my repertoire!",
       "url": "./collections/sunny-s-folk-collection.json",
-    }
+    },
     {
       "name": "The Session Top 150",
       "description": "The top 150 tunes saved on The Session website! Plus one more as a bonus.",
