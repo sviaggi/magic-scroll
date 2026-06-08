@@ -4014,6 +4014,71 @@ document.getElementById('btn-export-config').addEventListener('click', () => {
   a.click(); URL.revokeObjectURL(a.href);
 });
 
+
+// ── IMPORT MAGIC SCROLL CONFIG ────────────────────────────────────────────────
+// Shared by both the Import button handler and the drag-drop/file-picker
+// loadFile path so folder creation works regardless of how the file arrives.
+function importMagicScrollConfig(config, filename) {
+  // Step 1: map every config song → library index.
+  // New songs are appended; existing songs are found by title+artist so that
+  // re-importing the same file still produces a folder.
+  var newlyAdded   = [];   // indices of songs just pushed to library
+  var alreadyHad   = [];   // indices of songs that were already in library
+  for (var ci = 0; ci < config.songs.length; ci++) {
+    var cs = config.songs[ci];
+    var found = -1;
+    for (var li = 0; li < songs.length; li++) {
+      if (songs[li].title === cs.title && songs[li].artist === cs.artist) {
+        found = li; break;
+      }
+    }
+    if (found >= 0) {
+      alreadyHad.push(found);
+    } else {
+      newlyAdded.push(songs.length);
+      songs.push(cs);
+    }
+  }
+  var allIndices = newlyAdded.concat(alreadyHad);
+
+  // Step 2: derive folder name from the .json filename.
+  var rawName = (filename || config.name || 'import.json')
+    .replace(/\.json$/i, '').replace(/[-_]/g, ' ').trim();
+  var words = rawName.split(' ');
+  for (var w = 0; w < words.length; w++) {
+    if (words[w]) words[w] = words[w][0].toUpperCase() + words[w].slice(1);
+  }
+  var folderName = words.join(' ') || 'Imported Songs';
+
+  // Step 3: create or update that folder.
+  // Always run even when all songs were already in the library.
+  if (allIndices.length > 0) {
+    var existing = null;
+    for (var k = 0; k < folders.length; k++) {
+      if (folders[k].name === folderName) { existing = folders[k]; break; }
+    }
+    if (existing) {
+      for (var m = 0; m < allIndices.length; m++) {
+        if (existing.songIndices.indexOf(allIndices[m]) < 0) {
+          existing.songIndices.push(allIndices[m]);
+        }
+      }
+    } else {
+      folders.push({
+        id: makeFolderId(),
+        name: folderName,
+        songIndices: allIndices.slice(),
+        collapsed: false
+      });
+    }
+  }
+
+  // Step 4: persist + re-render (mirrors fetchAndAddCollection exactly).
+  saveAll();
+  buildSongList('');
+  if (songs.length > 0 && currentIdx < 0) renderSong(0);
+}
+
 // ── IMPORT CONFIG ─────────────────────────────────────────────────────────────
 document.getElementById('btn-import-config').addEventListener('click', () => {
   document.getElementById('import-config-input').click();
@@ -4026,41 +4091,7 @@ document.getElementById('import-config-input').addEventListener('change', e => {
     try {
       const config = JSON.parse(ev.target.result);
       if (!config.songs || !Array.isArray(config.songs)) { alert('Not a valid Magic Scroll config file.'); return; }
-      // Map every config song to a library index — new songs are appended,
-      // songs already in the library are found by title+artist and reused.
-      // Using all library indices (not just new ones) means re-importing the
-      // same file still places songs in a folder even if they already existed.
-      const configToLib = {};
-      config.songs.forEach((s, ci) => {
-        const existIdx = songs.findIndex(
-          ex => ex.title === s.title && ex.artist === s.artist);
-        if (existIdx >= 0) {
-          configToLib[ci] = existIdx;
-        } else {
-          configToLib[ci] = songs.length;
-          songs.push(s);
-        }
-      });
-      const allLibIndices = Object.values(configToLib);
-      if (allLibIndices.length > 0) {
-        // Derive folder name from the .json filename
-        const raw = (file.name || config.name || 'Import')
-          .replace(/\.json$/i, '').replace(/[-_]/g, ' ')
-          .replace(/\b\w/g, c => c.toUpperCase()).trim() || 'Imported Songs';
-        // Update existing folder of that name, or create a new one
-        const existing = folders.find(f => f.name === raw);
-        if (existing) {
-          allLibIndices.forEach(i => {
-            if (!existing.songIndices.includes(i)) existing.songIndices.push(i);
-          });
-        } else {
-          folders.push({ id: makeFolderId(), name: raw,
-                         songIndices: allLibIndices, collapsed: false });
-        }
-      }
-      saveAll();
-      buildSongList('');
-      if (songs.length > 0 && currentIdx < 0) renderSong(0);
+      importMagicScrollConfig(config, file.name);
     } catch(err) { alert('Could not parse config file:\n' + err.message); }
   };
   reader.readAsText(file);
@@ -4504,15 +4535,7 @@ function loadFile(file) {
         const json = JSON.parse(raw);
         // Detect Magic Scroll config format (has a songs array at top level)
         if (!Array.isArray(json) && Array.isArray(json.songs)) {
-          // Always merge — never replace the existing library
-          const offset = songs.length;
-          json.songs.forEach(function(s) {
-            if (!songs.some(function(ex) { return ex.title===s.title && ex.artist===s.artist; }))
-              songs.push(s);
-          });
-          saveSongs();
-          buildSongList();
-          if (songs.length > 0) renderSong(offset > 0 ? offset : 0);
+          importMagicScrollConfig(json, file.name);
           return;
         }
         data = Array.isArray(json) ? json : [json];
@@ -6916,8 +6939,15 @@ function makeFretboardSVG(frets, fingers, base, barres, numStrings, scale) {
   const tc = '#1a1208';
   const bc = '#a09080';
   let svg=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
-  if(base===1){svg+=`<rect x="12" y="${fretY(0)-2}" width="${strX(numStrings-1)-strX(0)}" height="3" fill="${tc}" rx="1"/>`;}
-  else{svg+=`<text x="8" y="${fretY(0)+5}" font-size="7" fill="${tc}" text-anchor="middle">${base}fr</text>`;svg+=`<line x1="12" y1="${fretY(0)}" x2="${strX(numStrings-1)}" y2="${fretY(0)}" stroke="${bc}" stroke-width="1"/>`;}
+  // Nut (thick bar) at fret 1; thin top line at fret 2; fret label only at 3+
+  if(base===1){
+    svg+=`<rect x="12" y="${fretY(0)-2}" width="${strX(numStrings-1)-strX(0)}" height="3" fill="${tc}" rx="1"/>`;
+  } else if(base===2) {
+    svg+=`<line x1="12" y1="${fretY(0)}" x2="${strX(numStrings-1)}" y2="${fretY(0)}" stroke="${bc}" stroke-width="1"/>`;
+  } else {
+    svg+=`<text x="8" y="${fretY(0)+5}" font-size="7" fill="${tc}" text-anchor="middle">${base}fr</text>`;
+    svg+=`<line x1="12" y1="${fretY(0)}" x2="${strX(numStrings-1)}" y2="${fretY(0)}" stroke="${bc}" stroke-width="1"/>`;
+  }
   for(let f=1;f<=numFrets;f++) svg+=`<line x1="12" y1="${fretY(f)}" x2="${strX(numStrings-1)}" y2="${fretY(f)}" stroke="${bc}" stroke-width="0.8"/>`;
   for(let s=0;s<numStrings;s++) svg+=`<line x1="${strX(s)}" y1="${fretY(0)}" x2="${strX(s)}" y2="${fretY(numFrets)}" stroke="${tc}" stroke-width="0.8"/>`;
   if(barres) barres.forEach(b=>{const rf=b.fret-base+1;const x1=strX(b.from-1),x2=strX(b.to-1);const y=fretY(rf)-7;svg+=`<rect x="${x1}" y="${y}" width="${x2-x1}" height="8" rx="4" fill="${ac}" opacity="0.85"/>`;});
@@ -6963,7 +6993,7 @@ function renderChordDiagram(name, inst, scale) {
   }
   const data=getChordDiagram(name,inst); if(!data) return null;
   // 6-string instruments: standard guitar + all alternate guitar tunings
-  const SIX_STRING = new Set(['guitar','drop_d','dadgad','open_g','mandolin','mandola']);
+  const SIX_STRING = new Set(['guitar','drop_d','dadgad','open_g']);  // mandolin/mandola are 4-string
   const numStrings = SIX_STRING.has(inst) ? 6 : 4;
   return makeFretboardSVG(data.frets,data.fingers,data.base||1,data.barres,numStrings,scale);
 }
@@ -9691,10 +9721,18 @@ function openCollectionsModal() {
           + 'border-bottom:1px solid var(--c-chrome-border);';
         var info = document.createElement('div');
         info.style.flex = '1';
-        info.innerHTML = '<div style="font-size:0.75rem;font-weight:bold;color:var(--c-chrome-text);">'
-          + escapeHtml(col.name || 'Unnamed') + '</div>'
-          + '<div style="font-size:0.65rem;color:var(--c-chrome-muted);">'
-          + escapeHtml(col.description || '') + (col.count ? ' · ' + col.count + ' songs' : '') + '</div>';
+        // Build the subtitle span — count starts as '…' and is replaced once
+        // we fetch the real JSON (manifest counts are often stale/wrong).
+        var countSpan = document.createElement('span');
+        countSpan.textContent = ' · …';
+        var subtitle = document.createElement('div');
+        subtitle.style.cssText = 'font-size:0.65rem;color:var(--c-chrome-muted);';
+        subtitle.textContent = col.description || '';
+        subtitle.appendChild(countSpan);
+        var title = document.createElement('div');
+        title.style.cssText = 'font-size:0.75rem;font-weight:bold;color:var(--c-chrome-text);';
+        title.textContent = col.name || 'Unnamed';
+        info.appendChild(title); info.appendChild(subtitle);
         var btn = document.createElement('button');
         btn.textContent = '+ Add';
         btn.style.cssText = 'font-size:0.7rem;padding:3px 10px;flex-shrink:0;';
@@ -9704,6 +9742,19 @@ function openCollectionsModal() {
         });
         row.appendChild(info); row.appendChild(btn);
         list.appendChild(row);
+        // Fetch the real count from the collection JSON in the background.
+        // This replaces '…' with the actual number regardless of manifest.
+        if (col.url) {
+          fetch(col.url + '?_=' + Date.now())
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function(cdata) {
+              var n = Array.isArray(cdata.songs) ? cdata.songs.length : 0;
+              countSpan.textContent = n > 0 ? ' · ' + n + ' song' + (n !== 1 ? 's' : '') : '';
+            })
+            .catch(function() { countSpan.textContent = ''; });
+        } else {
+          countSpan.textContent = '';
+        }
       });
     })
     .catch(function() {
