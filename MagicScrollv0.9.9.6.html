@@ -1788,6 +1788,106 @@
   .ls-timesig{position:absolute;top:3px;right:5px;font-size:0.58rem;color:var(--c-chrome-muted);font-weight:bold;}
   .ls-ending{position:absolute;top:2px;right:5px;font-size:0.6rem;
     color:var(--c-chrome-muted);border-top:1px solid var(--c-accent);padding-top:1px;}
+
+  /* ── PUBLISH MODAL ───────────────────────────────────────────────────────── */
+  #publish-modal, #online-preview-modal {
+    display: none;
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.55);
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #publish-modal.open, #online-preview-modal.open { display: flex; }
+  .pub-box, .preview-box {
+    background: var(--c-chrome-bg2);
+    border: 1px solid var(--c-chrome-border);
+    border-radius: 6px;
+    padding: 22px 24px;
+    max-width: 480px; width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .pub-box h3, .preview-box h3 {
+    margin: 0 0 14px;
+    font-size: 1rem;
+    color: var(--c-chrome-text);
+  }
+  .pub-warning {
+    font-size: 0.78rem;
+    color: var(--c-chrome-muted);
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }
+  .pub-warning li { margin-bottom: 5px; }
+  .pub-song-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--c-accent);
+    margin-bottom: 16px;
+  }
+  .pub-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .pub-status { font-size: 0.75rem; color: var(--c-chrome-muted); margin-top: 10px; text-align: center; min-height: 1em; }
+  /* online preview */
+  .preview-box { max-width: 600px; max-height: 80vh; display: flex; flex-direction: column; }
+  .preview-scroll { overflow-y: auto; flex: 1; margin: 10px 0; }
+  .preview-content {
+    font-family: monospace;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    color: var(--c-chrome-text);
+    background: var(--c-chrome-bg);
+    border: 1px solid var(--c-chrome-border);
+    border-radius: 4px;
+    padding: 12px;
+    line-height: 1.6;
+  }
+  .preview-meta { font-size: 0.75rem; color: var(--c-chrome-muted); margin-bottom: 8px; }
+
+  /* ── ONLINE SEARCH RESULTS ───────────────────────────────────────────────── */
+  .online-section-header {
+    padding: 5px 10px 3px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-chrome-muted);
+    border-top: 1px solid var(--c-chrome-border);
+    margin-top: 4px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .online-spinner {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border: 1.5px solid var(--c-chrome-muted);
+    border-top-color: var(--c-accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .online-song-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin: 1px 4px;
+  }
+  .online-song-item:hover { background: var(--c-chrome-bg3); }
+  .online-song-item .osi-cloud {
+    font-size: 0.7rem; color: var(--c-accent); flex-shrink: 0; opacity: 0.8;
+  }
+  .online-song-item .osi-text { flex: 1; min-width: 0; }
+  .online-song-item .osi-title {
+    font-size: 0.82rem; color: var(--c-chrome-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .online-song-item .osi-artist {
+    font-size: 0.7rem; color: var(--c-chrome-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .online-song-item.already-local .osi-title { opacity: 0.45; }
+  .online-song-item.already-local::after {
+    content: '✓';
+    font-size: 0.65rem; color: var(--c-chrome-muted); flex-shrink: 0;
+  }
 </style>
 
 <script src="abcjs-basic.js"></script>
@@ -2136,6 +2236,8 @@
     <div id="song-list"></div>
     <div id="bulk-bar">
       <span id="bulk-count">0 selected</span>
+      <button id="btn-bulk-select-all" title="Select all visible songs">All</button>
+      <button id="btn-bulk-publish" title="Publish selected songs to online library">☁ Publish</button>
       <button id="btn-bulk-folder" title="Move selected to folder">📁 Folder</button>
       <button id="btn-bulk-delete" class="danger" title="Delete selected">✕ Delete</button>
       <button id="btn-bulk-cancel" title="Cancel selection">Cancel</button>
@@ -2217,6 +2319,7 @@
       <button id="btn-edit-toggle" title="Toggle between edit and read mode">✎ Edit</button>
       <button id="btn-save" title="Save changes to this song (Ctrl+S)">💾 Save</button>
       <button id="btn-save-as" title="Download this song as a .txt file">⬇ Save As…</button>
+      <button id="btn-publish-song" title="Publish this song to the online library">☁ Publish</button>
       <span id="save-status"></span>
     </div>
     <div id="song-card">
@@ -2397,6 +2500,43 @@ Another lyric line
 </div>
 <div id="scroll-bar"><div id="scroll-progress"></div></div>
 
+
+<!-- ── PUBLISH WARNING MODAL ──────────────────────────────────────────────── -->
+<div id="publish-modal">
+  <div class="pub-box">
+    <h3>☁ Publish to Online Library</h3>
+    <div class="pub-song-name" id="pub-song-name"></div>
+    <div class="pub-warning">
+      <strong>Before you publish, please confirm:</strong>
+      <ul>
+        <li>Publishing is <strong>final</strong> — the published version can't be changed or removed without an administrator.</li>
+        <li>Don't submit a minor edit or revised version if a similar song already exists in the library.</li>
+        <li>Don't publish something that isn't useful to other players — personal annotations, incomplete drafts, or private variations aren't a good fit. Remember there are offline functions if you need to share something with a small group-- You can just save the file to your device and send it over Whatsapp, Discord, or other messaging apps instead!</li>
+        <li>Make sure the song is <strong>complete</strong>: lyrics, chords, key/capo info, and any other details should be thoroughly checked before committing.</li>
+      </ul>
+    </div>
+    <div class="pub-actions">
+      <button id="pub-cancel-btn">Cancel</button>
+      <button id="pub-confirm-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Publish</button>
+    </div>
+    <div class="pub-status" id="pub-status"></div>
+  </div>
+</div>
+
+<!-- ── ONLINE SONG PREVIEW MODAL ─────────────────────────────────────────── -->
+<div id="online-preview-modal">
+  <div class="preview-box">
+    <h3>☁ Online Song Preview</h3>
+    <div class="preview-meta" id="online-preview-meta"></div>
+    <div class="preview-scroll">
+      <div class="preview-content" id="online-preview-content"></div>
+    </div>
+    <div class="pub-actions">
+      <button id="online-preview-close">Close</button>
+      <button id="online-preview-add" style="background:var(--c-accent);color:var(--c-chrome-bg);">+ Add to Library</button>
+    </div>
+  </div>
+</div>
 
 <!-- right-click context menu for tab content -->
 <div id="ctx-menu">
@@ -3704,6 +3844,7 @@ function makeSongItem(i, q) {
 
   const item = document.createElement('div');
   item.className = 'song-item' + (i === currentIdx ? ' active' : '');
+  item.dataset.songIdx = i;
   if (match.type === 'lyric') item.classList.add('search-match-lyric');
 
   // checkbox (visible in multiselect mode)
@@ -3817,6 +3958,7 @@ function makeSongItem(i, q) {
     saveSongs();
     buildSongList(document.getElementById('search-input').value);
   }));
+  menu.appendChild(makeMenuItem('☁ Publish…', '', () => showPublishModal([i])));
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'skm-sep' }));
   menu.appendChild(makeMenuItem('✕ Remove', 'danger', () => removeSong(i)));
 
@@ -3936,9 +4078,11 @@ function buildSongList(query) {
     if (count === 0 && songs.length > 0) {
       const empty = document.createElement('div');
       empty.style.cssText = 'padding:12px;font-size:0.75rem;color:var(--c-chrome-muted);text-align:center;';
-      empty.textContent = 'No results';
+      empty.textContent = 'No local results';
       list.appendChild(empty);
     }
+    // Trigger online search alongside local results
+    scheduleOnlineSearch(q);
     return;
   }
 
@@ -4074,6 +4218,7 @@ document.getElementById('search-input').addEventListener('input', e => {
 });
 document.getElementById('btn-search-clear').addEventListener('click', () => {
   document.getElementById('search-input').value = '';
+  clearOnlineResults();
   buildSongList('');
 });
 
@@ -6486,7 +6631,7 @@ const CHORD_DATA = {
     'A#dim':{frets:[2, 3, 2, 3],fingers:[1, 2, 1, 3],base:2,barres:[{fret:2,from:1,to:3}]},
     'Bbdim':{frets:[2, 3, 2, 3],fingers:[1, 2, 1, 3],base:2,barres:[{fret:2,from:1,to:3}]},
     'B':{frets:[1, 4, 0, 2],fingers:[2, 3, 0, 4],base:1},
-    'Bm':{frets:[0, 4, 3, 2],fingers:[0, 2, 0, 3],base:2},
+    'Bm':{frets:[0, 4, 0, 2],fingers:[0, 2, 0, 3],base:2},
     'B6':{frets:[1, 1, 0, 2],fingers:[1, 1, 0, 2],base:1,barres:[{fret:1,from:1,to:2}]},
     'Bm6':{frets:[0, 1, 0, 2],fingers:[0, 2, 0, 3],base:1},
     'B7':{frets:[1, 2, 0, 2],fingers:[2, 3, 0, 4],base:1},
@@ -10508,7 +10653,230 @@ document.getElementById('btn-install-app').addEventListener('click', function() 
   if (mp) document.body.appendChild(mp);
 })();
 
-// Apply saved diagram scale immediately so the panel is right on first open
+// ── SUPABASE CONFIG ──────────────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://zpjaxauiuhvbvufrruhq.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_-ni2auG8V1xtw9MCxe1-Vw_ixflmdkZ';
+const FUNCTIONS_BASE    = SUPABASE_URL + '/functions/v1';
+
+// ── PUBLISH MODAL ─────────────────────────────────────────────────────────────
+let _publishIndices = [];
+
+function showPublishModal(indices) {
+  _publishIndices = indices;
+  const modal = document.getElementById('publish-modal');
+  const nameEl = document.getElementById('pub-song-name');
+  document.getElementById('pub-status').textContent = '';
+  document.getElementById('pub-confirm-btn').disabled = false;
+
+  if (indices.length === 1) {
+    const s = songs[indices[0]];
+    nameEl.textContent = (s.title || 'Untitled') + (s.artist ? ' — ' + s.artist : '');
+  } else {
+    nameEl.textContent = indices.length + ' songs selected';
+  }
+  modal.classList.add('open');
+}
+
+document.getElementById('pub-cancel-btn').addEventListener('click', () => {
+  document.getElementById('publish-modal').classList.remove('open');
+});
+
+document.getElementById('publish-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('pub-confirm-btn').addEventListener('click', async () => {
+  const btn    = document.getElementById('pub-confirm-btn');
+  const status = document.getElementById('pub-status');
+  btn.disabled = true;
+  status.textContent = '';
+
+  const results = { ok: 0, dup: 0, err: 0 };
+  for (const idx of _publishIndices) {
+    const s = songs[idx];
+    const content = s.tab_content || s.content || s.tab || '';
+    try {
+      const res = await fetch(FUNCTIONS_BASE + '/publish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ title: s.title || 'Untitled', artist: s.artist || null, content }),
+      });
+      if (res.status === 201)     results.ok++;
+      else if (res.status === 409) results.dup++;
+      else                         results.err++;
+    } catch {
+      results.err++;
+    }
+  }
+
+  const parts = [];
+  if (results.ok)  parts.push(results.ok  + ' published ✓');
+  if (results.dup) parts.push(results.dup + ' already in library');
+  if (results.err) parts.push(results.err + ' failed');
+  status.textContent = parts.join(' · ');
+
+  btn.disabled = false;
+  if (results.ok > 0 || results.dup > 0) {
+    setTimeout(() => document.getElementById('publish-modal').classList.remove('open'), 2000);
+  }
+});
+
+// ── PUBLISH BUTTON ON SONG PAGE ───────────────────────────────────────────────
+document.getElementById('btn-publish-song').addEventListener('click', () => {
+  if (currentIdx < 0) return;
+  showPublishModal([currentIdx]);
+});
+
+// ── BULK PUBLISH ──────────────────────────────────────────────────────────────
+document.getElementById('btn-bulk-publish').addEventListener('click', () => {
+  if (!selectedSongs.size) return;
+  showPublishModal([...selectedSongs]);
+});
+
+// ── SELECT ALL ────────────────────────────────────────────────────────────────
+document.getElementById('btn-bulk-select-all').addEventListener('click', () => {
+  document.querySelectorAll('#song-list .song-item').forEach(item => {
+    const idx = parseInt(item.dataset.songIdx);
+    if (isNaN(idx)) return;
+    const cb = item.querySelector('.song-check');
+    if (cb) cb.checked = true;
+    selectedSongs.add(idx);
+  });
+  updateBulkBar();
+});
+
+// ── ONLINE SEARCH ─────────────────────────────────────────────────────────────
+let _onlineSearchTimer = null;
+let _onlinePreviewSong = null;
+
+function clearOnlineResults() {
+  document.querySelectorAll('.online-section-header, .online-song-item').forEach(el => el.remove());
+}
+
+function scheduleOnlineSearch(query) {
+  clearTimeout(_onlineSearchTimer);
+  // Remove any existing online section (stale from prior query)
+  clearOnlineResults();
+
+  if (!navigator.onLine) return;
+  if (!query || query.length < 2) return;
+
+  // Show a loading indicator immediately
+  const list = document.getElementById('song-list');
+  const hdr = document.createElement('div');
+  hdr.className = 'online-section-header';
+  hdr.id = 'online-section-hdr';
+  hdr.innerHTML = '<span class="online-spinner"></span><span>Online</span>';
+  list.appendChild(hdr);
+
+  _onlineSearchTimer = setTimeout(() => doOnlineSearch(query), 400);
+}
+
+async function doOnlineSearch(query) {
+  const hdr = document.getElementById('online-section-hdr');
+  try {
+    const res = await fetch(
+      FUNCTIONS_BASE + '/search?q=' + encodeURIComponent(query) + '&limit=20',
+      { headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const results = await res.json();
+
+    // Clear spinner from header
+    if (hdr) hdr.innerHTML = '<span>☁ Online</span>';
+
+    // Build a set of local content hashes for dedup detection
+    const localHashes = new Set(songs.map(s => {
+      const c = s.tab_content || s.content || s.tab || '';
+      return c.trim(); // simple text comparison (full hash would need crypto, this is fine for display)
+    }));
+
+    const list = document.getElementById('song-list');
+
+    if (!results.length) {
+      const none = document.createElement('div');
+      none.className = 'online-song-item';
+      none.style.cssText = 'color:var(--c-chrome-muted);font-size:0.75rem;cursor:default;';
+      none.textContent = 'No online matches';
+      list.appendChild(none);
+      return;
+    }
+
+    results.forEach(r => {
+      const alreadyLocal = songs.some(s => s.content_hash === r.content_hash ||
+        (s.title||'').toLowerCase() === (r.title||'').toLowerCase() &&
+        (s.tab_content||s.content||s.tab||'').trim() === (r.content||'').trim()
+      );
+
+      const item = document.createElement('div');
+      item.className = 'online-song-item' + (alreadyLocal ? ' already-local' : '');
+      item.innerHTML =
+        '<span class="osi-cloud">☁</span>' +
+        '<span class="osi-text">' +
+          '<div class="osi-title">' + escapeHtml(r.title || 'Untitled') + '</div>' +
+          (r.artist ? '<div class="osi-artist">' + escapeHtml(r.artist) + '</div>' : '') +
+        '</span>';
+
+      item.addEventListener('click', () => openOnlinePreview(r, alreadyLocal));
+      list.appendChild(item);
+    });
+
+  } catch (err) {
+    if (hdr) { hdr.innerHTML = '<span style="color:var(--c-chrome-muted)">☁ Offline</span>'; }
+  }
+}
+
+// ── ONLINE PREVIEW MODAL ──────────────────────────────────────────────────────
+function openOnlinePreview(song, alreadyLocal) {
+  _onlinePreviewSong = song;
+  const modal   = document.getElementById('online-preview-modal');
+  const metaEl  = document.getElementById('online-preview-meta');
+  const bodyEl  = document.getElementById('online-preview-content');
+  const addBtn  = document.getElementById('online-preview-add');
+
+  metaEl.textContent = [song.title, song.artist].filter(Boolean).join(' — ');
+  bodyEl.textContent = song.content || '';
+
+  if (alreadyLocal) {
+    addBtn.textContent = '✓ Already in Library';
+    addBtn.disabled = true;
+  } else {
+    addBtn.textContent = '+ Add to Library';
+    addBtn.disabled = false;
+  }
+  modal.classList.add('open');
+}
+
+document.getElementById('online-preview-close').addEventListener('click', () => {
+  document.getElementById('online-preview-modal').classList.remove('open');
+});
+
+document.getElementById('online-preview-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('online-preview-add').addEventListener('click', () => {
+  if (!_onlinePreviewSong) return;
+  const r = _onlinePreviewSong;
+  const newSong = {
+    title:       r.title || 'Untitled',
+    artist:      r.artist || '',
+    tab_content: r.content || '',
+    content:     r.content || '',
+    _source:     'plaintext',
+    content_hash: r.content_hash || null,
+  };
+  songs.push(newSong);
+  saveSongs();
+  buildSongList(document.getElementById('search-input').value);
+  renderSong(songs.length - 1);
+  document.getElementById('online-preview-modal').classList.remove('open');
+});
+
+// ── Apply saved diagram scale immediately so the panel is right on first open
 setDiagramScale(diagramScale);
 buildSongList();
 // For first-time users the demo commit() handles renderSong;
