@@ -1654,6 +1654,37 @@
   }
   .abc-ctrl-btn { font-size:0.78rem; padding:4px 12px; }
   #abc-tempo-label { font-size:0.7rem; min-width:50px; }
+  /* Sheet-music playhead cursor injected by TimingCallbacks */
+  .abcjs-cursor {
+    position: absolute;
+    background: rgba(255, 190, 30, 0.22);
+    border-left: 2px solid rgba(255, 170, 0, 0.75);
+    pointer-events: none;
+    z-index: 2;
+    border-radius: 2px;
+    transition: left 0.06s linear, top 0.12s linear;
+  }
+  /* Wider hit-target on mobile for the progress scrubber */
+  #abc-progress {
+    height: 18px !important;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  #abc-progress::-webkit-slider-runnable-track {
+    height: 3px;
+    background: var(--c-chrome-border);
+    border-radius: 2px;
+  }
+  #abc-progress::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--c-accent);
+    margin-top: -6.5px;
+    cursor: pointer;
+  }
   #abc-notation {
     overflow-x: auto;
     /* Reset font-family so theme display fonts don't cascade into
@@ -8874,10 +8905,12 @@ function parseABCFile(text, filename) {
   }];
 }
 
-let abcAudioCtx  = null;
-let abcPlaying   = false;
-let abcVisualObj = null;
-let abcStopFn    = null;
+let abcAudioCtx   = null;
+let abcPlaying    = false;
+let abcVisualObj  = null;
+let abcStopFn     = null;
+let _abcScrubbing = false;   // true while user is dragging the progress bar
+let _abcCursorTC  = null;    // ABCJS.TimingCallbacks instance for the note cursor
 
 function getABCAudioCtx() {
   // Shares the same AudioContext as the metronome so clocks are identical
@@ -8972,7 +9005,14 @@ function calcDur(numStr, slashes, denStr, unit) {
   return unit * num / den;
 }
 
+function _stopABCCursor() {
+  if (_abcCursorTC) { try { _abcCursorTC.stop(); } catch(e) {} _abcCursorTC = null; }
+  document.querySelectorAll('.abcjs-cursor').forEach(function(el) { el.remove(); });
+}
+
 function stopABCSynth() {
+  _stopABCCursor();
+  _abcScrubbing = false;
   window.abcMeasureDur = 0; window.abcMeasureStart = 0;
   if (abcStopFn) { abcStopFn(); abcStopFn = null; }
   abcPlaying = false;
@@ -9082,24 +9122,81 @@ function startABCSynth(tuneIdx, seekFrac) {
   window.abcMeasureDur   = (60 / bpm4sync) * (4 / parseInt(sig4sync[1] || 4)) * parseInt(sig4sync[0] || 4);
   window.abcMeasureStart = ctx.currentTime + startOffset;
 
+  // ── Sheet music cursor via ABCJS.TimingCallbacks ────────────────────────────
+  _stopABCCursor();
+  const _curTuneIdx = tuneIdx || 0;
+  const _curVO = abcVisualObj && abcVisualObj[_curTuneIdx];
+  const _curNotDiv = document.getElementById('abc-notation-' + _curTuneIdx);
+  if (_curVO && _curNotDiv && typeof ABCJS !== 'undefined' && ABCJS.TimingCallbacks) {
+    _curNotDiv.style.position = 'relative';
+    var _cursor = document.createElement('div');
+    _cursor.className = 'abcjs-cursor';
+    _curNotDiv.appendChild(_cursor);
+    try {
+      _abcCursorTC = new ABCJS.TimingCallbacks(_curVO, {
+        qpm: bpm,
+        eventCallback: function(ev) {
+          if (!ev) { _stopABCCursor(); return; }
+          // Extra vertical padding so the highlight clears whistle-tab diagrams
+          var extraH = _wtActive ? 90 : 8;
+          _cursor.style.left   = ev.left + 'px';
+          _cursor.style.top    = (ev.top - 4) + 'px';
+          _cursor.style.width  = ev.width + 'px';
+          _cursor.style.height = (ev.height + extraH) + 'px';
+          _cursor.style.display = '';
+        }
+      });
+      // Delay start to match audio startOffset
+      setTimeout(function() {
+        if (_abcCursorTC) _abcCursorTC.start();
+      }, startOffset * 1000);
+      // Seek cursor to correct position if seekFrac > 0
+      if (seekFrac > 0 && _abcCursorTC && _abcCursorTC.setProgress) {
+        // Sync after start; slight delay to let TimingCallbacks init
+        setTimeout(function() {
+          if (_abcCursorTC) _abcCursorTC.setProgress(seekFrac);
+        }, startOffset * 1000 + 20);
+      }
+    } catch(e) { _abcCursorTC = null; }
+  }
+
+  // ── Progress bar RAF & scrub handling ────────────────────────────────────────
   let rafId;
   function tick() {
     if (!abcPlaying) return;
-    const elapsed = ctx.currentTime - startCtxTime - startOffset;
-    const pct     = Math.min(100, (elapsed / totalDur) * 100);
-    if (progressEl) progressEl.value = pct;
-    if (curEl)      curEl.textContent = fmtTime(Math.max(0, elapsed));
-    if (elapsed < totalDur) rafId = requestAnimationFrame(tick);
-    else stopABCSynth();
+    if (!_abcScrubbing) {
+      const elapsed = ctx.currentTime - startCtxTime - startOffset;
+      const pct     = Math.min(100, (elapsed / totalDur) * 100);
+      if (progressEl) progressEl.value = pct;
+      if (curEl)      curEl.textContent = fmtTime(Math.max(0, elapsed));
+      if (elapsed >= totalDur) { stopABCSynth(); return; }
+    }
+    rafId = requestAnimationFrame(tick);
   }
   rafId = requestAnimationFrame(tick);
 
   if (progressEl) {
-    progressEl.oninput = function() {
-      if (!abcPlaying) return;
-      const sf = this.value / 100;
+    // Pause progress updates while the user drags the bar (prevents bar fighting user)
+    function _onScrubStart() { _abcScrubbing = true; }
+    function _onScrubEnd() {
+      if (!_abcScrubbing) return;
+      _abcScrubbing = false;
+      const sf = parseFloat(progressEl.value) / 100;
       stopABCSynth();
       startABCSynth(window._abcLastTuneIdx || 0, sf);
+    }
+    progressEl.addEventListener('mousedown',  _onScrubStart);
+    progressEl.addEventListener('touchstart', _onScrubStart, { passive: true });
+    progressEl.addEventListener('mouseup',    _onScrubEnd);
+    progressEl.addEventListener('touchend',   _onScrubEnd);
+    progressEl.addEventListener('change',     _onScrubEnd);  // keyboard / fallback
+    // Cleanup: remove listeners on stop
+    var _removeScrubListeners = function() {
+      progressEl.removeEventListener('mousedown',  _onScrubStart);
+      progressEl.removeEventListener('touchstart', _onScrubStart);
+      progressEl.removeEventListener('mouseup',    _onScrubEnd);
+      progressEl.removeEventListener('touchend',   _onScrubEnd);
+      progressEl.removeEventListener('change',     _onScrubEnd);
     };
   }
 
@@ -9108,7 +9205,7 @@ function startABCSynth(tuneIdx, seekFrac) {
     clearInterval(schedulerTimer);
     clearTimeout(timer);
     cancelAnimationFrame(rafId);
-    if (progressEl) { progressEl.value = 0; progressEl.oninput = null; }
+    if (progressEl) { progressEl.value = 0; if (_removeScrubListeners) _removeScrubListeners(); }
     scheduled.forEach(o => { try { o.stop(); } catch(e) {} });
     gain.disconnect();
   };
@@ -10227,11 +10324,28 @@ if ('serviceWorker' in navigator &&
 // All we do here is capture the browser's deferred install prompt and wire the button.
 let _pwaPrompt = null;
 
+// Hide the install button immediately if already running as an installed PWA.
+// Some Android Chrome builds fire beforeinstallprompt even in standalone mode,
+// so we check display-mode here rather than relying on the event not firing.
+(function() {
+  var btn = document.getElementById('btn-install-app');
+  if (!btn) return;
+  function _checkPWAMode() {
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+      btn.style.display = 'none';
+      btn.dataset.pwaInstalled = '1';
+    }
+  }
+  _checkPWAMode();
+  try { window.matchMedia('(display-mode: standalone)').addEventListener('change', _checkPWAMode); } catch(e) {}
+})();
+
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   _pwaPrompt = e;
   var btn = document.getElementById('btn-install-app');
-  if (btn) btn.style.display = '';
+  // Don't re-show the button if we detected standalone mode above
+  if (btn && !btn.dataset.pwaInstalled) btn.style.display = '';
 });
 
 window.addEventListener('appinstalled', function() {
