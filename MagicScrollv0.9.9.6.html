@@ -2338,7 +2338,7 @@ Another lyric line
       📱 <a href="https://www.instagram.com/spencer.california/">@Spencer.California</a>
     </div>
     <div class="contact-muted">
-      Please include the song file and a description of what went wrong.<br>Version: 0.9.9.5
+      Please include the song file and a description of what went wrong.<br>Version: 0.9.9.6
     </div>
     <div><a href="https://ko-fi.com/spencercalifornia" target="_blank">Like the project? A donation would mean the world! ☕ 🌍</a></div>
     <!-- ── FAQ / Credits loaded from FAQ.txt ────────────────────────── -->
@@ -8997,64 +8997,78 @@ function startABCSynth(tuneIdx, seekFrac) {
   }
   if (!notes.length) { document.getElementById('abc-status').textContent = '⚠ No notes found'; return; }
 
-  const ctx   = getABCAudioCtx();
-  // Android / mobile: if the context is still suspended, kick resume() once
-  // more synchronously.  The promise is already resolved by the time we get
-  // here (called from _getRunningCtx().then()), but the audio clock may not
-  // have started advancing yet on slower devices.
+  const ctx  = getABCAudioCtx();
   if (ctx.state === 'suspended') { try { ctx.resume(); } catch(e) {} }
-  const gain  = ctx.createGain();
+  const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.3, ctx.currentTime);
   gain.connect(ctx.destination);
 
   // Sync with metronome: if metro is running, wait for the next downbeat.
-  // Otherwise use 200ms headroom (was 50ms — too short after a cold resume
-  // on Android Chrome where JS parse time can consume the buffer).
   let startOffset = 0.25;
   if (metroRunning && typeof metroNextDownbeat === 'function') {
     const db = metroNextDownbeat(ctx.currentTime);
     startOffset = Math.max(0.25, db - ctx.currentTime);
   }
-  // Re-read currentTime right before the note loop to account for time
-  // spent in abcToNotes() parsing above.
-  let t = ctx.currentTime + startOffset;
-  const scheduled = [];
+
   const notesTotalDur = notes.reduce((s,n)=>s+n.dur,0);
-  const seekTime = notesTotalDur * seekFrac;  // seconds to skip
+  const seekTime      = notesTotalDur * seekFrac;
+
+  // ── Incremental lookahead scheduler ────────────────────────────────────────
+  // Scheduling all notes at once overwhelms Android's audio thread, causing
+  // the first note to play then silence, and muting the metronome.  Instead,
+  // schedule only LOOKAHEAD seconds ahead and refill every SCHEDULE_MS ms.
+  const LOOKAHEAD   = 1.5;   // seconds of notes to keep pre-scheduled
+  const SCHEDULE_MS = 250;   // refill interval
+
+  let t         = ctx.currentTime + startOffset;
+  const startCtxTime = ctx.currentTime;
+  let noteIndex = 0;
+  const scheduled = [];
+
+  // Advance past seek point
   let elapsed2 = 0;
-  for (const { freq, dur } of notes) {
-    elapsed2 += dur;
-    if (elapsed2 <= seekTime) { t += dur; continue; }  // skip to seek point
-    if (freq > 0) {
-      if (!playNoteFromSFZ(ctx, gain, freq, t, dur)) {
-        const osc = ctx.createOscillator();
-        osc.type = 'triangle';
-        osc.frequency.value = freq;
-        const env = ctx.createGain();
-        osc.connect(env); env.connect(gain);
-        env.gain.setValueAtTime(0, t);
-        env.gain.linearRampToValueAtTime(1, t + 0.01);
-        env.gain.setValueAtTime(1, t + dur * 0.7);
-        env.gain.linearRampToValueAtTime(0, t + dur * 0.95);
-        osc.start(t); osc.stop(t + dur);
-        scheduled.push(osc);
-      }
-    }
-    t += dur;
+  while (noteIndex < notes.length) {
+    elapsed2 += notes[noteIndex].dur;
+    if (elapsed2 > seekTime) break;
+    t += notes[noteIndex].dur;
+    noteIndex++;
   }
+
+  function _schedOneNote(freq, dur) {
+    if (!playNoteFromSFZ(ctx, gain, freq, t, dur)) {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const env = ctx.createGain();
+      osc.connect(env); env.connect(gain);
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(1, t + 0.01);
+      env.gain.setValueAtTime(1, t + dur * 0.7);
+      env.gain.linearRampToValueAtTime(0, t + dur * 0.95);
+      osc.start(t); osc.stop(t + dur);
+      scheduled.push(osc);
+    }
+  }
+
+  function scheduleChunk() {
+    if (!abcPlaying) return;
+    const until = ctx.currentTime + LOOKAHEAD;
+    while (noteIndex < notes.length && t < until) {
+      const { freq, dur } = notes[noteIndex++];
+      if (freq > 0) _schedOneNote(freq, dur);
+      t += dur;
+    }
+  }
+
+  scheduleChunk();                                       // prime the pump
+  const schedulerTimer = setInterval(scheduleChunk, SCHEDULE_MS);
 
   abcPlaying = true;
   document.getElementById('abc-play-btn').textContent = '⏸ Pause';
   document.getElementById('abc-status').textContent = '';
 
-  // Drive the progress bar and auto-stop
-  const totalDur   = t - ctx.currentTime;
-  const startCtxTime = ctx.currentTime;
-  // Expose measure timing so metronome can sync to it
-  const bpm4sync = parseInt(document.getElementById('abc-tempo').value) || 120;
-  const sig4sync = (document.getElementById('abc-time-sig').value || '4/4').split('/');
-  window.abcMeasureDur   = (60 / bpm4sync) * (4 / parseInt(sig4sync[1] || 4)) * parseInt(sig4sync[0] || 4);
-  window.abcMeasureStart = ctx.currentTime + startOffset;
+  // Progress & auto-stop
+  const totalDur = notesTotalDur - seekTime;
   const progressEl = document.getElementById('abc-progress');
   const curEl      = document.getElementById('abc-time-cur');
   const totEl      = document.getElementById('abc-time-total');
@@ -9062,32 +9076,36 @@ function startABCSynth(tuneIdx, seekFrac) {
   if (totEl) totEl.textContent = fmtTime(totalDur);
   if (progressEl) { progressEl.value = 0; }
 
+  // Expose measure timing so metronome can sync to it
+  const bpm4sync = parseInt(document.getElementById('abc-tempo').value) || 120;
+  const sig4sync = (document.getElementById('abc-time-sig').value || '4/4').split('/');
+  window.abcMeasureDur   = (60 / bpm4sync) * (4 / parseInt(sig4sync[1] || 4)) * parseInt(sig4sync[0] || 4);
+  window.abcMeasureStart = ctx.currentTime + startOffset;
+
   let rafId;
   function tick() {
     if (!abcPlaying) return;
-    const elapsed = ctx.currentTime - startCtxTime;
+    const elapsed = ctx.currentTime - startCtxTime - startOffset;
     const pct     = Math.min(100, (elapsed / totalDur) * 100);
     if (progressEl) progressEl.value = pct;
-    if (curEl)      curEl.textContent = fmtTime(elapsed);
+    if (curEl)      curEl.textContent = fmtTime(Math.max(0, elapsed));
     if (elapsed < totalDur) rafId = requestAnimationFrame(tick);
     else stopABCSynth();
   }
   rafId = requestAnimationFrame(tick);
 
-  // Seekable: clicking progress bar restarts at that position
   if (progressEl) {
     progressEl.oninput = function() {
       if (!abcPlaying) return;
-      const seekFrac = this.value / 100;
+      const sf = this.value / 100;
       stopABCSynth();
-      // Restart from the seek fraction (pass as option)
-      const _tuneIdx = window._abcLastTuneIdx || 0;
-      startABCSynth(_tuneIdx, seekFrac);
+      startABCSynth(window._abcLastTuneIdx || 0, sf);
     };
   }
 
-  const timer = setTimeout(() => stopABCSynth(), totalDur * 1000 + 500);
+  const timer = setTimeout(() => stopABCSynth(), (totalDur + startOffset + 0.5) * 1000);
   abcStopFn = () => {
+    clearInterval(schedulerTimer);
     clearTimeout(timer);
     cancelAnimationFrame(rafId);
     if (progressEl) { progressEl.value = 0; progressEl.oninput = null; }
