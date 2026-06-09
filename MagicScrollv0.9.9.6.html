@@ -2116,7 +2116,7 @@
     <input type="file" id="refresh-file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" style="display:none">
     <input type="file" id="import-config-input" accept=".json" style="display:none">
     <div id="sidebar-footer">
-      <button id="btn-install-app" style="display:none;" title="Install Magic Scroll to your home screen / desktop">📲 Download app</button>
+      <button id="btn-install-app" title="Install Magic Scroll to your home screen / desktop">📲 Download app</button>
       <button id="btn-new-song-sidebar" title="Create a new blank song">✦ New</button>
       <button id="btn-new-folder" title="Create a new folder to organise songs into">📁 Folder</button>
       <button id="btn-export-config" title="Save library to file · Shift+click for Save As">Export library</button>
@@ -3439,6 +3439,33 @@ function detectKey(songText) {
 function normaliseKeyStr(k) {
   if (!k) return '';
   k = k.trim();
+
+  // ── ABC modal keys  e.g. Ador Dmix Bphr Clyd Eaeo Gion ──────────────────
+  // Convert to the parent major key (same key signature).
+  // Examples:  A Dorian → G,  D Mixolydian → G,  E Aeolian → G (→ stored as G,
+  // and the user sees "G" as the equivalent key signature label).
+  // Ionian is identical to major so it just returns the root note directly.
+  var modal = k.match(/^([A-G][b#]?)\s*(dor|phr|lyd|mix|aeo|loc|ion)/i);
+  if (modal) {
+    var mroot  = modal[1];
+    var mmode  = modal[2].toLowerCase();
+    // How many semitones above the parent major root does each mode start?
+    var modeOffset = { ion:0, dor:2, phr:4, lyd:5, mix:7, aeo:9, loc:11 };
+    var offset = modeOffset[mmode];
+    if (offset === 0) return mroot;   // Ionian = major, no conversion needed
+    var NI = { C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11 };
+    // Prefer flats for 'b' accidentals, sharps for '#'
+    var SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    var FLAT  = ['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+    var ri = NI[mroot];
+    if (ri === undefined) return mroot;
+    var parentIdx = ((ri - offset) % 12 + 12) % 12;
+    // Use flat spellings for flat-leaning keys (Db Eb Ab Bb) else sharp
+    var useFLAT = [1,3,8,10].indexOf(parentIdx) !== -1;
+    return useFLAT ? FLAT[parentIdx] : SHARP[parentIdx];
+  }
+
+  // ── Standard major / minor labels ─────────────────────────────────────────
   // Explicit mode list — no \b so Python escaping can't corrupt the regex
   var m = k.match(/^([A-G][b#]?)\s*(minor|major|min|maj|m|M)?(?=[^a-zA-Z]|$)/i);
   if (!m) return k;
@@ -8983,10 +9010,10 @@ function startABCSynth(tuneIdx, seekFrac) {
   // Sync with metronome: if metro is running, wait for the next downbeat.
   // Otherwise use 200ms headroom (was 50ms — too short after a cold resume
   // on Android Chrome where JS parse time can consume the buffer).
-  let startOffset = 0.20;
+  let startOffset = 0.25;
   if (metroRunning && typeof metroNextDownbeat === 'function') {
     const db = metroNextDownbeat(ctx.currentTime);
-    startOffset = Math.max(0.20, db - ctx.currentTime);
+    startOffset = Math.max(0.25, db - ctx.currentTime);
   }
   // Re-read currentTime right before the note loop to account for time
   // spent in abcToNotes() parsing above.
@@ -9230,8 +9257,13 @@ document.getElementById('btn-abc-save-as').addEventListener('click', () => {
 
 document.getElementById('abc-play-btn').addEventListener('click', function() {
   if (abcPlaying) { stopABCSynth(); return; }
-  _getRunningCtx().then(function() { startABCSynth(0); })
-                  .catch(function() { startABCSynth(0); });
+  // After resume() resolves, the audio clock may take a moment to start
+  // advancing on Android (it starts at 0 and the engine needs one buffer
+  // cycle before currentTime > 0). A 150 ms settle gap before scheduling
+  // all notes means ctx.currentTime is non-zero when startABCSynth reads it,
+  // so the notes land safely in the future rather than the past.
+  function doStart() { setTimeout(function() { startABCSynth(0); }, 150); }
+  _getRunningCtx().then(doStart).catch(doStart);
 });
 document.getElementById('abc-stop-btn').addEventListener('click', stopABCSynth);
 document.getElementById('abc-tempo').addEventListener('input', function() {
@@ -10192,18 +10224,30 @@ window.addEventListener('appinstalled', function() {
 });
 
 document.getElementById('btn-install-app').addEventListener('click', function() {
-  if (!_pwaPrompt) {
-    showToast('Open this page in Chrome or Edge to install it as an app');
+  if (_pwaPrompt) {
+    // Browser provided an install prompt — use it directly
+    _pwaPrompt.prompt();
+    _pwaPrompt.userChoice.then(function(r) {
+      _pwaPrompt = null;
+      if (r.outcome === 'accepted') {
+        var btn = document.getElementById('btn-install-app');
+        if (btn) btn.style.display = 'none';
+      }
+    });
     return;
   }
-  _pwaPrompt.prompt();
-  _pwaPrompt.userChoice.then(function(r) {
-    _pwaPrompt = null;
-    if (r.outcome === 'accepted') {
-      var btn = document.getElementById('btn-install-app');
-      if (btn) btn.style.display = 'none';
-    }
-  });
+  // No deferred prompt — show platform-specific manual install instructions.
+  // beforeinstallprompt may not fire on some Android builds or first visits.
+  var ua = navigator.userAgent || '';
+  var isAndroid = /android/i.test(ua);
+  var isIOS     = /iphone|ipad|ipod/i.test(ua);
+  if (isAndroid) {
+    showToast('Tap the ⋮ menu in Chrome → “Add to Home screen”');
+  } else if (isIOS) {
+    showToast('Tap the Share button → “Add to Home Screen”');
+  } else {
+    showToast('Click the install icon (⤵) in the browser address bar');
+  }
 });
 
 // ── INIT — restore songs from localStorage and render the first one if any ──
