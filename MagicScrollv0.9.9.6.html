@@ -1658,8 +1658,10 @@
      so SVG-user-unit coordinates from TimingCallbacks apply directly with no
      pixel scaling needed (works correctly with responsive resize + scale:1.3) */
   .abcjs-cursor-rect {
-    fill: rgba(255, 190, 30, 0.10);
-    stroke: rgba(255, 155, 0, 0.40);
+    fill: var(--c-accent);
+    fill-opacity: 0.13;
+    stroke: var(--c-accent);
+    stroke-opacity: 0.45;
     stroke-width: 1.5px;
     pointer-events: none;
   }
@@ -9059,6 +9061,9 @@ function startABCSynth(tuneIdx, seekFrac) {
 
   if (_curVO && typeof _curVO.setTiming === 'function') {
     try {
+      // Populate abcelem.midiPitches on every note element before setTiming reads them.
+      // Without this call, midiPitches is [] on all events → complete silence.
+      if (typeof _curVO.setUpAudio === 'function') _curVO.setUpAudio({});
       var allTimings = _curVO.setTiming(bpm, 0);
       var evts = allTimings.filter(function(e) { return e.type === 'event'; });
       if (evts.length > 0) {
@@ -9187,7 +9192,8 @@ function startABCSynth(tuneIdx, seekFrac) {
       _cursorRect.setAttribute('rx', '2');
       _cursorRect.classList.add('abcjs-cursor-rect');
       _cursorRect.style.display = 'none';
-      _curSvg.appendChild(_cursorRect);
+      // Prepend so notes are painted OVER the cursor (SVG paints in document order)
+      _curSvg.insertBefore(_cursorRect, _curSvg.firstChild || null);
     }
     try {
       _abcCursorTC = new ABCJS.TimingCallbacks(_curVO, {
