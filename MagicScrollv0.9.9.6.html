@@ -10698,10 +10698,7 @@ document.getElementById('pub-confirm-btn').addEventListener('click', async () =>
     try {
       const res = await fetch(FUNCTIONS_BASE + '/publish', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: s.title || 'Untitled', artist: s.artist || null, content }),
       });
       if (res.status === 201)     results.ok++;
@@ -10779,8 +10776,7 @@ async function doOnlineSearch(query) {
   const hdr = document.getElementById('online-section-hdr');
   try {
     const res = await fetch(
-      FUNCTIONS_BASE + '/search?q=' + encodeURIComponent(query) + '&limit=20',
-      { headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
+      FUNCTIONS_BASE + '/search?q=' + encodeURIComponent(query) + '&limit=20'
     );
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const results = await res.json();
@@ -10825,7 +10821,9 @@ async function doOnlineSearch(query) {
     });
 
   } catch (err) {
-    if (hdr) { hdr.innerHTML = '<span style="color:var(--c-chrome-muted)">☁ Offline</span>'; }
+    const msg = err instanceof TypeError ? '☁ Offline' : '☁ Search unavailable';
+    if (hdr) hdr.innerHTML = '<span style="color:var(--c-chrome-muted)">' + msg + '</span>';
+    console.warn('[Magic Scroll] Online search error:', err);
   }
 }
 
