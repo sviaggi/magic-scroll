@@ -10173,77 +10173,27 @@ if ('serviceWorker' in navigator &&
 }
 
 // ── PWA INSTALL PROMPT ────────────────────────────────────────────────────────
-// Generates icons at runtime via Canvas so a single-file deploy can still
-// satisfy Chrome's manifest icon requirement without extra files.
+// The manifest.json, sw.js, and icon files live alongside the HTML on the server.
+// All we do here is capture the browser's deferred install prompt and wire the button.
 let _pwaPrompt = null;
-
-(function setupPWAManifest() {
-  function makeIcon(size) {
-    return new Promise(function(res) {
-      var cv = document.createElement('canvas');
-      cv.width = cv.height = size;
-      var cx = cv.getContext('2d');
-      // Background
-      cx.fillStyle = '#2b1d0e';
-      cx.fillRect(0, 0, size, size);
-      // Rounded rect mask (maskable safe zone = inner 80%)
-      cx.save(); cx.beginPath();
-      var r = size * 0.18;
-      cx.moveTo(r, 0); cx.lineTo(size - r, 0);
-      cx.quadraticCurveTo(size, 0, size, r);
-      cx.lineTo(size, size - r);
-      cx.quadraticCurveTo(size, size, size - r, size);
-      cx.lineTo(r, size);
-      cx.quadraticCurveTo(0, size, 0, size - r);
-      cx.lineTo(0, r);
-      cx.quadraticCurveTo(0, 0, r, 0);
-      cx.closePath(); cx.clip();
-      cx.fillStyle = '#2b1d0e'; cx.fillRect(0, 0, size, size);
-      // Glyph
-      cx.fillStyle = '#d4a853';
-      cx.font = 'bold ' + (size * 0.55) + 'px serif';
-      cx.textAlign = 'center'; cx.textBaseline = 'middle';
-      cx.fillText('\u266b', size / 2, size / 2);
-      cx.restore();
-      cv.toBlob(res, 'image/png');
-    });
-  }
-  Promise.all([makeIcon(192), makeIcon(512)]).then(function(blobs) {
-    var u192 = URL.createObjectURL(blobs[0]);
-    var u512 = URL.createObjectURL(blobs[1]);
-    var mfst = {
-      name: 'Magic Scroll', short_name: 'Magic Scroll',
-      description: 'Your song & tune book',
-      icons: [
-        { src: u192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-        { src: u512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-      ],
-      start_url: './', display: 'standalone', orientation: 'any',
-      theme_color: '#2b1d0e', background_color: '#2b1d0e'
-    };
-    var mb = new Blob([JSON.stringify(mfst)], { type: 'application/manifest+json' });
-    var ml = document.querySelector('link[rel="manifest"]');
-    if (ml) ml.href = URL.createObjectURL(mb);
-  }).catch(function() {});
-})();
 
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   _pwaPrompt = e;
   var btn = document.getElementById('btn-install-app');
-  if (btn) { btn.style.display = ''; btn.style.animation = 'none'; }
+  if (btn) btn.style.display = '';
 });
 
 window.addEventListener('appinstalled', function() {
   _pwaPrompt = null;
   var btn = document.getElementById('btn-install-app');
   if (btn) btn.style.display = 'none';
-  showToast('App installed \u2714');
+  showToast('App installed ✔');
 });
 
 document.getElementById('btn-install-app').addEventListener('click', function() {
   if (!_pwaPrompt) {
-    showToast('Open this page in Chrome / Edge on Android or desktop to install');
+    showToast('Open this page in Chrome or Edge to install it as an app');
     return;
   }
   _pwaPrompt.prompt();

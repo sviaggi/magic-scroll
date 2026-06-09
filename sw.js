@@ -2,7 +2,7 @@
 // Fixes offline support: shell files now cached dynamically from the
 // installing page's URL, so renaming the HTML file never breaks caching.
 
-const CACHE_VERSION = 'magic-scroll-v3';
+const CACHE_VERSION = 'magic-scroll-v4';
 
 // ── Install ───────────────────────────────────────────────────────────────────
 // Strategy: cache-on-navigate for the HTML shell (so renaming never breaks it),
@@ -10,6 +10,15 @@ const CACHE_VERSION = 'magic-scroll-v3';
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(function(cache) {
+
+      // 0. Cache whichever HTML page triggered this install, so the installed
+      //    app launches offline regardless of the filename.
+      var pagePromise = self.clients.matchAll({ includeUncontrolled: true, type: 'window' })
+        .then(function(clients) {
+          return Promise.allSettled(clients.map(function(client) {
+            return cache.add(client.url).catch(function() {});
+          }));
+        }).catch(function() {});
 
       // 1. Companion files we know exist alongside the HTML
       var companions = [
@@ -51,7 +60,7 @@ self.addEventListener('install', function(event) {
         })
       );
 
-      return Promise.all([companionPromise, optionalPromise]);
+      return Promise.all([pagePromise, companionPromise, optionalPromise]);
     }).then(function() {
       // Activate immediately — don't wait for old tabs to close
       return self.skipWaiting();
