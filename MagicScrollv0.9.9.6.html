@@ -1658,8 +1658,8 @@
      so SVG-user-unit coordinates from TimingCallbacks apply directly with no
      pixel scaling needed (works correctly with responsive resize + scale:1.3) */
   .abcjs-cursor-rect {
-    fill: rgba(255, 190, 30, 0.22);
-    stroke: rgba(255, 160, 0, 0.7);
+    fill: rgba(255, 190, 30, 0.10);
+    stroke: rgba(255, 155, 0, 0.40);
     stroke-width: 1.5px;
     pointer-events: none;
   }
@@ -9009,14 +9009,17 @@ function _stopABCCursor() {
   document.querySelectorAll('.abcjs-cursor-rect').forEach(function(el) { el.remove(); });
 }
 
-function stopABCSynth() {
+function stopABCSynth(keepPause) {
   _stopABCCursor();
   _abcScrubbing = false;
   window.abcMeasureDur = 0; window.abcMeasureStart = 0;
   if (abcStopFn) { abcStopFn(); abcStopFn = null; }
   abcPlaying = false;
+  // If keepPause is set the caller will handle button text (pause scenario)
+  if (!keepPause) _pausedFrac = null;
   const btn = document.getElementById('abc-play-btn');
-  if (btn) { btn.textContent = '▶ Play'; btn.disabled = false; }
+  if (btn && !keepPause) { btn.textContent = '▶ Play'; btn.disabled = false; }
+  else if (btn && keepPause) { btn.disabled = false; }
   const stat = document.getElementById('abc-status');
   if (stat) stat.textContent = '';
   document.querySelectorAll('.abc-now-playing').forEach(function(el){ el.style.display='none'; });
@@ -9030,11 +9033,6 @@ function startABCSynth(tuneIdx, seekFrac) {
   const bpm = parseInt(document.getElementById('abc-tempo').value) || 120;
   var blocks = song.abc_text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
   var abcBlock = blocks[tuneIdx || 0] || blocks[0];
-  let notes;
-  try { notes = abcToNotes(abcBlock, bpm, transposeAmount); } catch(e) {
-    document.getElementById('abc-status').textContent = '⚠ Parse error'; return;
-  }
-  if (!notes.length) { document.getElementById('abc-status').textContent = '⚠ No notes found'; return; }
 
   const ctx  = getABCAudioCtx();
   if (ctx.state === 'suspended') { try { ctx.resume(); } catch(e) {} }
@@ -9042,93 +9040,144 @@ function startABCSynth(tuneIdx, seekFrac) {
   gain.gain.setValueAtTime(0.3, ctx.currentTime);
   gain.connect(ctx.destination);
 
-  // Sync with metronome: if metro is running, wait for the next downbeat.
+  // Sync with metronome
   let startOffset = 0.25;
   if (metroRunning && typeof metroNextDownbeat === 'function') {
     const db = metroNextDownbeat(ctx.currentTime);
     startOffset = Math.max(0.25, db - ctx.currentTime);
   }
 
-  const notesTotalDur = notes.reduce((s,n)=>s+n.dur,0);
-  const seekTime      = notesTotalDur * seekFrac;
+  // ── Build note sequence ──────────────────────────────────────────────────────
+  // Prefer ABCJS setTiming() — it expands repeats correctly and provides MIDI
+  // pitch numbers via event.midiPitches[i].pitch.
+  // Fall back to the custom abcToNotes() parser only if ABCJS timing unavailable.
+  const _curTuneIdx = tuneIdx || 0;
+  const _curVO      = abcVisualObj && abcVisualObj[_curTuneIdx];
 
-  // ── Incremental lookahead scheduler ────────────────────────────────────────
-  // Scheduling all notes at once overwhelms Android's audio thread, causing
-  // the first note to play then silence, and muting the metronome.  Instead,
-  // schedule only LOOKAHEAD seconds ahead and refill every SCHEDULE_MS ms.
-  const LOOKAHEAD   = 1.5;   // seconds of notes to keep pre-scheduled
-  const SCHEDULE_MS = 250;   // refill interval
+  var timingEvents = null;  // [{milliseconds, midiPitches:[{pitch}], _durMs}, ...]
+  var notesTotalDur = 0;
 
-  let t         = ctx.currentTime + startOffset;
-  const startCtxTime = ctx.currentTime;
-  let noteIndex = 0;
-  const scheduled = [];
-
-  // Advance past seek point
-  let elapsed2 = 0;
-  while (noteIndex < notes.length) {
-    elapsed2 += notes[noteIndex].dur;
-    if (elapsed2 > seekTime) break;
-    t += notes[noteIndex].dur;
-    noteIndex++;
+  if (_curVO && typeof _curVO.setTiming === 'function') {
+    try {
+      var allTimings = _curVO.setTiming(bpm, 0);
+      var evts = allTimings.filter(function(e) { return e.type === 'event'; });
+      if (evts.length > 0) {
+        // Pre-compute note duration = gap to next event (capped at 2s, trimmed 10%)
+        for (var _ti = 0; _ti < evts.length; _ti++) {
+          var _next = evts[_ti + 1];
+          evts[_ti]._durMs = (_next
+            ? Math.min(_next.milliseconds - evts[_ti].milliseconds, 2000)
+            : 500) * 0.9;
+        }
+        timingEvents = evts;
+        notesTotalDur = allTimings[allTimings.length - 1].milliseconds / 1000;
+      }
+    } catch(e) { timingEvents = null; }
   }
 
-  function _schedOneNote(freq, dur) {
-    if (!playNoteFromSFZ(ctx, gain, freq, t, dur)) {
+  // Fallback to custom parser
+  var notes = null;
+  if (!timingEvents) {
+    try { notes = abcToNotes(abcBlock, bpm, transposeAmount); } catch(e) {}
+    if (!notes || !notes.length) {
+      document.getElementById('abc-status').textContent = '⚠ No notes found'; return;
+    }
+    notesTotalDur = notes.reduce(function(s,n){return s+n.dur;}, 0);
+  }
+
+  // ── Incremental scheduler ─────────────────────────────────────────────────
+  const LOOKAHEAD   = 1.5;
+  const SCHEDULE_MS = 250;
+
+  // t = audio-clock time for the NEXT note to schedule.
+  // Always starts at ctx.currentTime + startOffset regardless of seek position.
+  // Only noteIndex/evtIdx advances to skip past the sought position.
+  let t      = ctx.currentTime + startOffset;
+  const startCtxTime = ctx.currentTime;
+  const scheduled = [];
+
+  function _schedOneNote(freq, dur, when) {
+    if (!playNoteFromSFZ(ctx, gain, freq, when, dur)) {
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
       osc.frequency.value = freq;
       const env = ctx.createGain();
       osc.connect(env); env.connect(gain);
-      env.gain.setValueAtTime(0, t);
-      env.gain.linearRampToValueAtTime(1, t + 0.01);
-      env.gain.setValueAtTime(1, t + dur * 0.7);
-      env.gain.linearRampToValueAtTime(0, t + dur * 0.95);
-      osc.start(t); osc.stop(t + dur);
+      env.gain.setValueAtTime(0, when);
+      env.gain.linearRampToValueAtTime(1, when + 0.01);
+      env.gain.setValueAtTime(1, when + dur * 0.7);
+      env.gain.linearRampToValueAtTime(0, when + dur * 0.95);
+      osc.start(when); osc.stop(when + dur);
       scheduled.push(osc);
     }
   }
 
-  function scheduleChunk() {
-    if (!abcPlaying) return;
-    const until = ctx.currentTime + LOOKAHEAD;
-    while (noteIndex < notes.length && t < until) {
-      const { freq, dur } = notes[noteIndex++];
-      if (freq > 0) _schedOneNote(freq, dur);
-      t += dur;
-    }
-  }
+  var schedulerTimer;
 
-  scheduleChunk();                                       // prime the pump
-  const schedulerTimer = setInterval(scheduleChunk, SCHEDULE_MS);
+  if (timingEvents) {
+    // ── ABCJS timing path (repeat-aware) ────────────────────────────────────
+    const totalMs   = notesTotalDur * 1000;
+    const seekMs    = totalMs * seekFrac;
+    // audioStart: ctx time corresponding to timing ms=0.
+    // Note at seekMs plays at ctx.currentTime + startOffset  →  audioStart = that - seekMs/1000
+    const audioStart = t - seekMs / 1000;
+    let evtIdx = 0;
+    // Skip events before seek position
+    while (evtIdx < timingEvents.length && timingEvents[evtIdx].milliseconds < seekMs) evtIdx++;
+
+    function scheduleChunk() {
+      if (!abcPlaying) return;
+      const until = ctx.currentTime + LOOKAHEAD;
+      while (evtIdx < timingEvents.length) {
+        const ev      = timingEvents[evtIdx];
+        const audioAt = audioStart + ev.milliseconds / 1000;
+        if (audioAt > until) break;
+        evtIdx++;
+        if (ev.midiPitches && ev.midiPitches.length) {
+          const durSec = ev._durMs / 1000;
+          for (var pi = 0; pi < ev.midiPitches.length; pi++) {
+            const mp = ev.midiPitches[pi];
+            if (!mp || mp.pitch < 0) continue;
+            const midiNote = mp.pitch + transposeAmount;
+            const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+            _schedOneNote(freq, durSec, audioAt);
+          }
+        }
+      }
+    }
+    scheduleChunk();
+    schedulerTimer = setInterval(scheduleChunk, SCHEDULE_MS);
+
+  } else {
+    // ── abcToNotes fallback path ─────────────────────────────────────────────
+    const seekTime = notesTotalDur * seekFrac;
+    let noteIndex = 0;
+    // Advance noteIndex past seek WITHOUT advancing t
+    let _skip = 0;
+    while (noteIndex < notes.length && _skip + notes[noteIndex].dur <= seekTime) {
+      _skip += notes[noteIndex].dur;
+      noteIndex++;
+    }
+
+    function scheduleChunk() {
+      if (!abcPlaying) return;
+      const until = ctx.currentTime + LOOKAHEAD;
+      while (noteIndex < notes.length && t < until) {
+        const { freq, dur } = notes[noteIndex++];
+        if (freq > 0) _schedOneNote(freq, dur, t);
+        t += dur;
+      }
+    }
+    scheduleChunk();
+    schedulerTimer = setInterval(scheduleChunk, SCHEDULE_MS);
+  }
 
   abcPlaying = true;
   document.getElementById('abc-play-btn').textContent = '⏸ Pause';
   document.getElementById('abc-status').textContent = '';
 
-  // Progress & auto-stop
-  const totalDur = notesTotalDur - seekTime;
-  const progressEl = document.getElementById('abc-progress');
-  const curEl      = document.getElementById('abc-time-cur');
-  const totEl      = document.getElementById('abc-time-total');
-  const fmtTime    = s => { const m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); };
-  if (totEl) totEl.textContent = fmtTime(totalDur);
-  if (progressEl) { progressEl.value = 0; }
-
-  // Expose measure timing so metronome can sync to it
-  const bpm4sync = parseInt(document.getElementById('abc-tempo').value) || 120;
-  const sig4sync = (document.getElementById('abc-time-sig').value || '4/4').split('/');
-  window.abcMeasureDur   = (60 / bpm4sync) * (4 / parseInt(sig4sync[1] || 4)) * parseInt(sig4sync[0] || 4);
-  window.abcMeasureStart = ctx.currentTime + startOffset;
-
-  // ── Sheet music cursor via ABCJS.TimingCallbacks ────────────────────────────
-  // The cursor is a <rect> element injected directly into the ABCJS SVG so its
-  // x/y/width/height attributes accept SVG user units from TimingCallbacks
-  // directly — no CSS-pixel conversion needed, and scale:1.3 (whistle tabs)
-  // works automatically because both the SVG and the rect share the same space.
+  // ── Sheet music cursor ────────────────────────────────────────────────────
   _stopABCCursor();
-  const _curTuneIdx = tuneIdx || 0;
-  const _curVO = abcVisualObj && abcVisualObj[_curTuneIdx];
   const _curNotDiv = document.getElementById('abc-notation-' + _curTuneIdx);
   if (_curVO && _curNotDiv && typeof ABCJS !== 'undefined' && ABCJS.TimingCallbacks) {
     var _curSvg = _curNotDiv.querySelector('svg');
@@ -9145,8 +9194,6 @@ function startABCSynth(tuneIdx, seekFrac) {
         qpm: bpm,
         eventCallback: function(ev) {
           if (!ev || !_cursorRect) { _stopABCCursor(); return; }
-          // Extra height covers whistle-tab diagrams rendered in the padding
-          // below each staff — use the same paddingbottom that renderAbc used.
           var extraH = _wtActive ? 100 : 10;
           _cursorRect.setAttribute('x',      ev.left);
           _cursorRect.setAttribute('y',      ev.top - 4);
@@ -9155,11 +9202,9 @@ function startABCSynth(tuneIdx, seekFrac) {
           _cursorRect.style.display = '';
         }
       });
-      // Delay start to match audio startOffset
       setTimeout(function() {
         if (_abcCursorTC) _abcCursorTC.start();
       }, startOffset * 1000);
-      // Seek cursor to correct position if seekFrac > 0
       if (seekFrac > 0 && _abcCursorTC && _abcCursorTC.setProgress) {
         setTimeout(function() {
           if (_abcCursorTC) _abcCursorTC.setProgress(seekFrac);
@@ -9168,32 +9213,42 @@ function startABCSynth(tuneIdx, seekFrac) {
     } catch(e) { _abcCursorTC = null; }
   }
 
-  // ── Progress bar RAF & scrub handling ────────────────────────────────────────
+  // ── Progress bar ─────────────────────────────────────────────────────────
+  const progressEl = document.getElementById('abc-progress');
+  const curEl      = document.getElementById('abc-time-cur');
+  const totEl      = document.getElementById('abc-time-total');
+  const fmtTime    = s => { const m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); };
+  if (totEl) totEl.textContent = fmtTime(notesTotalDur * (1 - seekFrac));
+  if (progressEl) progressEl.value = seekFrac * 100;
+
+  // Expose measure timing for metronome sync
+  const bpm4sync = parseInt(document.getElementById('abc-tempo').value) || 120;
+  const sig4sync = (document.getElementById('abc-time-sig').value || '4/4').split('/');
+  window.abcMeasureDur   = (60 / bpm4sync) * (4 / parseInt(sig4sync[1] || 4)) * parseInt(sig4sync[0] || 4);
+  window.abcMeasureStart = ctx.currentTime + startOffset;
+
   let rafId;
   function tick() {
     if (!abcPlaying) return;
     if (!_abcScrubbing) {
       const elapsed = ctx.currentTime - startCtxTime - startOffset;
-      const pct     = Math.min(100, (elapsed / totalDur) * 100);
+      const fracNow = seekFrac + elapsed / notesTotalDur;
+      const pct     = Math.min(100, fracNow * 100);
       if (progressEl) progressEl.value = pct;
       if (curEl)      curEl.textContent = fmtTime(Math.max(0, elapsed));
-      if (elapsed >= totalDur) { stopABCSynth(); return; }
+      if (fracNow >= 1.0) { stopABCSynth(); return; }
     }
     rafId = requestAnimationFrame(tick);
   }
   rafId = requestAnimationFrame(tick);
 
   if (progressEl) {
-    // Pause progress updates while the user drags the bar (prevents bar fighting user)
     function _onScrubStart() { _abcScrubbing = true; }
     function _onScrubEnd() {
       if (!_abcScrubbing) return;
       _abcScrubbing = false;
       const sf = parseFloat(progressEl.value) / 100;
       stopABCSynth();
-      // Must go through _getRunningCtx() + settle delay, just like the play
-      // button does — the AudioContext can be suspended after stop, and notes
-      // scheduled before resume() resolves land in the past and are silent.
       _getRunningCtx()
         .then(function()  { setTimeout(function() { startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); })
         .catch(function() { setTimeout(function() { startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); });
@@ -9202,8 +9257,7 @@ function startABCSynth(tuneIdx, seekFrac) {
     progressEl.addEventListener('touchstart', _onScrubStart, { passive: true });
     progressEl.addEventListener('mouseup',    _onScrubEnd);
     progressEl.addEventListener('touchend',   _onScrubEnd);
-    progressEl.addEventListener('change',     _onScrubEnd);  // keyboard / fallback
-    // Cleanup: remove listeners on stop
+    progressEl.addEventListener('change',     _onScrubEnd);
     var _removeScrubListeners = function() {
       progressEl.removeEventListener('mousedown',  _onScrubStart);
       progressEl.removeEventListener('touchstart', _onScrubStart);
@@ -9213,16 +9267,18 @@ function startABCSynth(tuneIdx, seekFrac) {
     };
   }
 
-  const timer = setTimeout(() => stopABCSynth(), (totalDur + startOffset + 0.5) * 1000);
+  const remainDur = notesTotalDur * (1 - seekFrac);
+  const timer = setTimeout(() => stopABCSynth(), (remainDur + startOffset + 0.5) * 1000);
   abcStopFn = () => {
     clearInterval(schedulerTimer);
     clearTimeout(timer);
     cancelAnimationFrame(rafId);
-    if (progressEl) { progressEl.value = 0; if (_removeScrubListeners) _removeScrubListeners(); }
+    if (progressEl) { progressEl.value = seekFrac * 100; if (_removeScrubListeners) _removeScrubListeners(); }
     scheduled.forEach(o => { try { o.stop(); } catch(e) {} });
     gain.disconnect();
   };
 }
+
 
 function renderABCSong(song) {
   document.getElementById('abc-player-bar').style.display = '';
@@ -9239,6 +9295,7 @@ function renderABCSong(song) {
   document.getElementById('abc-status').textContent = '';
   saveSongs();          // persist normalised key so reload shows 'Em' not 'Emin'
   updateKeyDisplay();  // syncs topbar ♭−[key]♯+ displayplay
+  _pausedFrac = null;
   stopABCSynth();
 
   // Sync metronome controls from ABC headers
@@ -9384,16 +9441,27 @@ document.getElementById('btn-abc-save-as').addEventListener('click', () => {
 });
 
 document.getElementById('abc-play-btn').addEventListener('click', function() {
-  if (abcPlaying) { stopABCSynth(); return; }
-  // After resume() resolves, the audio clock may take a moment to start
-  // advancing on Android (it starts at 0 and the engine needs one buffer
-  // cycle before currentTime > 0). A 150 ms settle gap before scheduling
-  // all notes means ctx.currentTime is non-zero when startABCSynth reads it,
-  // so the notes land safely in the future rather than the past.
-  function doStart() { setTimeout(function() { startABCSynth(0); }, 150); }
+  if (abcPlaying) {
+    // Pause: save current position so Resume picks up from here
+    const progressEl = document.getElementById('abc-progress');
+    _pausedFrac = progressEl ? parseFloat(progressEl.value) / 100 : 0;
+    stopABCSynth(true);   // keepPause=true so button text is managed below
+    document.getElementById('abc-play-btn').textContent = '▶ Resume';
+    return;
+  }
+  // Play / Resume from saved position (or beginning)
+  const sf = (_pausedFrac !== null) ? _pausedFrac : 0;
+  _pausedFrac = null;
+  function doStart() { setTimeout(function() { startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); }
   _getRunningCtx().then(doStart).catch(doStart);
 });
-document.getElementById('abc-stop-btn').addEventListener('click', stopABCSynth);
+document.getElementById('abc-stop-btn').addEventListener('click', function() {
+  _pausedFrac = null;
+  stopABCSynth();
+  // Reset button to ▶ Play (not ▶ Resume)
+  var btn = document.getElementById('abc-play-btn');
+  if (btn) btn.textContent = '▶ Play';
+});
 document.getElementById('abc-tempo').addEventListener('input', function() {
   const v = this.value;
   document.getElementById('abc-tempo-label').textContent = v + ' BPM';
