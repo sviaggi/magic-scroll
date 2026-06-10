@@ -10777,12 +10777,15 @@ document.getElementById('pub-confirm-btn').addEventListener('click', async () =>
     const f = _publishFolderObj;
     const collectionSongs = (f.songIndices || []).map(i => songs[i]).filter(Boolean).map(s => ({
       title:       s.title || 'Untitled',
-      artist:      s.artist || null,
-      tab_content: s.tab_content || s.content || s.tab || '',
-      key:         s.key   || null,
-      capo:        s.capo  || null,
-      type:        s.type  || null,
-      tuning:      s.tuning || null,
+      artist:        s.artist        || null,
+      tab_content:   s.tab_content   || s.content || s.tab || '',
+      key:           s.key           || null,
+      capo:          s.capo          || null,
+      type:          s.type          || null,
+      tuning:        s.tuning        || null,
+      _source:       s._source       || null,
+      abc_text:      s.abc_text      || null,
+      abc_file_name: s.abc_file_name || null,
     }));
     try {
       const res = await fetch(FUNCTIONS_BASE + '/publish-collection', {
@@ -10807,12 +10810,20 @@ document.getElementById('pub-confirm-btn').addEventListener('click', async () =>
   const results = { ok: 0, dup: 0, err: 0 };
   for (const idx of _publishIndices) {
     const s = songs[idx];
-    const content = s.tab_content || s.content || s.tab || '';
     try {
       const res = await fetch(FUNCTIONS_BASE + '/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: s.title || 'Untitled', artist: s.artist || null, content }),
+        body: JSON.stringify({
+          title:         s.title         || 'Untitled',
+          artist:        s.artist        || null,
+          content:       s.tab_content   || s.content || s.tab || '',
+          _source:       s._source       || null,
+          abc_text:      s.abc_text      || null,
+          abc_file_name: s.abc_file_name || null,
+          raw_html:      s.raw_html      || null,
+          ireal_raw:     s.ireal_raw     || null,
+        }),
       });
       if (res.status === 201)      results.ok++;
       else if (res.status === 409) results.dup++;
@@ -10947,7 +10958,13 @@ function openOnlinePreview(song, alreadyLocal) {
   const addBtn  = document.getElementById('online-preview-add');
 
   metaEl.textContent = [song.title, song.artist].filter(Boolean).join(' — ');
-  bodyEl.textContent = song.content || '';
+  // Show the most meaningful text depending on source type
+  const previewText =
+    song._source === 'abc'   ? (song.abc_text  || song.content || '') :
+    song._source === 'ireal' ? (song.ireal_raw || song.content || '') :
+    song._source === 'html'  ? '(HTML file — full formatting not available in search results. Add to library to view, or find it in a shared collection for the complete version.)' :
+    (song.content || '');
+  bodyEl.textContent = previewText;
 
   if (alreadyLocal) {
     addBtn.textContent = '✓ Already in Library';
@@ -10970,14 +10987,57 @@ document.getElementById('online-preview-modal').addEventListener('click', e => {
 document.getElementById('online-preview-add').addEventListener('click', () => {
   if (!_onlinePreviewSong) return;
   const r = _onlinePreviewSong;
-  const newSong = {
-    title:       r.title || 'Untitled',
-    artist:      r.artist || '',
-    tab_content: r.content || '',
-    content:     r.content || '',
-    _source:     'plaintext',
-    content_hash: r.content_hash || null,
-  };
+
+  let newSong;
+  if (r._source === 'abc') {
+    newSong = {
+      title:         r.title         || 'Untitled',
+      artist:        r.artist        || '',
+      key:           r.key           || null,
+      type:          r.type          || 'Sheet Music',
+      _source:       'abc',
+      abc_text:      r.abc_text      || '',
+      abc_file_name: r.abc_file_name || (r.title || 'song') + '.abc',
+      content_hash:  r.content_hash  || null,
+    };
+  } else if (r._source === 'ireal') {
+    // Re-derive ireal_chart from ireal_raw using the existing parser
+    const chart = typeof irealTokenise === 'function' && r.ireal_raw
+      ? irealTokenise(r.ireal_raw)
+      : null;
+    newSong = {
+      title:        r.title       || 'Untitled',
+      artist:       r.artist      || '',
+      key:          r.key         || null,
+      style:        r.style       || null,
+      bpm:          r.bpm         || null,
+      type:         'Lead Sheet',
+      _source:      'ireal',
+      ireal_raw:    r.ireal_raw   || '',
+      ireal_chart:  chart,
+      tab_content:  '',
+      content_hash: r.content_hash || null,
+    };
+  } else if (r._source === 'html') {
+    newSong = {
+      title:        r.title       || 'Untitled',
+      artist:       r.artist      || '',
+      _source:      'html',
+      raw_html:     r.raw_html    || '',
+      tab_content:  r.content     || '',
+      content_hash: r.content_hash || null,
+    };
+  } else {
+    newSong = {
+      title:        r.title       || 'Untitled',
+      artist:       r.artist      || '',
+      tab_content:  r.content     || '',
+      content:      r.content     || '',
+      _source:      'plaintext',
+      content_hash: r.content_hash || null,
+    };
+  }
+
   songs.push(newSong);
   saveSongs();
   buildSongList(document.getElementById('search-input').value);
