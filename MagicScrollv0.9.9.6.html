@@ -669,6 +669,7 @@
     color: var(--c-chord-text);
     cursor: default;
   }
+  body.chords-hidden #tab-content .chord-token { color: var(--c-card-bg) !important; }
 
   /* ── CONTEXT MENU (right-click on tab content) ───────────────────────────── */
   #ctx-menu {
@@ -2017,13 +2018,13 @@
   <div class="ctrl-group">
     <span class="ctrl-label">Scroll</span>
     <input type="range" id="scroll-speed" min="1" max="10" value="3" title="Scroll speed">
-    <button id="btn-scroll">▶ Auto</button>
+    <button id="btn-scroll" aria-pressed="false">▶ Auto</button>
   </div>
   <span class="sep">|</span>
   <span class="sep">|</span>
-  <button id="btn-diagrams">Diagrams</button>
+  <button id="btn-diagrams" aria-pressed="false">Chord Diagrams</button>
   <div class="ctrl-group settings-btn" id="metronome-wrap">
-    <button id="btn-metro-toggle" title="Open metronome">♩ Metronome</button>
+    <button id="btn-metro-toggle" title="Open metronome" aria-pressed="false">♩ Metronome</button>
     <div id="metro-panel">
       <h5>♩ Metronome</h5>
       <div class="metro-row">
@@ -2315,7 +2316,7 @@
 
     <div id="edit-toolbar" style="display:none">
       <button id="btn-new-song" title="Create a new blank song">✦ New</button>
-      <button id="btn-edit-toggle" title="Toggle between edit and read mode">✎ Edit</button>
+      <button id="btn-edit-toggle" title="Toggle between edit and read mode" aria-pressed="false">✎ Edit</button>
       <button id="btn-save" title="Save changes to this song (Ctrl+S)">💾 Save</button>
       <button id="btn-save-as" title="Download this song as a .txt file">⬇ Save As…</button>
       <button id="btn-publish-song" title="Publish this song to the online library">☁ Publish</button>
@@ -2379,9 +2380,9 @@ Another lyric line
   <h4>
     <span>Chord Diagrams</span>
     <div style="display:flex;gap:4px;align-items:center;">
-      <button id="btn-diag-smaller" title="Smaller diagrams (also affects text)">⊖</button>
-      <button id="btn-diag-larger"  title="Larger diagrams (also affects text)">⊕</button>
-      <button id="btn-close-diagrams">✕</button>
+      <button id="btn-diag-smaller" title="Smaller diagrams (also affects text)" aria-label="Smaller diagrams">⊖</button>
+      <button id="btn-diag-larger"  title="Larger diagrams (also affects text)"  aria-label="Larger diagrams">⊕</button>
+      <button id="btn-close-diagrams" aria-label="Close chord diagrams">✕</button>
     </div>
   </h4>
   <div class="diagram-instrument-tabs">
@@ -2395,6 +2396,7 @@ Another lyric line
     <button class="inst-btn" data-inst="mandolin">Mandolin</button>
     <button class="inst-btn" data-inst="mandola">Mandola</button>
     <button class="inst-btn" data-inst="banjo">Banjo</button>
+    <button class="inst-btn" data-inst="none" title="Hide chords (invisible until another option is selected)">None</button>
   </div>
   <div class="chord-diagram-grid" id="diagram-grid"></div>
 </div>
@@ -5038,16 +5040,20 @@ function startScroll() {
 
 function stopScroll() {
   clearInterval(scrollInterval); scrollInterval = null; isScrolling = false;
-  document.getElementById('btn-scroll').textContent = '▶ Auto';
-  document.getElementById('btn-scroll').classList.remove('active');
+  const _bs = document.getElementById('btn-scroll');
+  _bs.textContent = '▶ Auto';
+  _bs.classList.remove('active');
+  _bs.setAttribute('aria-pressed', 'false');
 }
 
 function toggleScroll() {
   isScrolling = !isScrolling;
   if (isScrolling) {
     startScroll();
-    document.getElementById('btn-scroll').textContent = '■ Stop';
-    document.getElementById('btn-scroll').classList.add('active');
+    const _bs = document.getElementById('btn-scroll');
+    _bs.textContent = '■ Stop';
+    _bs.classList.add('active');
+    _bs.setAttribute('aria-pressed', 'true');
   } else { stopScroll(); }
 }
 
@@ -5090,6 +5096,13 @@ document.addEventListener('keydown', e => {
   if (!_inEditor) {
     if (e.code === 'ArrowRight' || e.code === 'PageDown') { const i = currentIdx+1; if (i < songs.length) renderSong(i); }
     if (e.code === 'ArrowLeft'  || e.code === 'PageUp')   { const i = currentIdx-1; if (i >= 0) renderSong(i); }
+    // Shift+H — toggle chord visibility (None mode)
+    if (e.shiftKey && e.key === 'H') {
+      e.preventDefault();
+      const targetInst = currentInstrument === 'none' ? 'guitar' : 'none';
+      const targetBtn  = document.querySelector(`.inst-btn[data-inst="${targetInst}"]`);
+      if (targetBtn) targetBtn.click();
+    }
   }
 });
 
@@ -7412,6 +7425,7 @@ function renderChordDiagram(name, inst, scale) {
 
 function renderDiagrams() {
   const grid=document.getElementById('diagram-grid'); grid.innerHTML='';
+  if(currentInstrument==='none') return;
   if(currentIdx<0) return;
   const song=songs[currentIdx];
   if(song._source==='html'){grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">Not available for HTML files</p>';return;}
@@ -7480,13 +7494,30 @@ document.getElementById('tab-content').addEventListener('mouseleave', () => {
 document.getElementById('btn-diagrams').addEventListener('click',()=>{
   const panel=document.getElementById('diagram-panel');
   panel.classList.toggle('visible');
-  if(panel.classList.contains('visible')) renderDiagrams();
+  const open = panel.classList.contains('visible');
+  document.getElementById('btn-diagrams').setAttribute('aria-pressed', open ? 'true' : 'false');
+  if(open){
+    renderDiagrams();
+    const activeInstBtn = panel.querySelector('.inst-btn.active');
+    if(activeInstBtn) activeInstBtn.focus();
+  }
 });
-document.getElementById('btn-close-diagrams').addEventListener('click',()=>document.getElementById('diagram-panel').classList.remove('visible'));
+document.getElementById('btn-close-diagrams').addEventListener('click',()=>{
+  document.getElementById('diagram-panel').classList.remove('visible');
+  document.getElementById('btn-diagrams').setAttribute('aria-pressed','false');
+});
 document.querySelectorAll('.inst-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.inst-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); currentInstrument=btn.dataset.inst; renderDiagrams();
+    btn.classList.add('active');
+    currentInstrument = btn.dataset.inst;
+    if (currentInstrument === 'none') {
+      document.body.classList.add('chords-hidden');
+      document.getElementById('diagram-grid').innerHTML = '';
+    } else {
+      document.body.classList.remove('chords-hidden');
+      renderDiagrams();
+    }
   });
 });
 
@@ -7949,6 +7980,7 @@ function setEditMode(on) {
   card.style.display = on ? 'none' : '';
   split.classList.toggle('visible', on);
   editBtn.classList.toggle('active', on);
+  editBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
   editBtn.textContent = on ? '💾 Save & Read' : '✎ Edit';
   editBtn.title = on ? 'Save and switch back to read mode' : 'Edit this song';
   saveBtn.style.display = on ? '' : 'none';
@@ -8424,6 +8456,7 @@ document.getElementById('btn-metro-toggle').addEventListener('click', e => {
   // close other settings panels first
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
   panel.classList.toggle('open', !isOpen);
+  document.getElementById('btn-metro-toggle').setAttribute('aria-pressed', isOpen ? 'false' : 'true');
   // Position panel via same logic as openSettingsPanel
   if (!isOpen) {
     var tb2 = document.getElementById('topbar');
