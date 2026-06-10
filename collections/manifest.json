@@ -3,9 +3,9 @@
   "version": 1,
   "collections": [
     {
-      "name": "Sunny's Folk Collection",
-      "description": "A handful of folk & folk-adjacent songs I'd compiled for my repertoire!",
-      "url": "./collections/sunny-s-folk-collection.json",
+      "name": "Sunny's Folk Songbook",
+      "description": "A handful of public domain folk & traditional songs I've compiled for your convenience!",
+      "url": "./collections/sunny-s-folk-songbook.json",
       "count": 8
     },
     {
