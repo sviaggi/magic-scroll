@@ -1,10 +1,12 @@
-------------------------------------------------------
+----------------------------------------------------
 Song name: Worth the Weight  by  Spencer California
-------------------------------------------------------
+----------------------------------------------------
 
 [yt: https://youtu.be/mWYnyn_vIcE]
 
 Hello, and welcome to **Magic Scroll!** Above is a short promotional/instructional/music video for how to use the app (And play this song). This is here as an _example file,_ to help you figure out how to formatting works in the software. You can delete this if you want and just do it however you'd like, though! *That's okay.* 
+
+Magic Scroll is an app for reading music! You can add/edit songs you like and share them with people you want to play music with, either offline as individual files for practice/drafts or by publishing online for anyone to access. It works with chord sheets and sheet music in various formats, making it the perfect tool for practice across whichever instruments you fancy. If you're at a loss for what to try, check out our pre-made collections full of traditional tunes and folk bangers! If that's not your speed, then you can add your own music in and enjoy playing without pop-ups, ads, or in-app purchases!
 
 D
 Come along with me, when you need to cry 
