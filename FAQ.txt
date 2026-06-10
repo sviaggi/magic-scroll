@@ -1,19 +1,16 @@
 FAQ:
 
 Q: How do I download this?
-A: On iOS— Press “Share” and scroll to the bottom, there will be an “Add to home screen” button under More Options. In Android, the URL *should* have an ⬇️ icon to click, or there will be a banner prompt. But I don’t know for sure. I don’t have any Android stuff anymore. 
+A: On iOS/Android, go to the settings menu of your browser, and scroll until you see something like "Add to home screen." It should work from there!
 
 Q: How do I add songs?
 A: Tap the "Songs" button and either click "New" to type/paste chord sheets directly or click-and-drag your .txt or .json files in there to add them!
 
 Q: How do I share songs between devices?
-A: Click the ... on the edge of a song folder and select "Export," then send that .json file to the other device! If you want to share your whole library, you can select "Export" at the bottom of the Songs menu and use that file as well.
+A: Click the ... on the edge of a song folder and select "Export," then send that .json file to the other device! If you want to share your whole library, you can select "Export" at the bottom of the Songs menu and use that file as well. If your song is ready to publish, you can do that as well!
 
 Q: Why are my chord diagrams showing the wrong instrument?
 A: By default, they show a guitar in E Standard. You can click the "Diagrams" button to change it to whatever you'd like!
-
-Q: Why isn’t this in the app store?
-A: I need to raise like £150 to pay the fees for Apple and Google play, this project isn’t at a stage where I think it makes sense to do that yet. If you want to see it there, donate! This format has more limitations… I can’t push updates and your device will be unable to load the app offline if you don’t use it within a week of trying. But it was free!
 
 Q: Hey, I think this chord is wrong!
 A: My bad! Tell me which and I’ll fix it. Overall I had to hand-program about 155 chords across however many instruments and tunings we have… It was mind-numbing stuff. While I am unconscious of intentional error, I am nevertheless too sensible of my defects.
@@ -21,8 +18,6 @@ A: My bad! Tell me which and I’ll fix it. Overall I had to hand-program about 
 Q: Can you make it so we can download songs directly from Ultimate Guitar/Musescore/Other services?
 A: I’d really like to, but then I would run into this unfortunate issue called That’s Illegal and They’ll Get Me. Nobody can stop you from copy/pasting things in from there and circulating your collections, though! If you’re savvy, there’s always a way. 
 
-Q: Can you add cloud storage for songs?
-A: Absolutely not. In order to access songs on the cloud, a user would have to make an account, and I am not a good enough programmer to make anything I’d feel comfortable asking people to put passwords into. If Magic Scroll EVER asks you for a password, don’t give it anything. Don’t trust it, that’s not me anymore. RUN. 
 
 Q: Why isn’t [Feature] included?
 A: I threw this together over the course of a few commutes and one spirited weekend. I’m not a programmer and my job is in a different field entirely. If a feature is feasible/would improve UX enough I’ll find time to make it happen.
@@ -36,10 +31,12 @@ Default soundfont is Upright Piano KW by Roberto and Gonzalo of Freepats/Zenvoid
 
 YIN pitch detection algorithm by de Cheveigné & Kawahara (2002).
 
-Song packages were collated by Spencer California, the good Folk of the Round Table, and the fine ukulele clubs of Santa Cruz, Mountain View/Los Altos, and San Jose.
+Special thanks to our angel investor for providing the $125 to bring this app to the app stores, The Session website for curating such a fine selection of traditional music and hilarious comment section arguments, and anyone who has ever uploaded chord sheets, tabs, or anything of the like to the internet. Thank you all for helping bring us together through the world of music.
 
 Beta testers: Chris Smit, Hulda Elira, Alex Smith, and Oscar Law, with more to come until we hit a full release!
 
-Magic Scroll was designed and programmed by Spencer “Sunny” California, given freely to the people without charge. All of the art/images were also by Spencer/Sunny, given reluctantly to the people also without charge. This project is dedicated to my mom, who is part of the reason I got into music and entirely the reason I became the person I am. 
+Special thanks to
+
+Magic Scroll was designed and programmed by Spencer “Sunny” California, given freely to the people without charge. All of the art/images were also by Spencer/Sunny, given reluctantly to the people also without charge. This project is dedicated to my mother Kristina, who is part of the reason I got into music and entirely the reason I became the person I am. 
 
 
