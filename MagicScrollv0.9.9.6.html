@@ -2250,11 +2250,10 @@
     <input type="file" id="refresh-file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" style="display:none">
     <input type="file" id="import-config-input" accept=".json" style="display:none">
     <div id="sidebar-footer">
-      <button id="btn-install-app" title="Install Magic Scroll to your home screen / desktop">📲 Download app</button>
       <button id="btn-new-song-sidebar" title="Create a new blank song">✦ New</button>
       <button id="btn-new-folder" title="Create a new folder to organise songs into">📁 Folder</button>
       <button id="btn-export-config" title="Save library to file · Shift+click for Save As">Export library</button>
-      <button id="btn-collections" title="Browse and add pre-made song collections">📦 Collections</button>
+      <button id="btn-collections" title="Browse and add song collections">📦 Collections</button>
     </div>
   </div>
 
@@ -2487,11 +2486,21 @@ Another lyric line
 <div id="collections-modal" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;">
   <div style="background:var(--c-chrome-bg);border:1px solid var(--c-chrome-border);border-radius:8px;width:min(94vw,640px);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.6);">
     <div style="padding:14px 18px 10px;border-bottom:1px solid var(--c-chrome-border);display:flex;justify-content:space-between;align-items:center;">
-      <h5 style="margin:0;font-size:0.85rem;">📦 Browse Collections</h5>
+      <h5 style="margin:0;font-size:0.85rem;">📦 Collections</h5>
       <button id="btn-collections-close" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--c-chrome-muted);">✕</button>
     </div>
-    <div style="padding:8px 14px;font-size:0.65rem;color:var(--c-chrome-muted);">
-      Collections are pre-made sets of songs. Adding one creates a new folder in your library.
+    <!-- Tab bar -->
+    <div id="collections-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--c-chrome-border);">
+      <button id="col-tab-builtin" class="col-tab col-tab-active" style="flex:1;padding:7px 0;font-size:0.72rem;background:none;border:none;border-bottom:2px solid var(--c-accent);color:var(--c-chrome-text);cursor:pointer;">📦 Built-in</button>
+      <button id="col-tab-community" class="col-tab" style="flex:1;padding:7px 0;font-size:0.72rem;background:none;border:none;border-bottom:2px solid transparent;color:var(--c-chrome-muted);cursor:pointer;">☁ Community</button>
+    </div>
+    <div id="col-desc" style="padding:8px 14px;font-size:0.65rem;color:var(--c-chrome-muted);">
+      Pre-made sets of songs. Adding one creates a new folder in your library.
+    </div>
+    <!-- Community search bar (hidden on built-in tab) -->
+    <div id="col-community-search" style="display:none;padding:0 14px 8px;">
+      <input id="col-community-q" type="search" placeholder="Search community collections…" autocomplete="off" spellcheck="false"
+        style="width:100%;box-sizing:border-box;font-size:0.72rem;padding:5px 8px;background:var(--c-chrome-bg2);border:1px solid var(--c-chrome-border);border-radius:4px;color:var(--c-chrome-text);">
     </div>
     <div id="collections-list" style="overflow-y:auto;padding:6px 14px 14px;flex:1;">
       <div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">Loading…</div>
@@ -2513,7 +2522,11 @@ Another lyric line
         <li>Don't submit a minor edit or revised version if a similar song already exists in the library.</li>
         <li>Don't publish something that isn't useful to other players — personal annotations, incomplete drafts, or private variations aren't a good fit. Remember there are offline functions if you need to share something with a small group-- You can just save the file to your device and send it over Whatsapp, Discord, or other messaging apps instead!</li>
         <li>Make sure the song is <strong>complete</strong>: lyrics, chords, key/capo info, and any other details should be thoroughly checked before committing.</li>
+        <li><strong>Do not submit copyrighted material.</strong> Only publish songs you have the right to share — original compositions, traditional or public domain songs, or content with an open licence.</li>
       </ul>
+      <div style="margin-top:10px;padding:8px 10px;background:var(--c-chrome-bg);border-radius:4px;font-size:0.74rem;color:var(--c-chrome-muted);line-height:1.5;">
+        🔒 Submissions are <strong>anonymous</strong> — no account, name, or identifying information is attached to anything you publish.
+      </div>
     </div>
     <div class="pub-actions">
       <button id="pub-cancel-btn">Cancel</button>
@@ -4107,6 +4120,7 @@ function buildSongList(query) {
       + '<div class="folder-menu" style="display:none">'
       + '<button class="folder-menu-item" data-action="rename">✎ Rename</button>'
       + '<button class="folder-menu-item" data-action="export">⬇ Export</button>'
+      + '<button class="folder-menu-item" data-action="publish-collection">☁ Publish collection…</button>'
       + '<button class="folder-menu-item folder-menu-danger" data-action="delete">✕ Delete</button>'
       + '</div>';
 
@@ -4139,6 +4153,7 @@ function buildSongList(query) {
         if (action === 'rename') renameFolder(f.id);
         else if (action === 'delete') deleteFolder(f.id);
         else if (action === 'export') exportFolder(f.id);
+        else if (action === 'publish-collection') showPublishCollectionModal(f.id);
       });
     });
     // Move menu to body so it escapes the sidebar's stacking context
@@ -4482,6 +4497,7 @@ document.getElementById('import-config-input').addEventListener('change', e => {
   };
   reader.readAsText(file);
 });
+
 
 // ── FILE LOADING — handles html exports, json, and plain text from ug fetch ─
 
@@ -6631,7 +6647,7 @@ const CHORD_DATA = {
     'A#dim':{frets:[2, 3, 2, 3],fingers:[1, 2, 1, 3],base:1,barres:[{fret:2,from:1,to:3}]},
     'Bbdim':{frets:[2, 3, 2, 3],fingers:[1, 2, 1, 3],base:1,barres:[{fret:2,from:1,to:3}]},
     'B':{frets:[1, 4, 0, 2],fingers:[2, 3, 0, 4],base:1},
-    'Bm':{frets:[0, 4, 3, 2],fingers:[0, 2, 0, 3],base:1},
+    'Bm':{frets:[0, 4, 0, 2],fingers:[0, 2, 0, 3],base:1},
     'B6':{frets:[1, 1, 0, 2],fingers:[1, 1, 0, 2],base:1,barres:[{fret:1,from:1,to:2}]},
     'Bm6':{frets:[0, 1, 0, 2],fingers:[0, 2, 0, 3],base:1},
     'B7':{frets:[1, 2, 0, 2],fingers:[2, 3, 0, 4],base:1},
@@ -10277,78 +10293,151 @@ document.getElementById('whistle-tab-key').addEventListener('change', function()
 });
 
 // ── COLLECTIONS BROWSER ───────────────────────────────────────────────────────
-// Pre-made song sets hosted as JSON files. Change this URL to point at your own
-// collections manifest (a JSON file listing available collections with download URLs).
 var COLLECTIONS_MANIFEST_URL = './collections/manifest.json';
+var _collectionsTab = 'builtin'; // 'builtin' | 'community'
 
 function openCollectionsModal() {
-  var modal = document.getElementById('collections-modal');
-  modal.style.display = 'flex';
-  var list = document.getElementById('collections-list');
-  list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">Loading collections…</div>';
+  document.getElementById('collections-modal').style.display = 'flex';
+  _setCollectionsTab(_collectionsTab);
+}
 
+function _setCollectionsTab(tab) {
+  _collectionsTab = tab;
+  var desc = document.getElementById('col-desc');
+  var searchBar = document.getElementById('col-community-search');
+  var tabBuiltin   = document.getElementById('col-tab-builtin');
+  var tabCommunity = document.getElementById('col-tab-community');
+
+  if (tab === 'builtin') {
+    tabBuiltin.style.borderBottomColor   = 'var(--c-accent)';
+    tabBuiltin.style.color               = 'var(--c-chrome-text)';
+    tabCommunity.style.borderBottomColor = 'transparent';
+    tabCommunity.style.color             = 'var(--c-chrome-muted)';
+    desc.textContent = 'Pre-made sets of songs. Adding one creates a new folder in your library.';
+    searchBar.style.display = 'none';
+    _loadBuiltinCollections();
+  } else {
+    tabCommunity.style.borderBottomColor = 'var(--c-accent)';
+    tabCommunity.style.color             = 'var(--c-chrome-text)';
+    tabBuiltin.style.borderBottomColor   = 'transparent';
+    tabBuiltin.style.color               = 'var(--c-chrome-muted)';
+    desc.textContent = 'Collections shared by other Magic Scroll users.';
+    searchBar.style.display = '';
+    _loadCommunityCollections('');
+  }
+}
+
+document.getElementById('col-tab-builtin').addEventListener('click', function() { _setCollectionsTab('builtin'); });
+document.getElementById('col-tab-community').addEventListener('click', function() { _setCollectionsTab('community'); });
+
+var _communitySearchTimer = null;
+document.getElementById('col-community-q').addEventListener('input', function() {
+  clearTimeout(_communitySearchTimer);
+  _communitySearchTimer = setTimeout(function() {
+    _loadCommunityCollections(document.getElementById('col-community-q').value);
+  }, 350);
+});
+
+function _loadBuiltinCollections() {
+  var list = document.getElementById('collections-list');
+  list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">Loading…</div>';
   if (location.protocol === 'file:') {
     list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
-      + 'Collections require an HTTP server. Open Magic Scroll via a web URL to use this feature.</div>';
+      + 'Collections require an HTTP server.</div>';
     return;
   }
-
   fetch(COLLECTIONS_MANIFEST_URL + '?_=' + Date.now())
     .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(data) {
       var cols = data.collections || [];
       if (!cols.length) {
-        list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
-          + 'No collections available yet.</div>';
+        list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">No built-in collections available.</div>';
         return;
       }
       list.innerHTML = '';
-      cols.forEach(function(col) {
-        var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;'
-          + 'border-bottom:1px solid var(--c-chrome-border);';
-        var info = document.createElement('div');
-        info.style.flex = '1';
-        // Build the subtitle span — count starts as '…' and is replaced once
-        // we fetch the real JSON (manifest counts are often stale/wrong).
-        var countSpan = document.createElement('span');
-        countSpan.textContent = ' · …';
-        var subtitle = document.createElement('div');
-        subtitle.style.cssText = 'font-size:0.65rem;color:var(--c-chrome-muted);';
-        subtitle.textContent = col.description || '';
-        subtitle.appendChild(countSpan);
-        var title = document.createElement('div');
-        title.style.cssText = 'font-size:0.75rem;font-weight:bold;color:var(--c-chrome-text);';
-        title.textContent = col.name || 'Unnamed';
-        info.appendChild(title); info.appendChild(subtitle);
-        var btn = document.createElement('button');
-        btn.textContent = '+ Add';
-        btn.style.cssText = 'font-size:0.7rem;padding:3px 10px;flex-shrink:0;';
-        btn.addEventListener('click', function() {
-          btn.disabled = true; btn.textContent = 'Adding…';
-          fetchAndAddCollection(col, btn);
-        });
-        row.appendChild(info); row.appendChild(btn);
-        list.appendChild(row);
-        // Fetch the real count from the collection JSON in the background.
-        // This replaces '…' with the actual number regardless of manifest.
-        if (col.url) {
-          fetch(col.url + '?_=' + Date.now())
-            .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-            .then(function(cdata) {
-              var n = Array.isArray(cdata.songs) ? cdata.songs.length : 0;
-              countSpan.textContent = n > 0 ? ' · ' + n + ' song' + (n !== 1 ? 's' : '') : '';
-            })
-            .catch(function() { countSpan.textContent = ''; });
-        } else {
-          countSpan.textContent = '';
-        }
-      });
+      cols.forEach(function(col) { _renderCollectionRow(list, col, 'builtin'); });
     })
     .catch(function() {
       list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
-        + 'Could not load collections manifest. Check that the file exists at:<br>'
-        + '<code style="font-size:0.62rem;">' + COLLECTIONS_MANIFEST_URL + '</code></div>';
+        + 'Could not load collections manifest.</div>';
+    });
+}
+
+function _loadCommunityCollections(query) {
+  if (_collectionsTab !== 'community') return;
+  var list = document.getElementById('collections-list');
+  list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;"><span class="online-spinner"></span></div>';
+  var url = FUNCTIONS_BASE + '/get-collections?limit=30' + (query ? '&q=' + encodeURIComponent(query) : '');
+  fetch(url)
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(data) {
+      if (_collectionsTab !== 'community') return; // tab changed while fetching
+      var cols = Array.isArray(data) ? data : [];
+      list.innerHTML = '';
+      if (!cols.length) {
+        list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">'
+          + (query ? 'No matching collections.' : 'No community collections yet — be the first to publish one!') + '</div>';
+        return;
+      }
+      cols.forEach(function(col) { _renderCollectionRow(list, col, 'community'); });
+    })
+    .catch(function() {
+      if (_collectionsTab !== 'community') return;
+      list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">Could not reach the community library.</div>';
+    });
+}
+
+function _renderCollectionRow(list, col, source) {
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--c-chrome-border);';
+  var info = document.createElement('div');
+  info.style.flex = '1';
+  var title = document.createElement('div');
+  title.style.cssText = 'font-size:0.75rem;font-weight:bold;color:var(--c-chrome-text);';
+  title.textContent = col.name || 'Unnamed';
+  var subtitle = document.createElement('div');
+  subtitle.style.cssText = 'font-size:0.65rem;color:var(--c-chrome-muted);';
+  var count = col.song_count || (Array.isArray(col.songs) ? col.songs.length : null);
+  subtitle.textContent = (count != null ? count + ' song' + (count !== 1 ? 's' : '') : '') +
+    (col.description ? (count != null ? ' · ' : '') + col.description : '');
+  info.appendChild(title); info.appendChild(subtitle);
+  var btn = document.createElement('button');
+  btn.textContent = '+ Add';
+  btn.style.cssText = 'font-size:0.7rem;padding:3px 10px;flex-shrink:0;';
+  btn.addEventListener('click', function() {
+    btn.disabled = true; btn.textContent = 'Adding…';
+    if (source === 'community') {
+      _fetchAndAddCommunityCollection(col, btn);
+    } else {
+      fetchAndAddCollection(col, btn);
+    }
+  });
+  row.appendChild(info); row.appendChild(btn);
+  list.appendChild(row);
+  // Resolve live count for built-in collections (manifest counts can be stale)
+  if (source === 'builtin' && col.url && count == null) {
+    fetch(col.url + '?_=' + Date.now())
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(d) {
+        var n = Array.isArray(d.songs) ? d.songs.length : 0;
+        if (n > 0) subtitle.textContent = n + ' song' + (n !== 1 ? 's' : '');
+      }).catch(function(){});
+  }
+}
+
+function _fetchAndAddCommunityCollection(col, btn) {
+  // col has: id, name, song_count — fetch full songs from edge function
+  fetch(FUNCTIONS_BASE + '/get-collections?id=' + encodeURIComponent(col.id))
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(data) {
+      if (!data.songs || !Array.isArray(data.songs)) throw new Error('Invalid collection data');
+      var config = { name: data.name, songs: data.songs };
+      importMagicScrollConfig(config, data.name);
+      btn.textContent = '✓ Added';
+    })
+    .catch(function(e) {
+      btn.textContent = 'Failed'; btn.disabled = false;
+      console.error('Community collection fetch failed:', e);
     });
 }
 
@@ -10552,67 +10641,10 @@ if ('serviceWorker' in navigator &&
 }
 
 // ── PWA INSTALL PROMPT ────────────────────────────────────────────────────────
-// The manifest.json, sw.js, and icon files live alongside the HTML on the server.
-// All we do here is capture the browser's deferred install prompt and wire the button.
+// Capture the browser's deferred install prompt for future use by app-store flow.
 let _pwaPrompt = null;
-
-// Hide the install button immediately if already running as an installed PWA.
-// Some Android Chrome builds fire beforeinstallprompt even in standalone mode,
-// so we check display-mode here rather than relying on the event not firing.
-(function() {
-  var btn = document.getElementById('btn-install-app');
-  if (!btn) return;
-  function _checkPWAMode() {
-    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
-      btn.style.display = 'none';
-      btn.dataset.pwaInstalled = '1';
-    }
-  }
-  _checkPWAMode();
-  try { window.matchMedia('(display-mode: standalone)').addEventListener('change', _checkPWAMode); } catch(e) {}
-})();
-
-window.addEventListener('beforeinstallprompt', function(e) {
-  e.preventDefault();
-  _pwaPrompt = e;
-  var btn = document.getElementById('btn-install-app');
-  // Don't re-show the button if we detected standalone mode above
-  if (btn && !btn.dataset.pwaInstalled) btn.style.display = '';
-});
-
-window.addEventListener('appinstalled', function() {
-  _pwaPrompt = null;
-  var btn = document.getElementById('btn-install-app');
-  if (btn) btn.style.display = 'none';
-  showToast('App installed ✔');
-});
-
-document.getElementById('btn-install-app').addEventListener('click', function() {
-  if (_pwaPrompt) {
-    // Browser provided an install prompt — use it directly
-    _pwaPrompt.prompt();
-    _pwaPrompt.userChoice.then(function(r) {
-      _pwaPrompt = null;
-      if (r.outcome === 'accepted') {
-        var btn = document.getElementById('btn-install-app');
-        if (btn) btn.style.display = 'none';
-      }
-    });
-    return;
-  }
-  // No deferred prompt — show platform-specific manual install instructions.
-  // beforeinstallprompt may not fire on some Android builds or first visits.
-  var ua = navigator.userAgent || '';
-  var isAndroid = /android/i.test(ua);
-  var isIOS     = /iphone|ipad|ipod/i.test(ua);
-  if (isAndroid) {
-    showToast('Tap the ⋮ menu in Chrome → “Add to Home screen”');
-  } else if (isIOS) {
-    showToast('Tap the Share button → “Add to Home Screen”');
-  } else {
-    showToast('Click the install icon (⤵) in the browser address bar');
-  }
-});
+window.addEventListener('beforeinstallprompt', function(e) { e.preventDefault(); _pwaPrompt = e; });
+window.addEventListener('appinstalled', function() { _pwaPrompt = null; });
 
 // ── INIT — restore songs from localStorage and render the first one if any ──
 // Try to auto-load the default soundfont if running from a file server
@@ -10660,21 +10692,37 @@ const FUNCTIONS_BASE    = SUPABASE_URL + '/functions/v1';
 
 // ── PUBLISH MODAL ─────────────────────────────────────────────────────────────
 let _publishIndices = [];
+let _publishMode    = 'songs'; // 'songs' | 'collection'
+let _publishFolderObj = null;  // { id, name, songIndices[] } when mode = 'collection'
 
 function showPublishModal(indices) {
+  _publishMode    = 'songs';
   _publishIndices = indices;
-  const modal = document.getElementById('publish-modal');
   const nameEl = document.getElementById('pub-song-name');
+  document.getElementById('publish-modal').querySelector('h3').textContent = '☁ Publish to Online Library';
   document.getElementById('pub-status').textContent = '';
   document.getElementById('pub-confirm-btn').disabled = false;
-
   if (indices.length === 1) {
     const s = songs[indices[0]];
     nameEl.textContent = (s.title || 'Untitled') + (s.artist ? ' — ' + s.artist : '');
   } else {
     nameEl.textContent = indices.length + ' songs selected';
   }
-  modal.classList.add('open');
+  document.getElementById('publish-modal').classList.add('open');
+}
+
+function showPublishCollectionModal(folderId) {
+  const f = folders.find(x => x.id === folderId);
+  if (!f) return;
+  const count = (f.songIndices || []).length;
+  if (count === 0) { alert('This folder has no songs to publish.'); return; }
+  _publishMode      = 'collection';
+  _publishFolderObj = f;
+  document.getElementById('publish-modal').querySelector('h3').textContent = '☁ Publish Collection';
+  document.getElementById('pub-song-name').textContent = f.name + ' (' + count + ' song' + (count !== 1 ? 's' : '') + ')';
+  document.getElementById('pub-status').textContent = '';
+  document.getElementById('pub-confirm-btn').disabled = false;
+  document.getElementById('publish-modal').classList.add('open');
 }
 
 document.getElementById('pub-cancel-btn').addEventListener('click', () => {
@@ -10691,6 +10739,38 @@ document.getElementById('pub-confirm-btn').addEventListener('click', async () =>
   btn.disabled = true;
   status.textContent = '';
 
+  if (_publishMode === 'collection') {
+    // ── Publish whole folder as a collection ──────────────────────────────────
+    const f = _publishFolderObj;
+    const collectionSongs = (f.songIndices || []).map(i => songs[i]).filter(Boolean).map(s => ({
+      title:       s.title || 'Untitled',
+      artist:      s.artist || null,
+      tab_content: s.tab_content || s.content || s.tab || '',
+      key:         s.key   || null,
+      capo:        s.capo  || null,
+      type:        s.type  || null,
+      tuning:      s.tuning || null,
+    }));
+    try {
+      const res = await fetch(FUNCTIONS_BASE + '/publish-collection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: f.name, songs: collectionSongs }),
+      });
+      if (res.status === 201)      status.textContent = 'Collection published ✓';
+      else if (res.status === 409) status.textContent = 'This collection is already in the library';
+      else                         status.textContent = 'Failed (HTTP ' + res.status + ')';
+    } catch {
+      status.textContent = 'Network error — check your connection';
+    }
+    btn.disabled = false;
+    if (!status.textContent.includes('Failed') && !status.textContent.includes('error')) {
+      setTimeout(() => document.getElementById('publish-modal').classList.remove('open'), 2000);
+    }
+    return;
+  }
+
+  // ── Publish individual songs ──────────────────────────────────────────────
   const results = { ok: 0, dup: 0, err: 0 };
   for (const idx of _publishIndices) {
     const s = songs[idx];
@@ -10701,20 +10781,18 @@ document.getElementById('pub-confirm-btn').addEventListener('click', async () =>
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: s.title || 'Untitled', artist: s.artist || null, content }),
       });
-      if (res.status === 201)     results.ok++;
+      if (res.status === 201)      results.ok++;
       else if (res.status === 409) results.dup++;
       else                         results.err++;
     } catch {
       results.err++;
     }
   }
-
   const parts = [];
   if (results.ok)  parts.push(results.ok  + ' published ✓');
   if (results.dup) parts.push(results.dup + ' already in library');
   if (results.err) parts.push(results.err + ' failed');
   status.textContent = parts.join(' · ');
-
   btn.disabled = false;
   if (results.ok > 0 || results.dup > 0) {
     setTimeout(() => document.getElementById('publish-modal').classList.remove('open'), 2000);
