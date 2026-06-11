@@ -831,7 +831,7 @@
   #diagram-panel h4 button { font-size: 0.7rem; padding: 2px 6px; }
 
   .diagram-instrument-tabs {
-    display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 10px;
   }
   .diagram-instrument-tabs button { font-size: 0.68rem; padding: 3px 7px;
     color: #3a2010; border-color: #c8b89a; background: #e8dece; }
@@ -839,6 +839,28 @@
   .diagram-instrument-tabs button.active {
     background: var(--c-accent); color: #fff;
     border-color: var(--c-accent); font-weight: bold; }
+  .diagram-instrument-tabs select.inst-select {
+    font-size: 0.68rem; padding: 3px 4px; font-family: inherit;
+    color: #3a2010; border: 1px solid #c8b89a; background: #e8dece;
+    border-radius: 2px; cursor: pointer; }
+  .diagram-instrument-tabs select.inst-select:hover { background: #d8cbbe; color: #1a0a00; }
+  .diagram-instrument-tabs select.inst-select.active {
+    background: var(--c-accent); color: #fff;
+    border-color: var(--c-accent); font-weight: bold; }
+
+  #diag-disclaimer {
+    font-size: 0.7rem; line-height: 1.45;
+    color: var(--c-chrome-text); background: var(--c-chrome-bg3);
+    border: 1px solid var(--c-chrome-border); border-radius: 3px;
+    padding: 7px 9px; margin-bottom: 10px;
+  }
+  #diag-disclaimer p { margin: 0 0 6px; }
+  #diag-disclaimer button {
+    font-size: 0.65rem; padding: 2px 8px;
+    background: var(--c-accent); color: #fff;
+    border: none; border-radius: 2px; cursor: pointer;
+  }
+  #diag-disclaimer button:hover { opacity: 0.85; }
 
   .chord-diagram-grid {
     display: grid;
@@ -1343,8 +1365,9 @@
       gap: 8px;
     }
 
-    /* Instrument tab buttons: smaller on mobile */
-    .diagram-instrument-tabs button {
+    /* Instrument tab buttons/selects: smaller on mobile */
+    .diagram-instrument-tabs button,
+    .diagram-instrument-tabs select.inst-select {
       font-size: 0.6rem;
       padding: 2px 5px;
     }
@@ -1595,20 +1618,20 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 295;          /* above contact tab (290) but below topbar (300) */
-    /* Visual design matching the contact tab */
     background: var(--c-chrome-bg2);
     border: 1px solid var(--c-chrome-border);
     border-radius: 6px;
     box-shadow: 0 4px 24px rgba(0,0,0,0.55);
     padding: 0;
-    min-width: 340px;
-    max-width: 640px;
-    width: max-content;
+    width: 480px;
+    max-width: 96vw;
     transition: background 0.2s, border-color 0.2s, opacity 0.2s;
     font-family: var(--font-mono);
     font-size: 0.72rem;
     color: var(--c-chrome-text);
   }
+  /* Fixed width on play btn absorbs ▶ Play ↔ ⏸ Pause text change */
+  #abc-play-btn { min-width: 72px; }
   #abc-player-bar:focus-within { border-color: var(--c-accent); }
   #abc-player-inner {
     padding: 10px 14px 8px;
@@ -1715,6 +1738,175 @@
   #abc-notation svg polygon { fill: var(--c-notation-ink, #1a1208) !important; }
   #abc-notation svg line    { stroke: var(--c-notation-ink, #1a1208) !important; }
 
+  /* ── BACKING TRACK BAR ──────────────────────────────────────────────────────
+     Floating player panel for lead sheets — mirrors abc-player-bar.
+     Fixed width so button state changes never resize the bar.
+     Settings panel is absolutely positioned above the bar so it doesn't
+     affect bar dimensions at all. */
+  #bt-bar {
+    position: fixed;
+    bottom: 38px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 295;
+    background: var(--c-chrome-bg2);
+    border: 1px solid var(--c-chrome-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.55);
+    padding: 0;
+    width: max-content;
+    max-width: min(780px, 96vw);
+    transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--c-chrome-text);
+  }
+  #bt-bar:focus-within { border-color: var(--c-accent); }
+  /* Settings panel floats above the bar — zero impact on bar dimensions */
+  #bt-inst-panel {
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: -1px; right: -1px;
+    background: var(--c-chrome-bg2);
+    border: 1px solid var(--c-chrome-border);
+    border-radius: 6px 6px 0 0;
+    padding: 8px 14px 6px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #bt-player-inner {
+    padding: 10px 14px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  #bt-player-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;   /* Firefox */
+  }
+  #bt-player-controls::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+  /* Label text inside controls row */
+  #bt-player-controls label {
+    font-size: 0.62rem;
+    color: var(--c-chrome-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .bt-ctrl-btn {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 3px 9px;
+    border-radius: 3px;
+    border: 1px solid var(--c-chrome-border);
+    background: var(--c-chrome-bg3);
+    color: var(--c-chrome-text);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+  }
+  .bt-ctrl-btn:hover { background: var(--c-chrome-bg2); color: var(--c-accent); }
+  .bt-ctrl-btn.active { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
+  /* Play btn: fixed width absorbs ▶ ↔ ⏸ text change */
+  .bt-play-btn { min-width: 38px; text-align: center; }
+  #bt-plays { width: 38px; padding: 1px 3px; text-align: center;
+    background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
+    color: var(--c-chrome-text); border-radius: 3px; font-size: 0.72rem; }
+  #bt-play-btn.bt-running { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); font-weight: bold; }
+  /* BPM slider */
+  .bt-tempo-slider { width: 58px; accent-color: var(--c-accent); flex-shrink: 0; }
+  .bt-tempo-lbl { font-size: 0.7rem; min-width: 26px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  /* Spacer pushes instruments to right edge */
+  .bt-flex-spacer { flex: 1; min-width: 4px; overflow: hidden; }
+  #bt-status {
+    font-size: 0.63rem;
+    color: var(--c-chrome-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    flex-shrink: 1;
+  }
+  /* Instrument text toggle buttons */
+  .bt-inst-toggles { display: flex; gap: 3px; flex-shrink: 0; }
+  .bt-inst-toggle {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--c-chrome-border);
+    background: var(--c-chrome-bg3);
+    color: var(--c-chrome-muted);
+    cursor: pointer;
+    opacity: 0.45;
+    white-space: nowrap;
+    transition: opacity 0.15s, background 0.12s;
+  }
+  .bt-inst-toggle.active { opacity: 1; color: var(--c-chrome-text); }
+  .bt-inst-toggle:hover { background: var(--c-chrome-bg2); opacity: 0.75; }
+  .bt-inst-toggle.active:hover { opacity: 1; }
+  .bt-hr { border: none; border-top: 1px solid var(--c-chrome-border); margin: 1px 0; }
+  /* Instrument settings rows (inside absolute panel) */
+  .bt-inst-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 1px 0;
+  }
+  .bt-inst-name {
+    font-size: 0.7rem;
+    color: var(--c-chrome-text);
+    min-width: 52px;
+    flex-shrink: 0;
+  }
+  .bt-pat-sel {
+    font-size: 0.68rem;
+    padding: 2px 4px;
+    background: var(--c-chrome-bg3);
+    border: 1px solid var(--c-chrome-border);
+    color: var(--c-chrome-text);
+    border-radius: 2px;
+    flex: 1;
+    min-width: 96px;
+  }
+  .bt-vol-slider {
+    width: 58px;
+    accent-color: var(--c-accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  #bt-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.64rem;
+    color: var(--c-chrome-muted);
+  }
+  #bt-progress {
+    flex: 1;
+    height: 3px;
+    cursor: pointer;
+    accent-color: var(--c-accent);
+  }
+  /* Current-bar highlight on the lead sheet grid */
+  .ls-bar.bt-playing {
+    background: rgba(var(--c-accent-rgb, 180,140,60), 0.13) !important;
+    outline: 1.5px solid var(--c-accent);
+    outline-offset: -1px;
+  }
+  /* Mobile: full-width bars */
+  @media (max-width: 620px) {
+    #bt-bar  { left: 0; right: 0; transform: none; width: 100%; max-width: 100%; border-radius: 0; }
+    #bt-inst-panel { left: 0; right: 0; border-radius: 0; }
+    .bt-vol-slider { width: 44px; }
+    .bt-tempo-slider { width: 44px; }
+  }
+
   /* ── PRINT STYLES ────────────────────────────────────────────────────────────
      When printing, hide all chrome and show only the song text.
      The fonts the user chose are preserved; background is forced white.
@@ -1796,8 +1988,22 @@
     padding:18px 6px 8px;min-height:110px;position:relative;
     display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;justify-content:center;
     min-width:0;}
-  .ls-bar.ls-rep-open{border-left:4px double var(--c-accent);}
-  .ls-bar.ls-rep-close{border-right:4px double var(--c-accent);}
+  /* ── Repeat bars — thick line + thin line + two dots ──────────────────── */
+  .ls-bar.ls-rep-open{border-left:2px solid var(--c-accent);padding-left:14px;}
+  .ls-bar.ls-rep-open::before{content:'';position:absolute;left:4px;top:8%;height:84%;
+    width:4px;background:var(--c-accent);border-radius:1px;}
+  .ls-bar.ls-rep-open::after{content:'•\A•';white-space:pre;position:absolute;
+    left:11px;top:50%;transform:translateY(-55%);font-size:10px;line-height:1.8;
+    color:var(--c-accent);}
+  .ls-bar.ls-rep-close{border-right:2px solid var(--c-accent);padding-right:14px;}
+  .ls-bar.ls-rep-close::before{content:'•\A•';white-space:pre;position:absolute;
+    right:11px;top:50%;transform:translateY(-55%);font-size:10px;line-height:1.8;
+    color:var(--c-accent);}
+  .ls-bar.ls-rep-close::after{content:'';position:absolute;right:4px;top:8%;height:84%;
+    width:4px;background:var(--c-accent);border-radius:1px;}
+  /* ── Section / double barlines (no dots) ──────────────────────────────── */
+  .ls-bar.ls-section-end{border-right:3px double var(--c-accent);}
+  .ls-bar.ls-section-start{border-left:3px double var(--c-accent);}
   .ls-bar.ls-final{border-right:4px solid var(--c-accent);}
   .ls-section-lbl{position:absolute;top:2px;left:4px;background:var(--c-accent);
     color:#fff;font-size:0.58rem;font-weight:bold;padding:0 4px;border-radius:2px;line-height:1.6;}
@@ -1998,6 +2204,12 @@
       <span id="abc-time-total" style="font-variant-numeric:tabular-nums;">0:00</span>
     </div>
   </div>
+</div>
+
+<!-- ── BACKING TRACK PLAYER BAR — shown for lead sheets ───────────────────── -->
+<div id="bt-bar" style="display:none" tabindex="-1">
+  <!-- Content is built entirely by JS (_buildBTBar) so new instruments
+       can be added to BT_INSTRUMENTS without touching this HTML. -->
 </div>
 
 <div id="topbar">
@@ -2473,17 +2685,49 @@ Another lyric line
     </div>
   </h4>
   <div class="diagram-instrument-tabs">
-    <button class="inst-btn active" data-inst="guitar">Guitar</button>
-    <button class="inst-btn" data-inst="drop_d">Drop D</button>
-    <button class="inst-btn" data-inst="dadgad">DADGAD</button>
-    <button class="inst-btn" data-inst="open_g">Open G</button>
-    <button class="inst-btn" data-inst="ukulele">Uke</button>
-    <button class="inst-btn" data-inst="baritone_uke">Bari Uke</button>
+    <select class="inst-select active" data-family="guitar">
+      <option value="guitar">Guitar: E Standard</option>
+      <option value="drop_d">Guitar: Drop D</option>
+      <option value="dadgad">Guitar: DADGAD</option>
+      <option value="open_g">Guitar: Open G</option>
+      <option value="tenor_guitar">Guitar: Tenor (GDAE)</option>
+    </select>
+    <select class="inst-select" data-family="ukulele">
+      <option value="ukulele">Ukulele: Standard</option>
+      <option value="baritone_uke">Ukulele: Baritone</option>
+    </select>
     <button class="inst-btn" data-inst="piano">Piano</button>
-    <button class="inst-btn" data-inst="mandolin">Mandolin</button>
-    <button class="inst-btn" data-inst="mandola">Mandola</button>
-    <button class="inst-btn" data-inst="banjo">Banjo</button>
-    <button class="inst-btn" data-inst="none" title="Hide chords (invisible until another option is selected)">None</button>
+    <select class="inst-select" data-family="banjo">
+      <option value="banjo">Banjo: 5-string Open G</option>
+      <option value="tenor_banjo_irish">Banjo: Tenor (Irish GDAE)</option>
+      <option value="tenor_banjo_jazz">Banjo: Tenor (Jazz CGDA)</option>
+      <option value="banjo_sawmill">Banjo: Sawmill (DGCD)</option>
+      <option value="banjo_double_c">Banjo: Double C (CGCD)</option>
+      <option value="banjo_old_std">Banjo: Old Standard (CGBD)</option>
+    </select>
+    <select class="inst-select" data-family="mandolin">
+      <option value="mandolin">Mandolin: Standard</option>
+      <option value="mandola">Mandolin: Mandola</option>
+      <option value="mandocello">Mandolin: Mandocello</option>
+      <option value="mando_cross_gdgd">Mandolin: Cross-tuned GDGD</option>
+      <option value="mando_cross_aeae">Mandolin: Cross-tuned AEAE</option>
+      <option value="mando_cajun_fcgd">Mandolin: Cajun FCGD</option>
+      <option value="mando_gdad">Mandolin: GDAD</option>
+    </select>
+    <select class="inst-select" data-family="folk">
+      <option value="irish_bouzouki">Folk: Irish Bouzouki (GDAD)</option>
+      <option value="greek_bouzouki">Folk: Greek Bouzouki (CFAD)</option>
+      <option value="cittern_gdgdg">Folk: Cittern (GDGDG)</option>
+      <option value="cittern_gdadg">Folk: Cittern (GDADG)</option>
+      <option value="balalaika">Folk: Balalaika (AEE)</option>
+      <option value="cavaquinho">Folk: Cavaquinho (DGBD)</option>
+      <option value="vihuela">Folk: Vihuela (ADGBE)</option>
+    </select>
+    <button class="inst-btn" data-inst="none" title="Hide chord diagrams">None</button>
+  </div>
+  <div id="diag-disclaimer" style="display:none;">
+    <p>Due to the number of instruments and alternate tunings supported, it's possible some fingerings are off or not the most common/easiest way to play that chord. Please report any inaccuracies for me to fix!</p>
+    <button id="diag-disclaimer-dismiss" aria-label="Dismiss">Got it</button>
   </div>
   <div class="chord-diagram-grid" id="diagram-grid"></div>
 </div>
@@ -2662,6 +2906,7 @@ Another lyric line
 </div>
 
 <div id="chord-hover-tooltip"></div>
+<script src="backing-track.js"></script>
 <script>
 // ── DATA — songs array, folders, scroll state, instrument ───────────────────
 let songs = [];
@@ -2718,11 +2963,24 @@ egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
     } else { commit(); }
   })();
 }
+// Returning user init: deferred so all `let` declarations (currentIdx etc.) are in scope
+if (songs.length > 0) {
+  setTimeout(function() { buildSongList(''); renderSong(0); }, 0);
+}
 let currentIdx      = -1;
 let transposeAmount = 0;
 let scrollInterval  = null;
 let isScrolling     = false;
 let currentInstrument = 'guitar';
+
+// Instruments that share a tuning with an existing chord-engine key
+const INSTRUMENT_ALIASES = {
+  tenor_guitar:      'mandolin',   // GDAE
+  mandocello:        'mandola',    // CGDA
+  tenor_banjo_irish: 'mandolin',   // GDAE
+  tenor_banjo_jazz:  'mandola',    // CGDA
+};
+function resolveInst(i) { return INSTRUMENT_ALIASES[i] || i; }
 let pendingRefreshIdx = -1;   // which song we're refreshing when the file picker fires
 
 // strip out huge raw_html before saving to localStorage (it has a ~5MB quota
@@ -3796,7 +4054,15 @@ function updateKeyDisplay() {
 
 // ── RENDER SONG — loads a song by index, resets transpose, scrolls to top ──
 function renderSong(idx) {
+  if (!songs[idx]) {
+    console.error('renderSong: no song at index', idx);
+    if (typeof showToast === 'function') showToast('Song not found (index ' + idx + ')');
+    return;
+  }
+  try {
   currentIdx=idx; transposeAmount=0;
+  // Hide backing track bar when navigating to a non-lead-sheet song
+  if(typeof btCloseBar==='function' && songs[idx]._source !== 'ireal') btCloseBar();
   // Auto-detect key if song doesn't already have one
   const _song = songs[idx];
   if (!_song.key) {
@@ -3850,6 +4116,10 @@ function renderSong(idx) {
   if (_eb) { _eb.classList.remove('active'); _eb.textContent = '✎ Edit'; }
   const _sb = document.getElementById('btn-save');
   if (_sb) _sb.style.display = 'none';
+  } catch(e) {
+    console.error('renderSong error:', e);
+    if (typeof showToast === 'function') showToast((e.name || 'Error') + ': ' + e.message);
+  }
 }
 
 function updateTransposeButtons() {
@@ -5231,8 +5501,7 @@ document.addEventListener('keydown', e => {
     if (e.shiftKey && e.key === 'H') {
       e.preventDefault();
       const targetInst = currentInstrument === 'none' ? 'guitar' : 'none';
-      const targetBtn  = document.querySelector(`.inst-btn[data-inst="${targetInst}"]`);
-      if (targetBtn) targetBtn.click();
+      setActiveInstrument(targetInst);
     }
   }
 });
@@ -7618,12 +7887,12 @@ function renderDiagrams() {
   }
   if(chords.length===0){grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No chords detected</p>';return;}
   chords.forEach(chord=>{
-    const svg=renderChordDiagram(chord,currentInstrument); if(!svg) return;
+    const svg=renderChordDiagram(chord,resolveInst(currentInstrument)); if(!svg) return;
     const item=document.createElement('div'); item.className='chord-diagram-item';
     item.innerHTML='<div class="chord-name">'+chord+'</div>'+svg;
     grid.appendChild(item);
   });
-  if(grid.children.length===0) grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No diagrams for these chords on '+currentInstrument+'</p>';
+  if(grid.children.length===0) grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No diagrams for these chords on '+resolveInst(currentInstrument)+'</p>';
 }
 
 function showDiagramForChord(name) {
@@ -7644,7 +7913,7 @@ const chordHoverEl = document.getElementById('chord-hover-tooltip');
 function showChordTooltip(span, x, y) {
   const name = cleanToken(span.textContent.trim());
   // span text is already the transposed name — don't transpose again
-  const svg = renderChordDiagram(name, currentInstrument);
+  const svg = renderChordDiagram(name, resolveInst(currentInstrument));
   if (!svg) { chordHoverEl.style.display = 'none'; return; }
   chordHoverEl.innerHTML = '<div class="cht-name">' + name + '</div>' + svg;
   chordHoverEl.style.display = 'block';
@@ -7676,6 +7945,16 @@ document.getElementById('tab-content').addEventListener('mouseleave', () => {
   chordHoverEl.style.display = 'none';
 });
 
+// Show disclaimer once per browser session
+(function() {
+  const disc = document.getElementById('diag-disclaimer');
+  if (!sessionStorage.getItem('diagDisclaimerDismissed')) disc.style.display = 'block';
+  document.getElementById('diag-disclaimer-dismiss').addEventListener('click', () => {
+    disc.style.display = 'none';
+    sessionStorage.setItem('diagDisclaimerDismissed', '1');
+  });
+})();
+
 document.getElementById('btn-diagrams').addEventListener('click',()=>{
   const panel=document.getElementById('diagram-panel');
   panel.classList.toggle('visible');
@@ -7683,33 +7962,46 @@ document.getElementById('btn-diagrams').addEventListener('click',()=>{
   document.getElementById('btn-diagrams').setAttribute('aria-pressed', open ? 'true' : 'false');
   if(open){
     renderDiagrams();
-    const activeInstBtn = panel.querySelector('.inst-btn.active');
-    if(activeInstBtn) activeInstBtn.focus();
+    const activeInstEl = panel.querySelector('.inst-btn.active, .inst-select.active');
+    if(activeInstEl) activeInstEl.focus();
   }
 });
 document.getElementById('btn-close-diagrams').addEventListener('click',()=>{
   document.getElementById('diagram-panel').classList.remove('visible');
   document.getElementById('btn-diagrams').setAttribute('aria-pressed','false');
 });
-document.querySelectorAll('.inst-btn').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('.inst-btn').forEach(b=>b.classList.remove('active'));
+function setActiveInstrument(inst) {
+  currentInstrument = inst;
+  document.querySelectorAll('.inst-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.inst-select').forEach(s => s.classList.remove('active'));
+  const btn = document.querySelector(`.inst-btn[data-inst="${inst}"]`);
+  if (btn) {
     btn.classList.add('active');
-    currentInstrument = btn.dataset.inst;
-    if (currentInstrument === 'none') {
-      document.body.classList.add('chords-hidden');
-      document.getElementById('diagram-grid').innerHTML = '';
-    } else {
-      document.body.classList.remove('chords-hidden');
-      renderDiagrams();
-    }
-    // Re-render lead sheet so inline diagrams appear/update/disappear
-    const _irc=document.getElementById('ireal-song-card');
-    const _ics=currentIdx>=0?songs[currentIdx]:null;
-    if(_irc&&_irc.style.display!=='none'&&_ics&&_ics._source==='ireal'){
-      renderIRealSong(_ics);
-    }
+  } else {
+    const opt = document.querySelector(`.inst-select option[value="${inst}"]`);
+    if (opt) { opt.closest('select').classList.add('active'); opt.closest('select').value = inst; }
+  }
+  if (inst === 'none') {
+    document.body.classList.add('chords-hidden');
+    document.getElementById('diagram-grid').innerHTML = '';
+  } else {
+    document.body.classList.remove('chords-hidden');
+    renderDiagrams();
+  }
+  const _irc = document.getElementById('ireal-song-card');
+  const _ics = currentIdx >= 0 ? songs[currentIdx] : null;
+  if (_irc && _irc.style.display !== 'none' && _ics && _ics._source === 'ireal') renderIRealSong(_ics);
+}
+
+document.querySelectorAll('.inst-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveInstrument(btn.dataset.inst));
+});
+document.querySelectorAll('.inst-select').forEach(sel => {
+  // Activating the family on mousedown (before the dropdown opens) gives immediate feedback
+  sel.addEventListener('mousedown', () => {
+    if (!sel.classList.contains('active')) setActiveInstrument(sel.value);
   });
+  sel.addEventListener('change', () => setActiveInstrument(sel.value));
 });
 
 // ── CHORD SIMPLIFICATION ─────────────────────────────────────────────────────
@@ -8125,11 +8417,6 @@ document.getElementById('btn-clear-all').addEventListener('click',()=>{
   document.getElementById('empty-state').style.display='flex';
 });
 
-document.getElementById('btn-new-song-sidebar').addEventListener('click', () => {
-  document.getElementById('btn-new-song').click();
-});
-
-
 // ── EDITOR — state & functions ────────────────────────────────────────────────
 let isEditMode        = false;
 let hasUnsavedChanges = false;
@@ -8419,7 +8706,22 @@ document.getElementById('new-song-modal').addEventListener('click', e => {
 });
 document.getElementById('btn-ns-create').addEventListener('click', () => {
   const nsType = document.getElementById('ns-type')?.value || 'song';
-  if (nsType === 'ireal') return; // handled by its own listener
+  if (nsType === 'ireal') {
+    const url = (document.getElementById('ns-ireal-url')?.value || '').trim();
+    const statusEl = document.getElementById('ns-ireal-status');
+    if (!url) { if (statusEl) statusEl.textContent = '⚠ Paste an irealb:// URL above.'; return; }
+    let parsed;
+    try { parsed = parseIRealURL(url); } catch(e) { if (statusEl) statusEl.textContent = '✗ ' + e.message; return; }
+    if (!parsed || !parsed.length) { if (statusEl) statusEl.textContent = '✗ No songs found in that URL.'; return; }
+    const startIdx = songs.length;
+    parsed.forEach(s => songs.push(s));
+    saveSongs();
+    buildSongList(document.getElementById('search-input').value);
+    document.getElementById('new-song-modal').classList.remove('open');
+    const sel2 = document.getElementById('ns-type'); sel2.value = 'song'; sel2.dispatchEvent(new Event('change'));
+    renderSong(startIdx);
+    return;
+  }
 
   if (nsType === 'abc') {
     // ABC paste-box flow: extract title/artist from ABC headers
@@ -8761,6 +9063,23 @@ document.getElementById('btn-tap').addEventListener('click', () => {
 });
 
 buildBeatDots();
+
+// ── BACKING TRACK — loaded from backing-track.js ────────────────────────────
+// The engine is in backing-track.js (keeping this file manageable).
+// If the file is absent the stubs below keep the app working silently.
+// NOTE: backing-track.js is loaded BEFORE this script block (see <head>)
+// so window.btLoaded is already set if the file loaded successfully.
+(function() {
+  if (!window.btLoaded) {
+    window.btStart     = function() { if(typeof showToast==='function') showToast('backing-track.js not found'); };
+    window.btStop      = function() {};
+    window.btIsRunning = function() { return false; };
+    window.btGetSong   = function() { return null; };
+    window.btOpenBar   = function() {};
+    window.btCloseBar  = function() {};
+    window.btLoaded    = false;
+  }
+})();
 
 // ── PRINT PANEL ──────────────────────────────────────────────────────────────
 document.getElementById('btn-print-open').addEventListener('click', function(e) {
@@ -9668,7 +9987,8 @@ function startABCSynth(tuneIdx, seekFrac) {
   const curEl      = document.getElementById('abc-time-cur');
   const totEl      = document.getElementById('abc-time-total');
   const fmtTime    = s => { const m=Math.floor(s/60); return m+':'+(Math.floor(s%60)+'').padStart(2,'0'); };
-  if (totEl) totEl.textContent = fmtTime(notesTotalDur * (1 - seekFrac));
+  if (totEl) totEl.textContent = fmtTime(notesTotalDur);   // always show total duration
+  if (curEl) curEl.textContent = fmtTime(seekFrac * notesTotalDur); // absolute position
   if (progressEl) progressEl.value = seekFrac * 100;
 
   // Expose measure timing for metronome sync
@@ -9685,7 +10005,7 @@ function startABCSynth(tuneIdx, seekFrac) {
       const fracNow = seekFrac + elapsed / notesTotalDur;
       const pct     = Math.min(100, fracNow * 100);
       if (progressEl) progressEl.value = pct;
-      if (curEl)      curEl.textContent = fmtTime(Math.max(0, elapsed));
+      if (curEl)      curEl.textContent = fmtTime(Math.max(0, fracNow * notesTotalDur));
       if (fracNow >= 1.0) { stopABCSynth(); return; }
     }
     rafId = requestAnimationFrame(tick);
@@ -10061,14 +10381,32 @@ const _TUNER_STABLE_THR = 0.6;
 
 // Map diagram currentInstrument → nearest tuner dropdown option
 const DIAG_TO_TUNER = {
-  guitar:       'Guitar (Standard) — EADGBe',
-  ukulele:      'Ukulele (GCEA)',
-  baritone_uke: 'Ukulele (DGBE)',
-  mandolin:     'Violin / Mandolin — GDAe',
-  mandola:      'Viola — CGda',
-  banjo:        'Banjo (5-string G)',
-  piano:        'Chromatic (any pitch)',
-  bass:         'Bass (4-string) — EADg',
+  guitar:              'Guitar (Standard) — EADGBe',
+  ukulele:             'Ukulele (GCEA)',
+  baritone_uke:        'Ukulele (DGBE)',
+  mandolin:            'Violin / Mandolin — GDAe',
+  tenor_guitar:        'Violin / Mandolin — GDAe',
+  tenor_banjo_irish:   'Violin / Mandolin — GDAe',
+  mando_cross_gdgd:    'Violin / Mandolin — GDAe',
+  mando_cross_aeae:    'Violin / Mandolin — GDAe',
+  mando_gdad:          'Violin / Mandolin — GDAe',
+  mandola:             'Viola — CGda',
+  mandocello:          'Viola — CGda',
+  tenor_banjo_jazz:    'Viola — CGda',
+  mando_cajun_fcgd:    'Viola — CGda',
+  banjo_sawmill:       'Banjo (5-string G)',
+  banjo_double_c:      'Banjo (5-string G)',
+  banjo_old_std:       'Banjo (5-string G)',
+  banjo:               'Banjo (5-string G)',
+  piano:               'Chromatic (any pitch)',
+  bass:                'Bass (4-string) — EADg',
+  irish_bouzouki:      'Chromatic (any pitch)',
+  greek_bouzouki:      'Chromatic (any pitch)',
+  cittern_gdgdg:       'Chromatic (any pitch)',
+  cittern_gdadg:       'Chromatic (any pitch)',
+  balalaika:           'Chromatic (any pitch)',
+  cavaquinho:          'Chromatic (any pitch)',
+  vihuela:             'Guitar (Standard) — EADGBe',
 };
 
 function tunerStringButtons() {
@@ -10789,8 +11127,12 @@ function parseIRealSong(str){
   const _mp='1r34LbKcu7',_pi=rawC.indexOf(_mp);
   const enc=_pi!==-1?rawC.slice(_pi+_mp.length):(rawC.length>10?rawC.slice(10):rawC);
   const dec=irealDecode(enc);const chart=irealTokenise(dec);
+  // Smart default play count: songs with internal repeats play once (repeats handle repetition);
+  // songs without repeats play 3 times so the form loops meaningfully.
+  const hasRepeats=chart.bars.some(b=>b&&b.openRepeat);
+  const plays=hasRepeats?1:3;
   return{title,artist:composer,type:'Lead Sheet',_source:'ireal',
-         key,style,bpm,tab_content:'',ireal_chart:chart,ireal_raw:dec};
+         key,style,bpm,plays,tab_content:'',ireal_chart:chart,ireal_raw:dec};
 }
 function irealDecode(s){
   // iReal Pro obfusc50: swap first 5 ↔ last 5, then positions 10–23 ↔ 39–26
@@ -10805,14 +11147,18 @@ function irealDecode(s){
   return r+s;
 }
 function irealTokenise(s){
-  const bars=[];let bar=iRB(),pSec=null,pEnd=null,pTim=null,oRep=false,i=0;
+  const bars=[];let bar=iRB(),pSec=null,pEnd=null,pTim=null,oRep=false,pSecStart=false,i=0;
   function flush(m){if(pSec)bar.section=pSec;if(pEnd)bar.endingNum=pEnd;if(pTim)bar.timeChange=pTim;
+    if(pSecStart){bar.sectionStart=true;pSecStart=false;}
     if(m==='Z')bar.final=true;if(oRep){bar.openRepeat=true;oRep=false;}
     if(bar.chords.length||bar.section){bars.push(bar);}
-    else if(bars.length){const prev=bars[bars.length-1];if(bar.final)prev.final=true;if(bar.closeRepeat)prev.closeRepeat=true;}
+    else if(bars.length){const prev=bars[bars.length-1];if(bar.final)prev.final=true;
+      if(bar.closeRepeat)prev.closeRepeat=true;if(bar.sectionEnd)prev.sectionEnd=true;}
     bar=iRB();pSec=pEnd=pTim=null;}
   while(i<s.length){const c=s[i];
     if(/[ \t\r\n]/.test(c)){i++;continue;}
+    // Skip iReal text annotations: <anything>
+    if(c==='<'){while(i<s.length&&s[i]!=='>'){i++;}if(i<s.length)i++;continue;}
     // L = thin double barline, s = small barline — both act as bar separators
     if(c==='|'||c==='l'||c==='s'){flush('|');i++;continue;}
     if(c===','){i++;continue;}  // comma = visual spacer, not a barline
@@ -10825,10 +11171,14 @@ function irealTokenise(s){
     if(c==='Z'){flush('Z');i++;continue;}
     if(c==='{'){oRep=true;i++;continue;}
     if(c==='}'){bar.closeRepeat=true;flush('}');i++;continue;}
-    if(c==='['){if(i+1<s.length&&/[0-9]/.test(s[i+1])){pEnd=s[i+1];i+=2;}else i++;continue;}
+    if(c==='['){
+      if(i+1<s.length&&/[0-9]/.test(s[i+1])){pEnd=s[i+1];i+=2;}
+      else{pSecStart=true;i++;}  // [ without digit = double-bar section start
+      continue;
+    }
     if(c===']'){
-      // end of section — mark current in-progress bar (flushed next) with double barline
-      bar.closeRepeat=true;
+      // ] = double-barline section end (NOT a close-repeat)
+      bar.sectionEnd=true;
       i++;continue;
     }
     if(c==='('){i++;continue;}  // skip optional-chord open paren
@@ -10858,8 +11208,11 @@ function irealTokenise(s){
   if(bar.chords.length||bar.section)bars.push(bar);
   return{bars};
 }
-function iRB(){return{chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,final:false};}
+function iRB(){return{chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,sectionStart:false,sectionEnd:false,final:false};}
 function irealChordHTML(root,qual,bass){
+  // Defensive: old-format songs may omit qual/bass entirely
+  qual = qual != null ? qual : '';
+  bass = bass != null ? bass : '';
   // root already has \u266d/\u266f embedded by tokenizer (e.g. 'B\u266d', 'E\u266d')
   // bass may still be in raw ASCII form (e.g. 'Bb', 'Ab', 'F#') \u2014 normalise it
   function normNote(n){
@@ -11085,7 +11438,7 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   function sep(){const d=document.createElement('div');d.className='ls-cell-menu-sep';return d;}
 
   const bidx=chart.bars.indexOf(bar);
-  function emptyBar(){return{chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,final:false};}
+  function emptyBar(){return{chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,sectionStart:false,sectionEnd:false,final:false};}
 
   // Time signature
   menu.appendChild(row('♪', bar.timeChange ? 'Time: '+bar.timeChange : 'Set time sig', '', ()=>{
@@ -11098,65 +11451,64 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   // Section marker
   menu.appendChild(row('§', bar.section ? 'Section: '+bar.section : 'Set section', '', ()=>{
     openModal('Set section marker',
-      [{label:'Section label',placeholder:'A, B, Intro, Coda…',value:bar.section||'',key:'s'}],
+      [{label:'Section label',key:'s'}],
       ({s})=>{bar.section=s||null;saveSongs();renderIRealSong(song);}
+    );
+  }));
+
+  // Ending number
+  menu.appendChild(row('①', bar.endingNum ? 'Ending: '+bar.endingNum : 'Set ending', '', ()=>{
+    openModal('Set ending number',
+      [{label:'Ending (e.g. 1, 2)',placeholder:'1',value:bar.endingNum||'',key:'e'}],
+      ({e})=>{bar.endingNum=e||null;saveSongs();renderIRealSong(song);}
     );
   }));
 
   menu.appendChild(sep());
 
-  // Barline type toggles
-  menu.appendChild(row(':||', bar.closeRepeat?'✓ Close repeat (remove)':'Set close repeat','',()=>{
-    bar.closeRepeat=!bar.closeRepeat;saveSongs();renderIRealSong(song);
+  // Repeat markers
+  menu.appendChild(row('𝄆', bar.openRepeat  ? '✓ Open repeat'  : 'Open repeat',  bar.openRepeat ?'active':'', ()=>{bar.openRepeat=!bar.openRepeat;saveSongs();renderIRealSong(song);}));
+  menu.appendChild(row('𝄇', bar.closeRepeat ? '✓ Close repeat' : 'Close repeat', bar.closeRepeat?'active':'', ()=>{bar.closeRepeat=!bar.closeRepeat;saveSongs();renderIRealSong(song);}));
+  menu.appendChild(row('𝄁', bar.sectionEnd  ? '✓ Double barline (end)' : 'Double barline (end)', bar.sectionEnd?'active':'', ()=>{bar.sectionEnd=!bar.sectionEnd;saveSongs();renderIRealSong(song);}));
+  menu.appendChild(row('𝄁', bar.sectionStart? '✓ Double barline (start)' : 'Double barline (start)', bar.sectionStart?'active':'', ()=>{bar.sectionStart=!bar.sectionStart;saveSongs();renderIRealSong(song);}));
+  menu.appendChild(row('||', bar.final ? '✓ Final barline' : 'Final barline', bar.final?'active':'', ()=>{bar.final=!bar.final;saveSongs();renderIRealSong(song);}));
+
+  menu.appendChild(sep());
+
+  // Insert bar before / after
+  menu.appendChild(row('+', 'Insert bar before', '', ()=>{
+    closeMenu();
+    chart.bars.splice(bidx,0,emptyBar());
+    saveSongs();renderIRealSong(song);
   }));
-  menu.appendChild(row('𝄂', bar.final?'✓ Final barline (remove)':'Set final barline','',()=>{
-    bar.final=!bar.final;saveSongs();renderIRealSong(song);
+  menu.appendChild(row('+', 'Insert bar after', '', ()=>{
+    closeMenu();
+    chart.bars.splice(bidx+1,0,emptyBar());
+    saveSongs();renderIRealSong(song);
   }));
 
   menu.appendChild(sep());
 
-  menu.appendChild(row('➕','Add cell before','',()=>{
-    chart.bars.splice(bidx,0,emptyBar());saveSongs();renderIRealSong(song);
+  // Delete bar
+  menu.appendChild(row('✕', 'Delete bar', 'danger', ()=>{
+    closeMenu();
+    if(chart.bars.length>1){chart.bars.splice(bidx,1);}
+    saveSongs();renderIRealSong(song);
   }));
-  menu.appendChild(row('➕','Add cell after','',()=>{
-    chart.bars.splice(bidx+1,0,emptyBar());saveSongs();renderIRealSong(song);
-  }));
-  if(chart.bars.length>1){
-    menu.appendChild(row('🗑','Delete this cell','danger',()=>{
-      openModal('Delete cell',
-        [{label:'Type DELETE to confirm',placeholder:'DELETE',value:'',key:'confirm'}],
-        ({confirm})=>{if(confirm.toUpperCase()==='DELETE'||confirm===''){chart.bars.splice(bidx,1);saveSongs();renderIRealSong(song);}}
-      );
-    }));
-  }
 
   document.body.appendChild(menu);
 
-  const menuKey=e=>{if(e.key==='Escape')closeMenu();};
+  function menuKey(e){if(e.key==='Escape'){closeMenu();}}
   document.addEventListener('keydown',menuKey);
+  // Close on outside click
   setTimeout(()=>{
-    function outside(e){if(!menu.contains(e.target)&&e.target!==kbtn){closeMenu();document.removeEventListener('mousedown',outside);}}
-    document.addEventListener('mousedown',outside);
-  },10);
+    document.addEventListener('click',function _close(){
+      closeMenu();document.removeEventListener('click',_close);
+    });
+  },0);
 }
 
-
-function _makeBlankChart(){
-  function _bar(opts){return Object.assign({chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,final:false},opts);}
-  const sections=['A',null,null,null, null,null,null,null,
-                  'B',null,null,null, null,null,null,null,
-                  'A',null,null,null, null,null,null,null,
-                  'B',null,null,null, null,null,null,null];
-  const bars=sections.map((s,i)=>{
-    const opts={};
-    if(s)opts.section=s;
-    if(i===0)opts.timeChange='4/4';
-    if(i===31)opts.final=true;
-    return _bar(opts);
-  });
-  return{bars};
-}
-
+// ── Render lead sheet ─────────────────────────────────────────────────────────
 function renderIRealSong(song){
   document.getElementById('abc-song-card').style.display='none';
   document.getElementById('abc-toolbar').style.display='none';
@@ -11166,13 +11518,14 @@ function renderIRealSong(song){
   document.getElementById('empty-state').style.display='none';
   const card=document.getElementById('ireal-song-card');card.style.display='';
   document.getElementById('ireal-toolbar').style.display='';
-  // Reset edit mode when a different song is opened
+  // Stop backing track when switching to a different song
+  if(typeof btIsRunning==='function'&&btIsRunning()&&song!==(typeof btGetSong==='function'?btGetSong():null)){btStop();}
   if(song !== _lsEditSong){ isLsEditMode=false; _lsEditSong=song; }
   card.classList.toggle('ls-edit-mode', isLsEditMode);
   const cont=document.getElementById('ireal-content');cont.innerHTML='';
   const chart=song.ireal_chart;
   if(!chart){cont.textContent='No chart data.';return;}
-  // ── Song header (title / artist / meta pills) ────────────────────────────
+  // ── Song header ──────────────────────────────────────────────────────────
   const _dispKey=song.key?transposeKey(song.key,transposeAmount):'';
   const hdr=document.createElement('div');hdr.className='song-header';
   const _titleEl=document.createElement('div');_titleEl.className='song-main-title';
@@ -11192,39 +11545,37 @@ function renderIRealSong(song){
   if(song.artist)hdr.appendChild(_artistEl);
   hdr.appendChild(_metaEl);
   cont.appendChild(hdr);
-  const bars=chart.bars.slice();while(bars.length%4!==0)bars.push(null);
+  const bars=(chart.bars||[]).slice();while(bars.length%4!==0)bars.push(null);
   const grid=document.createElement('div');grid.className='ls-grid';
-  bars.forEach(bar=>{
+  bars.forEach((bar,i)=>{
     const cell=document.createElement('div');cell.className='ls-bar';
     if(!bar){cell.style.borderColor='transparent';grid.appendChild(cell);return;}
+    cell.dataset.barIdx=String(i);
     if(bar.openRepeat)cell.classList.add('ls-rep-open');
     if(bar.closeRepeat)cell.classList.add('ls-rep-close');
+    if(bar.sectionStart)cell.classList.add('ls-section-start');
+    if(bar.sectionEnd)cell.classList.add('ls-section-end');
     if(bar.final)cell.classList.add('ls-final');
     if(bar.section){const sl=document.createElement('div');sl.className='ls-section-lbl';sl.textContent=bar.section;cell.appendChild(sl);}
     if(bar.timeChange){const ts=document.createElement('div');ts.className='ls-timesig';ts.textContent=bar.timeChange;cell.appendChild(ts);}
     if(bar.endingNum){const en=document.createElement('div');en.className='ls-ending';en.textContent=bar.endingNum;cell.appendChild(en);}
-    if(!bar.chords.length){cell.classList.add('ls-empty');const sp=document.createElement('span');sp.className='ls-rep-sym';sp.textContent='/';cell.appendChild(sp);}
-    // Scale diagrams: count actual chord entries to fit them all on one line
-    const nChords = bar.chords.filter(c=>c.type==='chord').length;
-    const _countAdj = nChords <= 2 ? 1.0 : nChords === 3 ? 0.72 : 0.57;
-    const _diagScale = _lsDiagScale() * _countAdj;
-    // Lead sheet cards have a dark background in some themes — use theme ink colour
-    const _lsInk = 'auto'; // SVG uses currentColor; colour set via CSS .ls-chord-unit { color: var(--c-notation-ink) }
-    bar.chords.forEach(ch=>{
+    if(!(bar.chords&&bar.chords.length)){cell.classList.add('ls-empty');const sp=document.createElement('span');sp.className='ls-rep-sym';sp.textContent='/';cell.appendChild(sp);}
+    const nChords=(bar.chords||[]).filter(c=>c.type==='chord').length;
+    const _countAdj=nChords<=2?1.0:nChords===3?0.72:0.57;
+    const _diagScale=_lsDiagScale()*_countAdj;
+    const _lsInk='auto';
+    (bar.chords||[]).forEach(ch=>{
       if(ch.type==='chord'){
         const tr=transposeIRealRoot(ch.root,transposeAmount);
         const tb=transposeIRealBass(ch.bass,transposeAmount);
-        const unit=document.createElement('div');
-        unit.className='ls-chord-unit';
+        const unit=document.createElement('div');unit.className='ls-chord-unit';
         const nm=document.createElement('span');
-        // Apply simplification: reduce to root+minor quality only when simplified view is on
-        // Simplified: root stays; minor quality preserved; diagram uses simplified key
         const _dispQual=isSimplifiedView?(ch.qual&&ch.qual.match(/^[-m](?!aj)/)?'m':''):(ch.qual);
         nm.innerHTML=irealChordHTML(tr,_dispQual,isSimplifiedView?'':tb);
         unit.appendChild(nm);
         if(currentInstrument&&currentInstrument!=='none'){
           const key=irealChordKey(tr,_dispQual);
-          const svg=renderChordDiagram(key,currentInstrument,_diagScale,_lsInk);
+          const svg=renderChordDiagram(key,resolveInst(currentInstrument),_diagScale,_lsInk);
           if(svg){const d=document.createElement('div');d.innerHTML=svg;unit.appendChild(d.firstChild);}
         }
         cell.appendChild(unit);
@@ -11237,7 +11588,6 @@ function renderIRealSong(song){
         cell.appendChild(sp);
       }
     });
-    // Kebab menu button
     const kbtn=document.createElement('button');kbtn.className='ls-kebab-btn';kbtn.textContent='⋮';
     kbtn.title='Cell options';kbtn.setAttribute('aria-label','Cell options');
     kbtn.addEventListener('click',e=>{e.stopPropagation();_irealCellMenu(kbtn,cell,bar,song,chart);});
@@ -11249,49 +11599,12 @@ function renderIRealSong(song){
     });
     grid.appendChild(cell);
   });
-  // ── Action toolbar (top of card) ─────────────────────────────────────────────
-  const tb=document.createElement('div');tb.className='ls-toolbar';
-  const saveBtn=document.createElement('button');saveBtn.textContent='⬇ Save As…';
-  saveBtn.title='Download this lead sheet as a .mslead file';
-  saveBtn.addEventListener('click',()=>{
-    const out=Object.assign({},song,{_ms_format:'lead-sheet',_ms_version:1});
-    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=(song.title||'lead-sheet').replace(/[^a-z0-9 _-]/gi,'_')+'.mslead';
-    a.click();URL.revokeObjectURL(a.href);
-  });
-  const newBtn=document.createElement('button');newBtn.textContent='✦ New';newBtn.title='Create a new lead sheet';
-  newBtn.addEventListener('click',()=>{
-    const sel=document.getElementById('ns-type');if(sel){sel.value='blank-lead';sel.dispatchEvent(new Event('change'));}
-    openNewSongModal();
-  });
-  const editLsBtn=document.createElement('button');editLsBtn.id='btn-ls-edit';
-  editLsBtn.textContent=isLsEditMode?'✎ Editing':'✎ Edit';
-  if(isLsEditMode)editLsBtn.classList.add('active');
-  editLsBtn.title=isLsEditMode?'Exit edit mode':'Edit this lead sheet';
-  editLsBtn.addEventListener('click',()=>{
-    // Close any open edit cell before toggling
-    document.querySelectorAll('.ls-bar.ls-editing').forEach(c=>c.dispatchEvent(new Event('blur',{bubbles:true})));
-    isLsEditMode=!isLsEditMode;
-    renderIRealSong(song);
-  });
-  const pubLsBtn=document.createElement('button');pubLsBtn.textContent='☁ Publish';
-  pubLsBtn.title='Publish this lead sheet to the online library';
-  pubLsBtn.addEventListener('click',()=>{
-    if(currentIdx>=0) showPublishModal([currentIdx]);
-  });
-  const irealTb=document.getElementById('ireal-toolbar');irealTb.innerHTML='';
-  irealTb.appendChild(newBtn);irealTb.appendChild(editLsBtn);irealTb.appendChild(saveBtn);irealTb.appendChild(pubLsBtn);irealTb.style.display='';
-
   cont.appendChild(grid);
 
-  // Notes / Lyrics annotation area
-  // Notes/Lyrics — textarea in edit mode, rendered view in read mode, hidden if empty
+  // Notes / Lyrics annotation
   if(isLsEditMode){
     const notesWrap=document.createElement('div');notesWrap.className='ls-notes-wrap';
-    const notesLbl=document.createElement('div');notesLbl.className='ls-notes-label';
-    notesLbl.textContent='Lyrics / Notes';
+    const notesLbl=document.createElement('div');notesLbl.className='ls-notes-label';notesLbl.textContent='Lyrics / Notes';
     const notesTa=document.createElement('textarea');notesTa.className='ls-notes-ta';
     notesTa.placeholder='Lyrics, annotations, performance notes...';
     notesTa.value=song.ireal_notes||'';
@@ -11301,372 +11614,234 @@ function renderIRealSong(song){
     cont.appendChild(notesWrap);
   } else if(song.ireal_notes&&song.ireal_notes.trim()){
     const notesWrap=document.createElement('div');notesWrap.className='ls-notes-wrap';
-    const notesLbl=document.createElement('div');notesLbl.className='ls-notes-label';
-    notesLbl.textContent='Lyrics / Notes';
+    const notesLbl=document.createElement('div');notesLbl.className='ls-notes-label';notesLbl.textContent='Lyrics / Notes';
     const notesView=document.createElement('div');notesView.className='ls-notes-view';
     _renderNotesView(song.ireal_notes,notesView);
     notesWrap.appendChild(notesLbl);notesWrap.appendChild(notesView);
     cont.appendChild(notesWrap);
   }
 
-  updateSidebarActive();window.scrollTo(0,0);
-}
-// Modal wiring
-document.getElementById('ns-type').addEventListener('change',function(){
-  const v=this.value;
-  const isIReal=v==='ireal',isABC=v==='abc',isBlankLead=v==='blank-lead',isSong=v==='song';
-  const showFields=isSong||isBlankLead;
-  ['ns-title','ns-artist','ns-key'].forEach(id=>{
-    const el=document.getElementById(id);
-    const row=el&&(el.closest?.('.modal-field')||el.parentElement);
-    if(row)row.style.display=showFields?'':'none';
-  });
-  const capoEl=document.getElementById('ns-capo');
-  const capoRow=capoEl&&(capoEl.closest?.('.modal-field')||capoEl.parentElement);
-  if(capoRow)capoRow.style.display=isSong?'':'none';
-  const fmt=document.getElementById('new-song-format');
-  if(fmt)fmt.style.display=isSong?'':'none';
-  const secIReal=document.getElementById('ns-ireal-section');
-  if(secIReal)secIReal.style.display=isIReal?'':'none';
-  const secABC=document.getElementById('ns-abc-section');
-  if(secABC)secABC.style.display=isABC?'':'none';
-  const btn=document.getElementById('btn-ns-create');
-  if(btn)btn.textContent=isIReal?'Import Lead Sheet(s)':isABC?'Import ABC':isBlankLead?'Create Lead Sheet':'Open Editor';
-  if(isIReal){const ta=document.getElementById('ns-ireal-url');if(ta)ta.focus();}
-  if(isABC){const ta=document.getElementById('ns-abc-content');if(ta)ta.focus();}
-  if(showFields){const el=document.getElementById('ns-title');if(el)el.focus();}
-});document.getElementById('btn-ns-create').addEventListener('click',function(e){
-  if(document.getElementById('ns-type')?.value!=='ireal')return;
-  e.stopImmediatePropagation();
-  const raw=document.getElementById('ns-ireal-url').value.trim();
-  const status=document.getElementById('ns-ireal-status');
-  if(!raw){status.textContent='\u26a0 Paste an irealb:// URL above.';return;}
-  let parsed;
-  try{parsed=parseIRealURL(raw);}catch(err){status.textContent='\u26a0 '+err.message;return;}
-  if(!parsed||!parsed.length){status.textContent='\u26a0 No songs found \u2014 check the URL.';return;}
-  const firstIdx=songs.length;
-  parsed.forEach(s=>songs.push(s));
-  saveAll();buildSongList('');
-  status.textContent=parsed.length===1?'\u2713 Imported 1 song.':'\u2713 Imported '+parsed.length+' songs.';
-  document.getElementById('new-song-modal').classList.remove('open');
-  const sel=document.getElementById('ns-type');sel.value='song';sel.dispatchEvent(new Event('change'));
-  renderSong(firstIdx);
-},true);
+  // ── Toolbar (ireal-toolbar above the card) ───────────────────────────────
+  const irealTb=document.getElementById('ireal-toolbar');irealTb.innerHTML='';
 
-// SERVICE WORKER
-if ('serviceWorker' in navigator &&
-    (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') &&
-    !location.hostname.includes('claudeusercontent')) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(function(reg) { console.log('[SW] Registered, scope:', reg.scope); })
-      .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+  const newBtn=document.createElement('button');newBtn.textContent='✦ New';newBtn.title='Create a new lead sheet';
+  newBtn.addEventListener('click',()=>{
+    const sel=document.getElementById('ns-type');if(sel){sel.value='blank-lead';sel.dispatchEvent(new Event('change'));}
+    openNewSongModal();
   });
+
+  const editLsBtn=document.createElement('button');editLsBtn.id='btn-ls-edit';
+  editLsBtn.textContent=isLsEditMode?'✎ Editing':'✎ Edit';
+  if(isLsEditMode)editLsBtn.classList.add('active');
+  editLsBtn.title=isLsEditMode?'Exit edit mode':'Edit this lead sheet';
+  editLsBtn.addEventListener('click',()=>{
+    document.querySelectorAll('.ls-bar.ls-editing').forEach(c=>c.dispatchEvent(new Event('blur',{bubbles:true})));
+    isLsEditMode=!isLsEditMode;
+    renderIRealSong(song);
+  });
+
+  const saveBtn=document.createElement('button');saveBtn.textContent='⬇ Save As…';
+  saveBtn.title='Download this lead sheet as a .mslead file';
+  saveBtn.addEventListener('click',()=>{
+    const out=Object.assign({},song,{_ms_format:'lead-sheet',_ms_version:1});
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=(song.title||'lead-sheet').replace(/[^a-z0-9 _-]/gi,'_')+'.mslead';
+    a.click();URL.revokeObjectURL(a.href);
+  });
+
+  
+  const pubLsBtn=document.createElement('button');pubLsBtn.textContent='☁ Publish';
+  pubLsBtn.title='Publish this lead sheet to the online library';
+  pubLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) showPublishModal([currentIdx]); });
+
+  irealTb.appendChild(newBtn);
+  irealTb.appendChild(editLsBtn);
+  irealTb.appendChild(saveBtn);
+  irealTb.appendChild(pubLsBtn);
+
+
+  // Open backing-track bar for iReal lead sheets
+  if (typeof btOpenBar === 'function') btOpenBar(song);
+  updateTransposeButtons();
+  updateSidebarActive();
+  window.scrollTo(0, 0);
 }
 
-(function() {
-  if (location.protocol === 'file:') return;
-  const candidates = [
-    'MagicScrollSoundfont.sf2',
-    'MagicScrollSoundfont.sfz',
-    'MagicScrollSoundfont/MagicScrollSoundfont.sf2',
-    'MagicScrollSoundfont/MagicScrollSoundfont.sfz',
-  ];
-  async function tryLoad(url) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return false;
-      const buf = await res.arrayBuffer();
-      if (url.endsWith('.sf2')) {
-        await loadSF2File(new File([buf], url.split('/').pop(), {type:'audio/sf2'}));
-      }
-      return true;
-    } catch(e) { return false; }
+// ── BLANK LEAD SHEET FACTORY ──────────────────────────────────────────────────
+function _makeBlankChart() {
+  var bars = [];
+  for (var i = 0; i < 32; i++) {
+    bars.push({ chords:[], section:null, endingNum:null, timeChange:null,
+                openRepeat:false, closeRepeat:false,
+                sectionStart:false, sectionEnd:false, final:false });
   }
-  candidates.reduce((p, url) => p.then(loaded => loaded ? true : tryLoad(url)), Promise.resolve(false));
-})();
+  return { bars: bars };
+}
 
-(function movePanelsToBody() {
-  ['theme-panel','chord-panel','publish-panel','settings-panel'].forEach(function(id) {
-    const el = document.getElementById(id);
-    if (el && el.parentElement !== document.body) document.body.appendChild(el);
-  });
-})();
+// ── ONLINE SEARCH STUBS ───────────────────────────────────────────────────────
+var FUNCTIONS_BASE     = '';  // backend endpoint -- set for deployed builds
+var _onlineSearchTimer = null;
+var _onlineSearchQ     = '';
+var _pendingOnlineSong = null;
 
-setDiagramScale(diagramScale);
-buildSongList();
-if (songs.length > 0 && !_demoLoading) renderSong(0);
+function clearOnlineResults() {
+  document.querySelectorAll('.online-result-item, .online-results-header')
+    .forEach(function(el) { el.remove(); });
+}
 
-// ══════════════════════════════════════════════════════════════════════════
-// ONLINE PUBLISH / SEARCH  (Supabase Edge Functions)
-// ══════════════════════════════════════════════════════════════════════════
-var SUPABASE_URL    = 'https://zpjaxauiuhvbvufrruhq.supabase.co';
-var FUNCTIONS_BASE  = SUPABASE_URL + '/functions/v1';
+function scheduleOnlineSearch(q) {
+  _onlineSearchQ = q;
+  clearTimeout(_onlineSearchTimer);
+  clearOnlineResults();
+  if (!q || q.length < 2) return;
+  _onlineSearchTimer = setTimeout(function() {
+    if (q !== _onlineSearchQ) return;
+    _runOnlineSearch(q);
+  }, 500);
+}
 
-// ── PWA install prompt capture ─────────────────────────────────────────────
-var _pwaPrompt = null;
-window.addEventListener('beforeinstallprompt', function(e) { e.preventDefault(); _pwaPrompt = e; });
-window.addEventListener('appinstalled',        function()  { _pwaPrompt = null; });
+function _runOnlineSearch(q) {
+  if (!FUNCTIONS_BASE) return;
+  fetch(FUNCTIONS_BASE + '/search-songs?q=' + encodeURIComponent(q))
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function(results) {
+      clearOnlineResults();
+      if (!results || !results.length) return;
+      var list = document.getElementById('song-list');
+      if (!list) return;
+      var hdr = document.createElement('div');
+      hdr.className = 'online-results-header';
+      hdr.style.cssText = 'padding:6px 12px;font-size:0.68rem;color:var(--c-chrome-muted);' +
+                          'text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;';
+      hdr.textContent = 'Online results';
+      list.appendChild(hdr);
+      results.forEach(function(song) {
+        var item = document.createElement('div');
+        item.className = 'song-item online-result-item';
+        var td = document.createElement('div'); td.className = 'song-item-text';
+        td.innerHTML = '<div class="s-title">' + escapeHtml(song.title || '') + '</div>' +
+                       '<div class="s-artist">' + escapeHtml(song.artist || '') + '</div>';
+        item.appendChild(td);
+        item.addEventListener('click', function() {
+          _pendingOnlineSong = song;
+          document.getElementById('online-preview-meta').innerHTML =
+            '<strong>' + escapeHtml(song.title || 'Untitled') + '</strong>' +
+            (song.artist ? ' &mdash; ' + escapeHtml(song.artist) : '');
+          document.getElementById('online-preview-content').textContent =
+            song.tab_content || song.abc_text || '(no preview)';
+          document.getElementById('online-preview-modal').classList.add('open');
+        });
+        list.appendChild(item);
+      });
+    })
+    .catch(function() { clearOnlineResults(); });
+}
 
-// ── Publish modal state ────────────────────────────────────────────────────
-var _publishMode      = 'songs';   // 'songs' | 'collection'
-var _publishIndices   = [];        // song indices being published
-var _publishFolderObj = null;      // folder object when publishing a collection
+// ── PUBLISH MODAL ─────────────────────────────────────────────────────────────
+var _publishIndices = [];
 
 function showPublishModal(indices) {
-  _publishMode    = 'songs';
-  _publishIndices = indices;
-  var names = indices.map(function(i) {
-    var s = songs[i]; if (!s) return '';
-    return (s.title || 'Untitled') + (s.artist ? ' — ' + s.artist : '');
-  }).filter(Boolean).join(', ');
-  document.getElementById('pub-song-name').textContent = names.length > 80 ? names.slice(0, 77) + '…' : names;
+  _publishIndices = indices || [];
+  var names = _publishIndices
+    .map(function(i) { return songs[i] ? (songs[i].title || 'Untitled') : ''; })
+    .filter(Boolean).join(', ');
+  document.getElementById('pub-song-name').textContent = names;
   document.getElementById('pub-status').textContent = '';
-  document.getElementById('pub-confirm-btn').disabled = false;
-  document.getElementById('pub-confirm-btn').textContent = 'Publish';
   document.getElementById('publish-modal').classList.add('open');
 }
 
 function showPublishCollectionModal(folderId) {
-  var f = folders.find(function(x) { return x.id === folderId; });
-  if (!f) return;
-  _publishMode      = 'collection';
-  _publishFolderObj = f;
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
+  _publishIndices = (folder.songIndices || []).filter(function(i) { return i < songs.length; });
   document.getElementById('pub-song-name').textContent =
-    '📁 ' + f.name + ' (' + f.songIndices.length + ' songs)';
+    'Collection: ' + folder.name + ' (' + _publishIndices.length + ' songs)';
   document.getElementById('pub-status').textContent = '';
-  document.getElementById('pub-confirm-btn').disabled = false;
-  document.getElementById('pub-confirm-btn').textContent = 'Publish';
   document.getElementById('publish-modal').classList.add('open');
 }
 
 document.getElementById('pub-cancel-btn').addEventListener('click', function() {
   document.getElementById('publish-modal').classList.remove('open');
 });
-
-document.getElementById('pub-confirm-btn').addEventListener('click', async function() {
-  var btn    = this;
-  var status = document.getElementById('pub-status');
-  btn.disabled = true;
-  status.textContent = 'Publishing…';
-
-  if (_publishMode === 'collection') {
-    var f = _publishFolderObj;
-    var colSongs = f.songIndices.map(function(i) {
-      var s = songs[i]; if (!s) return null;
-      return {
-        title:         s.title || 'Untitled',
-        artist:        s.artist        || null,
-        tab_content:   s.tab_content   || s.content || s.tab || '',
-        key:           s.key           || null,
-        capo:          s.capo          || null,
-        type:          s.type          || null,
-        tuning:        s.tuning        || null,
-        _source:       s._source       || null,
-        abc_text:      s.abc_text      || null,
-        abc_file_name: s.abc_file_name || null,
-        ireal_chart:   s.ireal_chart   || null,
-        ireal_raw:     s.ireal_raw     || null,
-      };
-    }).filter(Boolean);
-
-    try {
-      var res  = await fetch(FUNCTIONS_BASE + '/publish-collection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: f.name, songs: colSongs }),
-      });
-      var data = await res.json();
-      if (res.status === 409) {
-        status.textContent = 'This collection is already in the online library.';
-      } else if (!res.ok) {
-        status.textContent = 'Error: ' + (data.error || res.status);
-        btn.disabled = false;
-      } else {
-        status.textContent = '✓ Submitted for review! It will appear publicly once approved.';
-        setTimeout(function() { document.getElementById('publish-modal').classList.remove('open'); }, 2200);
-      }
-    } catch(e) {
-      status.textContent = 'Network error — are you online?';
-      btn.disabled = false;
-    }
-    return;
-  }
-
-  // ── Publish individual songs ──────────────────────────────────────────
-  var errors = [], published = 0, dupes = 0;
-  for (var k = 0; k < _publishIndices.length; k++) {
-    var s = songs[_publishIndices[k]]; if (!s) continue;
-    try {
-      var r = await fetch(FUNCTIONS_BASE + '/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title:         s.title || 'Untitled',
-          artist:        s.artist        || null,
-          content:       s.tab_content   || s.content || s.tab || '',
-          _source:       s._source       || null,
-          abc_text:      s.abc_text      || null,
-          abc_file_name: s.abc_file_name || null,
-          raw_html:      s.raw_html      || null,
-          ireal_raw:     s.ireal_raw     || null,
-          ireal_chart:   s.ireal_chart   || null,
-        }),
-      });
-      var d = await r.json();
-      if (r.status === 409)  { dupes++; }
-      else if (!r.ok)        { errors.push(s.title + ': ' + (d.error || r.status)); }
-      else                   { published++; }
-    } catch(e) {
-      errors.push(s.title + ': network error');
-    }
-  }
-
-  if (errors.length) {
-    status.textContent = errors.join(' | ');
-    btn.disabled = false;
-  } else if (dupes > 0 && published === 0) {
-    status.textContent = 'Already in the online library.';
-  } else {
-    var msg = published + ' song' + (published !== 1 ? 's' : '') + ' submitted for review!';
-    if (dupes) msg += ' (' + dupes + ' already existed)';
-    status.textContent = '✓ ' + msg + ' It will appear publicly once approved.';
-    setTimeout(function() { document.getElementById('publish-modal').classList.remove('open'); }, 2200);
-  }
-});
-
 document.getElementById('publish-modal').addEventListener('click', function(e) {
   if (e.target === this) this.classList.remove('open');
 });
-
-document.getElementById('btn-bulk-publish').addEventListener('click', function() {
-  var indices = Array.from(selectedSongs);
-  if (!indices.length) return;
-  showPublishModal(indices);
+document.getElementById('pub-confirm-btn').addEventListener('click', function() {
+  var statusEl = document.getElementById('pub-status');
+  var btn = this;
+  if (!FUNCTIONS_BASE) {
+    statusEl.textContent = 'Publishing not configured for this deployment.';
+    return;
+  }
+  statusEl.textContent = 'Publishing...';
+  btn.disabled = true;
+  var payload = _publishIndices.map(function(i) { return songs[i]; }).filter(Boolean);
+  fetch(FUNCTIONS_BASE + '/publish-songs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Server error ' + r.status);
+    return r.json();
+  }).then(function() {
+    statusEl.textContent = 'Published successfully!';
+    setTimeout(function() {
+      document.getElementById('publish-modal').classList.remove('open');
+    }, 1800);
+  }).catch(function(e) {
+    statusEl.textContent = 'Failed: ' + (e.message || 'unknown error');
+    btn.disabled = false;
+  });
 });
 
 document.getElementById('btn-publish-song').addEventListener('click', function() {
-  if (currentIdx < 0) return;
-  showPublishModal([currentIdx]);
+  if (currentIdx >= 0) showPublishModal([currentIdx]);
+});
+document.getElementById('btn-bulk-publish').addEventListener('click', function() {
+  var indices = Array.from(selectedSongs);
+  if (!indices.length) { showToast('Select songs first'); return; }
+  showPublishModal(indices);
 });
 
-// ── Online search ──────────────────────────────────────────────────────────
-var _onlineTimer       = null;
-var _onlineData        = [];
-var _onlinePreviewSong = null;
-
-function scheduleOnlineSearch(q) {
-  clearTimeout(_onlineTimer);
-  if (!q || q.trim().length < 2) { clearOnlineResults(); return; }
-  _onlineTimer = setTimeout(function() { doOnlineSearch(q.trim()); }, 400);
-}
-
-function clearOnlineResults() {
-  _onlineData = [];
-  var existing = document.getElementById('online-results-section');
-  if (existing) existing.remove();
-}
-
-async function doOnlineSearch(query) {
-  clearOnlineResults();
-  var list = document.getElementById('song-list');
-  var sec  = document.createElement('div');
-  sec.id   = 'online-results-section';
-  sec.innerHTML = '<div class="online-section-header"><span class="online-spinner"></span> Online</div>';
-  list.appendChild(sec);
-
-  try {
-    var res  = await fetch(FUNCTIONS_BASE + '/search?q=' + encodeURIComponent(query) + '&limit=20');
-    if (!res.ok) throw new Error(res.status);
-    var data = await res.json();
-    _onlineData = data;
-
-    sec.innerHTML = '<div class="online-section-header">☁️ Online (' + data.length + ')</div>';
-    if (!data.length) {
-      sec.innerHTML += '<div style="padding:8px 12px;font-size:0.75rem;color:var(--c-chrome-muted);">No online results</div>';
-      return;
-    }
-
-    var localHashes = new Set(songs.map(function(s) { return s.content_hash; }).filter(Boolean));
-    data.forEach(function(r) {
-      var alreadyLocal = !!r.content_hash && localHashes.has(r.content_hash);
-      var item = document.createElement('div');
-      item.className = 'online-song-item' + (alreadyLocal ? ' already-local' : '');
-      item.innerHTML =
-        '<div class="s-title">' + escapeHtml(r.title || 'Untitled') + '</div>'
-        + '<div class="s-artist">' + escapeHtml(r.artist || '')
-        + (alreadyLocal ? ' · <em>in library</em>' : '') + '</div>';
-      item.addEventListener('click', function() { openOnlinePreview(r, alreadyLocal); });
-      sec.appendChild(item);
-    });
-  } catch(e) {
-    sec.innerHTML = '<div class="online-section-header" style="color:var(--c-chrome-muted);">Offline</div>';
-  }
-}
-
-function openOnlinePreview(r, alreadyLocal) {
-  _onlinePreviewSong = r;
-  var meta   = document.getElementById('online-preview-meta');
-  var cont   = document.getElementById('online-preview-content');
-  var addBtn = document.getElementById('online-preview-add');
-
-  meta.textContent = (r.title || 'Untitled') + (r.artist ? ' — ' + r.artist : '');
-
-  var src = r._source;
-  var preview = '';
-  if (src === 'abc' && r.abc_text) {
-    preview = r.abc_text;
-  } else if (src === 'ireal' && (r.ireal_raw || r.ireal_chart)) {
-    preview = '🎼 Lead Sheet — ' + (r.title || '')
-            + '\nKey: ' + (r.key || '?') + '  Style: ' + (r.style || '?');
-  } else {
-    preview = r.content || '(no preview)';
-  }
-  cont.textContent = preview;
-
-  if (alreadyLocal) {
-    addBtn.textContent = '✓ Already in library';
-    addBtn.disabled = true;
-  } else {
-    addBtn.textContent = '+ Add to Library';
-    addBtn.disabled = false;
-  }
-
-  document.getElementById('online-preview-modal').classList.add('open');
-}
-
+// ── ONLINE PREVIEW MODAL ──────────────────────────────────────────────────────
 document.getElementById('online-preview-close').addEventListener('click', function() {
   document.getElementById('online-preview-modal').classList.remove('open');
+  _pendingOnlineSong = null;
 });
 document.getElementById('online-preview-modal').addEventListener('click', function(e) {
-  if (e.target === this) this.classList.remove('open');
+  if (e.target === this) { this.classList.remove('open'); _pendingOnlineSong = null; }
+});
+document.getElementById('online-preview-add').addEventListener('click', function() {
+  if (!_pendingOnlineSong) return;
+  var s = Object.assign({}, _pendingOnlineSong);
+  songs.push(s);
+  saveSongs();
+  buildSongList(document.getElementById('search-input').value);
+  document.getElementById('online-preview-modal').classList.remove('open');
+  _pendingOnlineSong = null;
+  renderSong(songs.length - 1);
+  showToast('Added: ' + (s.title || 'Untitled'));
 });
 
-document.getElementById('online-preview-add').addEventListener('click', function() {
-  var r = _onlinePreviewSong; if (!r) return;
-  var title         = r.title         || 'Untitled';
-  var artist        = r.artist        || '';
-  var key           = r.key           || '';
-  var style         = r.style         || '';
-  var bpm           = r.bpm           || 0;
-  var content       = r.content       || '';
-  var abc_text      = r.abc_text      || null;
-  var abc_file_name = r.abc_file_name || null;
-  var ireal_raw     = r.ireal_raw     || null;
-  var ireal_chart   = r.ireal_chart   || null;
-  var raw_html      = r.raw_html      || null;
-  var content_hash  = r.content_hash  || null;
+// ── NEW SONG MODAL — type selector ────────────────────────────────────────────
+document.getElementById('ns-type').addEventListener('change', function() {
+  var v = this.value;
+  var fmtDiv = document.getElementById('new-song-format');
+  var abcDiv = document.getElementById('ns-abc-section');
+  var irDiv  = document.getElementById('ns-ireal-section');
+  if (fmtDiv) fmtDiv.style.display = (v === 'song')   ? '' : 'none';
+  if (abcDiv) abcDiv.style.display = (v === 'abc')    ? '' : 'none';
+  if (irDiv)  irDiv.style.display  = (v === 'ireal')  ? '' : 'none'
+  var showMeta = (v === 'song' || v === 'blank-lead');
+  ['ns-title', 'ns-artist', 'ns-key', 'ns-capo'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var field = el.closest ? el.closest('.modal-field') : el.parentElement;
+    if (field) field.style.display = showMeta ? '' : 'none';
+  });
+});
+</script>
+</body>
 
-  var newSong;
-  if (r._source === 'abc') {
-    newSong = { title: title, artist: artist, key: key, type: 'Sheet Music',
-                _source: 'abc', abc_text: abc_text, abc_file_name: abc_file_name,
-                content_hash: content_hash };
-  } else if (r._source === 'ireal') {
-    var chart = ireal_chart ||
-                (ireal_raw && typeof irealTokenise === 'function' ? irealTokenise(ireal_raw) : null);
-    newSong = { title: title, artist: artist, key: key, style: style, bpm: bpm,
-                type: 'Lead Sheet', _source: 'ireal',
-                ireal_raw: ireal_raw || '', ireal_chart: chart,
-                tab_content: '', content_hash: content_hash };
-  } else if (r
+</html>

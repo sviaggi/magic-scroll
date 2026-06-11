@@ -14,15 +14,34 @@
 
   // -- String tunings (MIDI pitch per string, index 0 = lowest visual string) --
   const TUNINGS = {
-    guitar:       [40, 45, 50, 55, 59, 64], // E2 A2 D3 G3 B3 E4
-    drop_d:       [38, 45, 50, 55, 59, 64], // D2 A2 D3 G3 B3 E4
-    dadgad:       [38, 45, 50, 55, 57, 62], // D2 A2 D3 G3 A3 D4
-    open_g:       [38, 43, 50, 55, 59, 62], // D2 G2 D3 G3 B3 D4
-    ukulele:      [67, 60, 64, 69],          // G4 C4 E4 A4 (reentrant)
-    baritone_uke: [50, 55, 59, 64],          // D3 G3 B3 E4
-    mandolin:     [55, 62, 69, 76],          // G3 D4 A4 E5
-    mandola:      [48, 55, 62, 69],          // C3 G3 D4 A4
-    banjo:        [50, 55, 59, 62, 67],      // D3 G3 B3 D4 G4 (5-string open G)
+    // Guitar
+    guitar:              [40, 45, 50, 55, 59, 64], // E2 A2 D3 G3 B3 E4
+    drop_d:              [38, 45, 50, 55, 59, 64], // D2 A2 D3 G3 B3 E4
+    dadgad:              [38, 45, 50, 55, 57, 62], // D2 A2 D3 G3 A3 D4
+    open_g:              [38, 43, 50, 55, 59, 62], // D2 G2 D3 G3 B3 D4
+    // Ukulele
+    ukulele:             [67, 60, 64, 69],          // G4 C4 E4 A4 (reentrant)
+    baritone_uke:        [50, 55, 59, 64],          // D3 G3 B3 E4
+    // Mandolin family
+    mandolin:            [55, 62, 69, 76],          // G3 D4 A4 E5
+    mandola:             [48, 55, 62, 69],          // C3 G3 D4 A4
+    mando_cross_gdgd:    [55, 62, 67, 74],          // G3 D4 G4 D5
+    mando_cross_aeae:    [57, 64, 69, 76],          // A3 E4 A4 E5
+    mando_cajun_fcgd:    [53, 60, 67, 74],          // F3 C4 G4 D5
+    mando_gdad:          [55, 62, 69, 74],          // G3 D4 A4 D5
+    // Banjo family
+    banjo:               [50, 55, 59, 62, 67],      // D3 G3 B3 D4 G4 (5-string open G)
+    banjo_sawmill:       [50, 55, 60, 62],          // D3 G3 C4 D4
+    banjo_double_c:      [48, 55, 60, 62],          // C3 G3 C4 D4
+    banjo_old_std:       [48, 55, 59, 62],          // C3 G3 B3 D4
+    // Stringed folk instruments
+    irish_bouzouki:      [43, 50, 57, 62],          // G2 D3 A3 D4
+    greek_bouzouki:      [48, 53, 57, 62],          // C3 F3 A3 D4
+    cittern_gdgdg:       [43, 50, 55, 62, 67],      // G2 D3 G3 D4 G4
+    cittern_gdadg:       [43, 50, 57, 62, 67],      // G2 D3 A3 D4 G4
+    balalaika:           [57, 64, 64],              // A3 E4 E4
+    cavaquinho:          [62, 67, 71, 74],          // D4 G4 B4 D5
+    vihuela:             [45, 50, 55, 59, 64],      // A2 D3 G3 B3 E4
   };
 
   // -- Chord interval definitions ----------------------------------------------

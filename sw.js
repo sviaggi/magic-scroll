@@ -2,7 +2,7 @@
 // Fixes offline support: shell files now cached dynamically from the
 // installing page's URL, so renaming the HTML file never breaks caching.
 
-const CACHE_VERSION = 'magic-scroll-v4';
+const CACHE_VERSION = 'magic-scroll-v5';
 
 // ── Install ───────────────────────────────────────────────────────────────────
 // Strategy: cache-on-navigate for the HTML shell (so renaming never breaks it),
@@ -22,6 +22,8 @@ self.addEventListener('install', function(event) {
 
       // 1. Companion files we know exist alongside the HTML
       var companions = [
+        './backing-track.js',
+        './chord-engine.js',
         './abcjs-basic.js',
         './manifest.json',
         './icon-192.png',
