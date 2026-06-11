@@ -1022,6 +1022,11 @@
 
   /* ── PHONE PORTRAIT ─────────────────────────────────────────────────────── */
   /* ── EDIT TOOLBAR ───────────────────────────────────────────────────────────── */
+  #ireal-toolbar,#abc-toolbar{
+    width:100%;max-width:820px;
+    display:flex;align-items:center;gap:8px;padding:6px 0 6px;flex-wrap:wrap;
+  }
+  #ireal-toolbar button,#abc-toolbar button{font-size:0.75rem;padding:4px 10px;}
   #edit-toolbar {
     width: 100%;
     max-width: 820px;
@@ -1033,6 +1038,12 @@
   }
   #edit-toolbar button { font-size: 0.75rem; padding: 4px 10px; }
   #btn-edit-toggle.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
+  #btn-ls-edit.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
+  /* Lead-sheet read-only state */
+  #ireal-song-card:not(.ls-edit-mode) .ls-bar { cursor: default; }
+  #ireal-song-card:not(.ls-edit-mode) .ls-kebab-btn { display: none !important; }
+  #ireal-song-card:not(.ls-edit-mode) .ls-notes-ta { cursor: default; opacity: 0.75; }
+
   #btn-save { border-color: #4a8a4a; color: #6ab86a; display: none; }
   #btn-save:hover { background: #2a5a2a; color: #a0d0a0; }
   #save-status {
@@ -1767,28 +1778,98 @@
   }
 
   /* ── iReal Lead Sheet ───────────────────────────────────────── */
-  #ireal-song-card{padding:16px 20px;max-width:860px;margin:0 auto;}
+  #ireal-song-card{padding:40px 28px 32px;width:100%;max-width:820px;box-sizing:border-box;
+    font-size:0.95rem;
+    background-color:var(--c-card-fallback);color:var(--c-card-text);
+    border-radius:2px;box-shadow:0 4px 6px rgba(0,0,0,0.25),0 12px 40px rgba(0,0,0,0.3);}
+  #ireal-song-card.fs-xs{font-size:0.68rem;}
+  #ireal-song-card.fs-sm{font-size:0.80rem;}
+  #ireal-song-card.fs-md{font-size:0.95rem;}
+  #ireal-song-card.fs-lg{font-size:1.12rem;}
+  #ireal-song-card.fs-xl{font-size:1.32rem;}
   .ls-header{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;
     margin-bottom:14px;font-size:0.75rem;color:var(--c-chrome-muted);}
   .ls-header-style{font-style:italic;}.ls-header-key{font-weight:bold;color:var(--c-chrome-text);}
   .ls-grid{display:grid;grid-template-columns:repeat(4,1fr);
-    border-left:2px solid var(--c-accent);border-top:2px solid var(--c-accent);}
-  .ls-bar{border-right:1.5px solid var(--c-accent);border-bottom:1.5px solid var(--c-accent);
-    padding:20px 7px 8px;min-height:62px;position:relative;
-    display:flex;flex-wrap:wrap;gap:2px 8px;align-items:flex-end;}
+    border-left:2px solid var(--c-accent);row-gap:12px;}
+  .ls-bar{border-right:1.5px solid var(--c-accent);
+    padding:18px 6px 8px;min-height:110px;position:relative;
+    display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;justify-content:center;
+    min-width:0;}
   .ls-bar.ls-rep-open{border-left:4px double var(--c-accent);}
   .ls-bar.ls-rep-close{border-right:4px double var(--c-accent);}
   .ls-bar.ls-final{border-right:4px solid var(--c-accent);}
   .ls-section-lbl{position:absolute;top:2px;left:4px;background:var(--c-accent);
     color:#fff;font-size:0.58rem;font-weight:bold;padding:0 4px;border-radius:2px;line-height:1.6;}
-  .ls-chord-nm{font-size:1.05rem;font-weight:bold;line-height:1.2;color:var(--c-accent);white-space:nowrap;}
+  .ls-chord-nm{font-size:1.15em;font-weight:bold;line-height:1.2;color:var(--c-notation-ink);white-space:nowrap;}
   .ls-chord-nm .ls-q{font-size:0.68em;vertical-align:super;line-height:1;}
   .ls-chord-nm .ls-bs{font-size:0.8em;}
-  .ls-rep-sym{font-size:1.3rem;opacity:0.4;align-self:center;}
-  .ls-nc{font-size:0.72rem;color:var(--c-chrome-muted);font-style:italic;align-self:center;}
+  .ls-rep-sym{font-size:1.4em;opacity:0.4;align-self:center;}
+  .ls-nc{font-size:0.75em;color:var(--c-chrome-muted);font-style:italic;align-self:center;}
   .ls-timesig{position:absolute;top:3px;right:5px;font-size:0.58rem;color:var(--c-chrome-muted);font-weight:bold;}
   .ls-ending{position:absolute;top:2px;right:5px;font-size:0.6rem;
     color:var(--c-chrome-muted);border-top:1px solid var(--c-accent);padding-top:1px;}
+  /* cell edit */
+  .ls-bar{cursor:pointer;}
+  .ls-bar:hover{background:rgba(128,128,128,0.07);}
+  /* empty bars: fill available width so rows stay stable */
+  .ls-bar.ls-empty{flex:1 1 100%;}
+  /* per-cell kebab menu */
+  .ls-kebab-btn{position:absolute;top:3px;right:3px;width:18px;height:18px;
+    background:none;border:none;cursor:pointer;color:var(--c-card-meta);
+    font-size:1rem;line-height:1;padding:0;opacity:0;transition:opacity 0.12s;
+    display:flex;align-items:center;justify-content:center;z-index:2;}
+  .ls-bar.ls-editing .ls-kebab-btn,.ls-bar.ls-menu-open .ls-kebab-btn{opacity:1;}
+  .ls-kebab-btn:hover{color:var(--c-card-text);}
+  .ls-cell-menu{position:absolute;top:20px;right:3px;z-index:100;
+    background:var(--c-chrome-bg2);border:1px solid var(--c-chrome-border);
+    border-radius:5px;box-shadow:0 4px 16px rgba(0,0,0,0.4);
+    padding:5px 0;min-width:168px;font-family:var(--font-chord);font-size:0.75rem;}
+  .ls-cell-menu-row{padding:5px 12px;cursor:pointer;color:var(--c-accent);
+    display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .ls-cell-menu-row:hover{background:var(--c-chrome-bg3);}
+  .ls-cell-menu-row.danger{color:#d05050;}
+  .ls-cell-menu-sep{border-top:1px solid var(--c-chrome-border);margin:4px 0;}
+  .ls-cell-menu-label{font-size:0.65rem;color:var(--c-chrome-muted);padding:4px 12px 2px;
+    text-transform:uppercase;letter-spacing:0.06em;}
+  .ls-cell-menu-inp{width:100%;background:var(--c-chrome-bg3);border:1px solid var(--c-chrome-border);
+    border-radius:3px;color:var(--c-chrome-text);font-size:0.75rem;padding:3px 6px;
+    font-family:var(--font-chord);box-sizing:border-box;margin-top:2px;}
+  .ls-cell-menu-inp:focus{outline:none;border-color:var(--c-accent);}
+  .ls-cell-menu-field{padding:4px 12px;}
+  .ls-cell-menu-apply{margin-top:4px;padding:3px 8px;font-size:0.72rem;border-radius:3px;cursor:pointer;
+    background:var(--c-accent);border:1px solid var(--c-accent);color:var(--c-chrome-bg);
+    font-family:var(--font-chord);width:100%;}
+  .ls-bar.ls-editing{padding:4px!important;align-items:stretch;}
+  /* lock height when switching to edit so nothing moves */
+  .ls-bar.ls-editing .ls-edit-input{height:100%;box-sizing:border-box;}
+  .ls-edit-input{width:100%;resize:none;border:none;outline:none;
+    background:transparent;color:var(--c-card-text);font-family:var(--font-chord);
+    font-size:0.95rem;line-height:1.5;padding:2px 4px;}
+  /* inline chord diagram units */
+  .ls-chord-unit{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;vertical-align:top;flex-shrink:0;color:var(--c-notation-ink);}
+  .ls-chord-unit svg{display:block;}
+  /* notes / lyrics annotation area */
+  .ls-notes-wrap{margin-top:20px;}
+  .ls-notes-label{font-size:0.68rem;font-weight:bold;text-transform:uppercase;letter-spacing:0.07em;
+    color:var(--c-card-meta);margin-bottom:5px;}
+  .ls-notes-view{font-family:var(--font-chord);font-size:0.88rem;line-height:1.7;
+    padding:9px 11px;color:var(--c-card-text);white-space:pre-wrap;}
+  .ls-notes-view .chord-token{color:var(--c-chord-text);font-weight:bold;cursor:default;}
+  .ls-notes-ta{width:100%;min-height:90px;background:rgba(0,0,0,0.06);
+    color:var(--c-card-text);border:1px solid var(--c-card-border);border-radius:3px;
+    padding:9px 11px;font-size:0.88rem;font-family:var(--font-chord);
+    resize:vertical;box-sizing:border-box;line-height:1.55;}
+  .ls-notes-ta:focus{outline:none;border-color:var(--c-accent);}
+  /* action toolbar at top of lead sheets */
+  .ls-toolbar{display:flex;gap:8px;justify-content:flex-start;margin-bottom:16px;}
+  .ls-toolbar-btn{font-size:0.78rem;padding:5px 14px;border-radius:3px;cursor:pointer;
+    background:var(--c-accent);border:1px solid var(--c-accent);color:var(--c-chrome-bg);
+    font-family:var(--font-chord);font-weight:bold;letter-spacing:0.02em;line-height:1.3;}
+  .ls-toolbar-btn:hover{filter:brightness(1.12);}
+  .ls-toolbar-btn.ls-btn-secondary{background:transparent;border-color:var(--c-card-border);
+    color:var(--c-card-meta);font-weight:normal;}
+  .ls-toolbar-btn.ls-btn-secondary:hover{border-color:var(--c-accent);color:var(--c-card-text);filter:none;}
 
   /* ── PUBLISH MODAL ───────────────────────────────────────────────────────── */
   #publish-modal, #online-preview-modal {
@@ -1892,6 +1973,7 @@
 </style>
 
 <script src="abcjs-basic.js"></script>
+<script src="chord-engine.js"></script>
 </head>
 <body>
 <div id="abc-player-bar" style="display:none" tabindex="-1">
@@ -2245,9 +2327,9 @@
     </div>
     <label id="drop-zone" style="cursor:pointer;">
       <div>Open files here</div>
-      <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl · .midi</div>
+      <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl · .mslead</div>
     </label>
-    <input type="file" id="file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" multiple>
+    <input type="file" id="file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,.mslead,text/plain,text/html" multiple>
     <input type="file" id="refresh-file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" style="display:none">
     <input type="file" id="import-config-input" accept=".json" style="display:none">
     <div id="sidebar-footer">
@@ -2269,12 +2351,15 @@
       </div>
     </div>
     <!-- ABC sheet music card — shown for .abc tune files -->
+    <div id="ireal-toolbar" style="display:none"></div>
     <div id="ireal-song-card" style="display:none"><div id="ireal-content"></div></div>
-    <div id="abc-song-card" style="display:none">
-      <div id="abc-toolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 4px;max-width:820px;">
+    <div id="abc-toolbar" style="display:none;">
+
         <button id="btn-abc-new">✦ New</button>
-        <button id="btn-abc-edit">✎ Edit ABC</button>
+        <button id="btn-abc-edit">✎ Edit</button>
         <button id="btn-abc-save-as">⬇ Save As…</button>
+        <button id="btn-publish-abc" title="Publish this sheet music to the online library">☁ Publish</button>
+        <span style="border-left:1px solid var(--c-chrome-border);height:16px;margin:0 2px;"></span>
         <button id="btn-abc-soundfont" title="Load SF2 or SFZ soundfont">🎵 Soundfont</button>
         <span id="abc-soundfont-name" style="font-size:0.65rem;color:var(--c-chrome-muted);"></span>
         <span style="border-left:1px solid var(--c-chrome-border);height:16px;margin:0 2px;"></span>
@@ -2291,6 +2376,8 @@
         <!-- Directory picker for SFZ + samples (shown after SFZ detected) -->
         <input type="file" id="abc-sfz-dir-input" accept=".sfz" webkitdirectory multiple style="display:none">
       </div>
+    <div id="abc-song-card" style="display:none">
+
       <div id="abc-editor-wrap" style="display:none;width:100%;margin-bottom:16px;">
         <textarea id="abc-editor" spellcheck="false" autocorrect="off"
           style="width:100%;min-height:240px;font-family:var(--font-mono);font-size:0.85rem;
@@ -2412,6 +2499,15 @@ Another lyric line
     <p>Fill in the details, then write or paste your song in the editor that opens.</p>
     <div class="modal-fields">
       <div class="modal-field" style="grid-column:1/-1">
+        <label>Type</label>
+        <select id="ns-type" style="font-size:0.82rem;padding:5px 8px;border-radius:2px;border:1px solid var(--c-chrome-border);background:var(--c-chrome-bg3);color:var(--c-chrome-text);">
+          <option value="song">Song / Chord Sheet</option>
+          <option value="abc">ABC Notation (sheet music)</option>
+          <option value="ireal">🎼 Lead Sheet(s) (iReal Pro URL)</option>
+          <option value="blank-lead">🎼 Lead Sheet (Blank)</option>
+        </select>
+      </div>
+      <div class="modal-field" style="grid-column:1/-1">
         <label>Title</label>
         <input type="text" id="ns-title" placeholder="Song title" autocomplete="off">
       </div>
@@ -2428,21 +2524,23 @@ Another lyric line
         <input type="number" id="ns-capo" placeholder="0" min="0" max="12">
       </div>
     </div>
-    <div class="modal-field" style="grid-column:1/-1">
-        <label>Type</label>
-        <select id="ns-type" style="font-size:0.82rem;padding:5px 8px;border-radius:2px;border:1px solid var(--c-chrome-border);background:var(--c-chrome-bg3);color:var(--c-chrome-text);">
-          <option value="song">Song / Chord Sheet</option>
-          <option value="abc">ABC Notation (sheet music)</option>
-          <option value="ireal">🎼 Lead Sheet (iReal Pro URL)</option>
-        </select>
-      </div>
     <div id="new-song-format">
       Chord lines are auto-detected — put chords on their own line above lyrics:<br>
       <code>Am&nbsp;&nbsp;&nbsp;&nbsp;C&nbsp;&nbsp;&nbsp;G</code><br>
       <code>Here are the lyrics</code>
     </div>
+    <div id="ns-abc-section" style="display:none;">
+      <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste ABC Notation below — title and composer are extracted automatically</label>
+      <textarea id="ns-abc-content" rows="8"
+        placeholder="X:1&#10;T:My Tune&#10;C:Composer&#10;M:4/4&#10;L:1/8&#10;K:G&#10;..."
+        style="width:100%;font-size:0.7rem;font-family:var(--font-mono);resize:vertical;
+               background:var(--c-chrome-bg3);color:var(--c-chrome-text);
+               border:1px solid var(--c-chrome-border);border-radius:3px;
+               padding:6px 8px;box-sizing:border-box;"></textarea>
+      <div id="ns-abc-status" style="font-size:0.68rem;color:var(--c-chrome-muted);margin-top:3px;min-height:1em;"></div>
+    </div>
     <div id="ns-ireal-section" style="display:none;">
-      <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste an <code>irealb://</code> URL from iReal Pro</label>
+      <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste an <code>irealb://</code> URL — single songs and full playlists are supported</label>
       <textarea id="ns-ireal-url" rows="4"
         placeholder="irealb://SongTitle%3DComposer%3D%3DStyle%3DKey..."
         style="width:100%;font-size:0.7rem;font-family:var(--font-mono);resize:vertical;
@@ -2453,9 +2551,9 @@ Another lyric line
       <p style="font-size:0.68rem;color:var(--c-chrome-muted);margin:8px 0 0;
                 background:var(--c-chrome-bg3);padding:7px 9px;border-radius:3px;
                 border-left:3px solid var(--c-accent);line-height:1.45;">
-        <strong>🚧 Work in progress</strong> — lead sheet import and display are functional.
-        Backing track playback, transposition, and chord simplification
-        are not yet available for lead sheets.
+        <strong>ℹ Lead Sheets</strong> — import, display, transposition, chord simplification,
+        editing, and lyrics are all functional.
+        Backing track playback is not yet available.
       </p>
     </div>
     <div class="modal-actions">
@@ -2839,7 +2937,7 @@ function loadAndApplySavedColors() {
 function buildColorPresets() {
   const wrap = document.getElementById('color-presets');
   wrap.innerHTML = '';
-  const builtinLabels = {'':'Parchment','theme-dark':'Obsidian','theme-green':'Green','theme-session':'The Session'};
+  const builtinLabels = {'theme-session':'Royal','':'Parchment','theme-dark':'Obsidian','theme-green':'Mossy'};
   Object.entries(builtinLabels).forEach(([cls, label]) => {
     const btn = document.createElement('button');
     btn.className = 'theme-preset-btn';
@@ -3545,6 +3643,8 @@ function parsePlainText(text, filename) {
 
 // simplified-view state — declared here so renderSong can reference applySimplifiedView
 let isSimplifiedView = false;
+let isLsEditMode  = false;  // lead-sheet edit toggle
+let _lsEditSong   = null;   // tracks which song owns the current mode
 
 function applySimplifiedView(on) {
   isSimplifiedView = on;
@@ -3552,8 +3652,13 @@ function applySimplifiedView(on) {
   btn.classList.toggle('active', on);
   btn.title = on
     ? 'Showing simplified chords — click to restore originals'
-    : 'Simplify all chords to root form (e.g. Fmaj7add11/A → F, Am7 → Am)';
-  renderTabContent();
+    : 'Simplify all chords to root form (e.g. Fmaj7add11/A => F, Am7 => Am)';
+  // Re-render whichever view is active
+  if (currentIdx >= 0 && songs[currentIdx]._source === 'ireal') {
+    renderIRealSong(songs[currentIdx]);
+  } else {
+    renderTabContent();
+  }
 }
 
 // ── KEY DETECTION ────────────────────────────────────────────────────────────
@@ -3673,7 +3778,11 @@ function transposeKey(key, n) {
   const newIdx  = ((ri + n) % 12 + 12) % 12;
   const newRoot = n >= 0 ? CHROMATIC[newIdx]
     : ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'][newIdx];
-  return newRoot + (isMinor ? 'm' : '');
+  // Normalize enharmonic major keys to conventional flat spellings
+  // (D# → Eb, G# → Ab, A# → Bb); minor sharp keys (G#m, C#m) stay as-is
+  const SHARP_TO_FLAT_MAJOR = {'D#':'Eb', 'G#':'Ab', 'A#':'Bb'};
+  const finalRoot = !isMinor && SHARP_TO_FLAT_MAJOR[newRoot] ? SHARP_TO_FLAT_MAJOR[newRoot] : newRoot;
+  return finalRoot + (isMinor ? 'm' : '');
 }
 
 function updateKeyDisplay() {
@@ -3704,6 +3813,9 @@ function renderSong(idx) {
   if (song._source === 'ireal') { renderIRealSong(song); return; }
   if (song._source === 'abc') {
     document.getElementById('abc-song-card').style.display = '';
+    document.getElementById('abc-toolbar').style.display='flex';
+    document.getElementById('ireal-song-card').style.display = 'none';
+    document.getElementById('ireal-toolbar').style.display='none';
     document.getElementById('song-card').classList.remove('visible');
     document.getElementById('edit-toolbar').style.display = 'none';
     renderABCSong(song);
@@ -3714,7 +3826,9 @@ function renderSong(idx) {
   }
   // For non-ABC songs: hide ABC card and player bar
   document.getElementById('abc-song-card').style.display = 'none';
+  document.getElementById('abc-toolbar').style.display='none';
   document.getElementById('ireal-song-card').style.display = 'none';
+  document.getElementById('ireal-toolbar').style.display='none';
   document.getElementById('abc-player-bar').style.display = 'none';
   document.getElementById('song-card').classList.add('visible');
   document.getElementById('display-title').textContent=song.title||'Untitled';
@@ -4937,6 +5051,12 @@ function loadFile(file) {
     } else if (raw.startsWith('{') || raw.startsWith('[')) {
       try {
         const json = JSON.parse(raw);
+        // .mslead / single lead-sheet export
+        if (!Array.isArray(json) && json._ms_format === 'lead-sheet') {
+          const {_ms_format, _ms_version, ...song} = json;
+          loadFileSongs([song]);
+          return;
+        }
         // Detect Magic Scroll config format (has a songs array at top level)
         if (!Array.isArray(json) && Array.isArray(json.songs)) {
           importMagicScrollConfig(json, file.name);
@@ -4969,6 +5089,7 @@ document.getElementById('btn-transpose-up').addEventListener('click',()=>{
   updateKeyDisplay();
   const curSong = currentIdx>=0 ? songs[currentIdx] : null;
   if (curSong && curSong._source==='abc') { renderABCSong(curSong); }
+  else if (curSong && curSong._source==='ireal') { renderIRealSong(curSong); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
   else { renderTabContent(); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
 });
 document.getElementById('btn-transpose-down').addEventListener('click',()=>{
@@ -4976,12 +5097,14 @@ document.getElementById('btn-transpose-down').addEventListener('click',()=>{
   updateKeyDisplay();
   const curSong = currentIdx>=0 ? songs[currentIdx] : null;
   if (curSong && curSong._source==='abc') { renderABCSong(curSong); }
+  else if (curSong && curSong._source==='ireal') { renderIRealSong(curSong); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
   else { renderTabContent(); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
 });
 document.getElementById('btn-transpose-reset').addEventListener('click',()=>{
   transposeAmount=0; updateKeyDisplay();
   const curSong = currentIdx>=0 ? songs[currentIdx] : null;
   if (curSong && curSong._source==='abc') { renderABCSong(curSong); return; }
+  if (curSong && curSong._source==='ireal') { renderIRealSong(curSong); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); return; }
   renderTabContent();
   if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
 });
@@ -4990,9 +5113,15 @@ document.getElementById('btn-transpose-reset').addEventListener('click',()=>{
 document.getElementById('font-size-sel').addEventListener('change',e=>{
   const tc=document.getElementById('tab-content');
   tc.className=tc.className.replace(/fs-\w+/g,'').trim(); tc.classList.add(e.target.value);
+  // Apply same size class to iReal lead sheet card
+  const isc=document.getElementById('ireal-song-card');
+  isc.className=isc.className.replace(/fs-\w+/g,'').trim()+' '+e.target.value;
   // xs size shrinks the whole chrome UI, not just text
   document.body.classList.toggle('ui-xs', e.target.value === 'fs-xs');
   localStorage.setItem('ug_fontsize', e.target.value);
+  // Re-render lead sheet to pick up new diagram scale
+  const _cs=currentIdx>=0?songs[currentIdx]:null;
+  if(_cs&&_cs._source==='ireal'&&isc.style.display!=='none') renderIRealSong(_cs);
 });
 // restore saved font size on load
 (function(){
@@ -5001,6 +5130,8 @@ document.getElementById('font-size-sel').addEventListener('change',e=>{
                 (window.innerWidth <= 520 ? 'fs-xs' : 'fs-md');
   const tc = document.getElementById('tab-content');
   tc.className = tc.className.replace(/fs-\w+/g,'').trim() + ' ' + saved;
+  const isc = document.getElementById('ireal-song-card');
+  isc.className = isc.className.replace(/fs-\w+/g,'').trim() + ' ' + saved;
   document.body.classList.toggle('ui-xs', saved === 'fs-xs');
   document.getElementById('font-size-sel').value = saved;
   document.body.classList.toggle('ui-xs', saved === 'fs-xs');
@@ -7344,16 +7475,18 @@ const CHORD_DATA = {
   },
 };
 
-function makeFretboardSVG(frets, fingers, base, barres, numStrings, scale) {
+function makeFretboardSVG(frets, fingers, base, barres, numStrings, scale, inkColor) {
   scale = scale || 1;
   const W=Math.round(80*scale), H=Math.round(90*scale);
-  const strX=(i)=>12+i*((W-24)/(numStrings-1));
+  // All coords in base 80×90 space; viewBox maps to W×H for correct scaling
+  const strX=(i)=>12+i*(56/(numStrings-1));
   const fretY=(f)=>18+f*14;
   const numFrets=4;
-  const ac = '#1a1208';
-  const tc = '#1a1208';
-  const bc = '#a09080';
-  let svg=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // inkColor: 'auto' = inherit via CSS currentColor (for lead sheets); omit/explicit = literal colour (for chord library cream bg)
+  const ac = inkColor === 'auto' ? 'currentColor' : (inkColor !== undefined ? inkColor : '#1a1208');
+  const tc = ac;
+  const bc = ac;
+  let svg=`<svg width="${W}" height="${H}" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">`;
   // Nut (thick bar) at fret 1; thin top line at fret 2; fret label only at 3+
   if(base===1){
     svg+=`<rect x="12" y="${fretY(0)-2}" width="${strX(numStrings-1)-strX(0)}" height="3" fill="${tc}" rx="1"/>`;
@@ -7363,8 +7496,8 @@ function makeFretboardSVG(frets, fingers, base, barres, numStrings, scale) {
     svg+=`<text x="8" y="${fretY(0)+5}" font-size="7" fill="${tc}" text-anchor="middle">${base}fr</text>`;
     svg+=`<line x1="12" y1="${fretY(0)}" x2="${strX(numStrings-1)}" y2="${fretY(0)}" stroke="${bc}" stroke-width="1"/>`;
   }
-  for(let f=1;f<=numFrets;f++) svg+=`<line x1="12" y1="${fretY(f)}" x2="${strX(numStrings-1)}" y2="${fretY(f)}" stroke="${bc}" stroke-width="0.8"/>`;
-  for(let s=0;s<numStrings;s++) svg+=`<line x1="${strX(s)}" y1="${fretY(0)}" x2="${strX(s)}" y2="${fretY(numFrets)}" stroke="${tc}" stroke-width="0.8"/>`;
+  for(let f=1;f<=numFrets;f++) svg+=`<line x1="12" y1="${fretY(f)}" x2="${strX(numStrings-1)}" y2="${fretY(f)}" stroke="${bc}" stroke-width="0.8" stroke-opacity="0.35"/>`;
+  for(let s=0;s<numStrings;s++) svg+=`<line x1="${strX(s)}" y1="${fretY(0)}" x2="${strX(s)}" y2="${fretY(numFrets)}" stroke="${tc}" stroke-width="0.8" stroke-opacity="0.5"/>`;
   if(barres) barres.forEach(b=>{
     // Only draw barre when ≥2 strings in its range actually land on that fret;
     // a single-string 'barre' is just a dot — the dot loop handles it fine.
@@ -7379,8 +7512,8 @@ function makeFretboardSVG(frets, fingers, base, barres, numStrings, scale) {
   for(let s=0;s<numStrings;s++){
     const fret=frets[s],x=strX(s);
     if(fret===-1){svg+=`<text x="${x}" y="11" font-size="8" fill="${tc}" text-anchor="middle">✕</text>`;}
-    else if(fret===0){svg+=`<circle cx="${x}" cy="9" r="4" fill="none" stroke="${ac}" stroke-width="1.2"/>`;}
-    else{const rf=fret-base+1,y=fretY(rf)-7;svg+=`<circle cx="${x}" cy="${y+4}" r="5" fill="${ac}"/>`;}
+    else if(fret===0){svg+=`<circle cx="${x}" cy="9" r="3" fill="none" stroke="${ac}" stroke-width="1.2"/>`;}
+    else{const rf=fret-base+1,y=fretY(rf)-7;svg+=`<circle cx="${x}" cy="${y+4}" r="4" fill="${ac}"/>`;}
   }
   svg+='</svg>'; return svg;
 }
@@ -7389,7 +7522,7 @@ function makePianoSVG(notes, scale) {
   scale = scale || 1;
   const W=Math.round(104*scale),H=Math.round(52*scale);
   const noteSet=new Set(notes.map(n=>((n%12)+12)%12));
-  const ac  = getComputedStyle(document.documentElement).getPropertyValue('--c-chord-text').trim() || '#8b2020';
+  const ac  = getComputedStyle(document.body).getPropertyValue('--c-chord-text').trim() || '#8b2020';
   const bc  = '#bbb';
   const bkg = '#f5f0e8';
   const whiteKeys=[0,2,4,5,7,9,11],blackKeys=[1,3,-1,6,8,10,-1];
@@ -7409,18 +7542,65 @@ function getChordDiagram(name, inst) {
   return null;
 }
 
-function renderChordDiagram(name, inst, scale) {
+function renderChordDiagram(name, inst, scale, inkColor) {
   scale = scale || diagramScale;
   if(inst==='piano'){
     const db=CHORD_DATA.piano;
     const notes=db[name]||db[name.split('/')[0]]; if(!notes) return null;
     return makePianoSVG(notes, scale);
   }
-  const data=getChordDiagram(name,inst); if(!data) return null;
+  const data=getChordDiagram(name,inst);
+  if(!data){
+    // Fallback: algorithmic voicing from chord-engine.js
+    if(typeof computeVoicing==='function'){
+      const cv=computeVoicing(name,inst);
+      if(cv) return makeFretboardSVG(cv.frets,cv.fingers,cv.base||1,cv.barres,cv.frets.length,scale,inkColor);
+    }
+    return null;
+  }
   // 6-string instruments: standard guitar + all alternate guitar tunings
   const SIX_STRING = new Set(['guitar','drop_d','dadgad','open_g']);  // mandolin/mandola are 4-string
   const numStrings = SIX_STRING.has(inst) ? 6 : 4;
-  return makeFretboardSVG(data.frets,data.fingers,data.base||1,data.barres,numStrings,scale);
+  return makeFretboardSVG(data.frets,data.fingers,data.base||1,data.barres,numStrings,scale,inkColor);
+}
+
+// Convert an iReal chord (root with ♭/♯, qual) to a CHORD_DATA lookup key
+function irealChordKey(root, qual) {
+  // Normalise root: ♭ → b, ♯ → #
+  const r = root.replace('♭','b').replace('♯','#');
+  // Strip bass note from qual
+  const slashIdx = qual.indexOf('/');
+  const q = slashIdx !== -1 ? qual.slice(0, slashIdx) : qual;
+  // Map qual to chord suffix used in CHORD_DATA
+  const QM = {
+    '':'', '-':'m', '-7':'m7', 'h7':'m7', 'h':'m7', '-7b5':'m7',
+    '^7':'maj7', '^':'maj7', '-^7':'m', '-^':'m',
+    '7':'7', '7b9':'7', '7b5':'7', '7#9':'7', '7#5':'+', '7sus4':'sus4', '7sus':'sus4',
+    '9':'9', '-9':'m9', '69':'6', '6':'6', '-6':'m6',
+    'o':'dim', 'o7':'dim', '+':'+', 'sus2':'sus2', 'sus4':'sus4',
+    'maj7':'maj7', 'maj':'', 'm7':'m7', 'm':'m', 'm6':'m6', 'm9':'m9',
+  };
+  if(QM.hasOwnProperty(q)) return r + QM[q];
+  // Fallback: try stripping extensions
+  if(q.startsWith('-')) return r + 'm';
+  if(q.startsWith('^')) return r + 'maj7';
+  if(q.startsWith('h')) return r + 'm7';
+  return r; // bare root
+}
+
+// Extract unique chord names from an iReal chart for diagram lookup
+function extractIRealChordNames(chart) {
+  if(!chart||!chart.bars) return [];
+  const seen = new Set();
+  chart.bars.forEach(bar => {
+    bar.chords.forEach(ch => {
+      if(ch.type==='chord') {
+        const key = irealChordKey(ch.root, ch.qual);
+        if(key) seen.add(key);
+      }
+    });
+  });
+  return [...seen].sort();
 }
 
 function renderDiagrams() {
@@ -7429,8 +7609,13 @@ function renderDiagrams() {
   if(currentIdx<0) return;
   const song=songs[currentIdx];
   if(song._source==='html'){grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">Not available for HTML files</p>';return;}
-  const raw=song.tab_content||song.content||song.tab||'';
-  const chords=extractChords(transposeText(raw,transposeAmount));
+  let chords;
+  if(song._source==='ireal'){
+    chords = extractIRealChordNames(song.ireal_chart);
+  } else {
+    const raw=song.tab_content||song.content||song.tab||'';
+    chords=extractChords(transposeText(raw,transposeAmount));
+  }
   if(chords.length===0){grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No chords detected</p>';return;}
   chords.forEach(chord=>{
     const svg=renderChordDiagram(chord,currentInstrument); if(!svg) return;
@@ -7517,6 +7702,12 @@ document.querySelectorAll('.inst-btn').forEach(btn=>{
     } else {
       document.body.classList.remove('chords-hidden');
       renderDiagrams();
+    }
+    // Re-render lead sheet so inline diagrams appear/update/disappear
+    const _irc=document.getElementById('ireal-song-card');
+    const _ics=currentIdx>=0?songs[currentIdx]:null;
+    if(_irc&&_irc.style.display!=='none'&&_ics&&_ics._source==='ireal'){
+      renderIRealSong(_ics);
     }
   });
 });
@@ -7693,7 +7884,7 @@ document.getElementById('btn-simplify').addEventListener('click', () => {
   const song = songs[currentIdx];
   if (song._source === 'html') { alert('Simplify works on plain-text songs only.'); return; }
   applySimplifiedView(!isSimplifiedView);
-});;
+});
 
 // ── MULTI-SELECT ──────────────────────────────────────────────────────────────
 let selectedSongs = new Set();
@@ -8187,16 +8378,22 @@ function openNewSongModal() {
   ['ns-title', 'ns-artist', 'ns-key', 'ns-capo'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  // Reset iReal section each open
-  const ta = document.getElementById('ns-ireal-url');
-  if (ta) ta.value = '';
-  const st = document.getElementById('ns-ireal-status');
-  if (st) st.textContent = '';
-  // Ensure type resets to song so iReal section is hidden
+  // Reset iReal section
+  const taIReal = document.getElementById('ns-ireal-url');
+  if (taIReal) taIReal.value = '';
+  const stIReal = document.getElementById('ns-ireal-status');
+  if (stIReal) stIReal.textContent = '';
+  // Reset ABC section
+  const taABC = document.getElementById('ns-abc-content');
+  if (taABC) taABC.value = '';
+  const stABC = document.getElementById('ns-abc-status');
+  if (stABC) stABC.textContent = '';
+  // Ensure type resets to song so special sections are hidden
   const sel = document.getElementById('ns-type');
   if (sel && sel.value !== 'song') { sel.value = 'song'; sel.dispatchEvent(new Event('change')); }
   document.getElementById('new-song-modal').classList.add('open');
-  document.getElementById('ns-title').focus();
+  // Focus the type selector so user can immediately pick their format
+  sel ? sel.focus() : document.getElementById('ns-title').focus();
 }
 
 document.getElementById('btn-new-song').addEventListener('click', () => {
@@ -8221,32 +8418,85 @@ document.getElementById('new-song-modal').addEventListener('click', e => {
     document.getElementById('new-song-modal').classList.remove('open');
 });
 document.getElementById('btn-ns-create').addEventListener('click', () => {
+  const nsType = document.getElementById('ns-type')?.value || 'song';
+  if (nsType === 'ireal') return; // handled by its own listener
+
+  if (nsType === 'abc') {
+    // ABC paste-box flow: extract title/artist from ABC headers
+    const abcRaw = document.getElementById('ns-abc-content').value.trim();
+    const status = document.getElementById('ns-abc-status');
+    if (!abcRaw) { if(status) status.textContent = '⚠ Paste some ABC notation above.'; return; }
+    const titleMatch = abcRaw.match(/^T:\s*(.+)/m);
+    const artistMatch = abcRaw.match(/^(?:C|A|Z):\s*(.+)/m);
+    const title = titleMatch ? titleMatch[1].trim() : 'Unknown score';
+    const artist = artistMatch ? artistMatch[1].trim() : 'Unknown artist';
+    const keyMatch = abcRaw.match(/^K:\s*(\S+)/m);
+    const song = {
+      title,
+      artist,
+      key: keyMatch ? keyMatch[1] : '',
+      capo: 0,
+      tab_content: abcRaw,
+      abc_text:    abcRaw,
+      type:   'Tune',
+      _source:'abc',
+    };
+    songs.push(song);
+    saveSongs();
+    buildSongList(document.getElementById('search-input').value);
+    document.getElementById('new-song-modal').classList.remove('open');
+    // reset type selector back to song
+    const sel = document.getElementById('ns-type'); sel.value='song'; sel.dispatchEvent(new Event('change'));
+    renderSong(songs.length - 1);
+    return;
+  }
+
+  if (nsType === 'blank-lead') {
+    const title = document.getElementById('ns-title').value.trim() || 'New Lead Sheet';
+    const nsArtist = document.getElementById('ns-artist').value.trim();
+    const nsKey = document.getElementById('ns-key').value.trim();
+    const song = {
+      title,
+      artist:      nsArtist,
+      key:         nsKey,
+      capo:        0,
+      tab_content: '',
+      type:        'Lead Sheet',
+      _source:     'ireal',
+      style:       '',
+      bpm:         0,
+      ireal_raw:   '',
+      ireal_chart: _makeBlankChart(),
+    };
+    songs.push(song);
+    saveSongs();
+    buildSongList(document.getElementById('search-input').value);
+    document.getElementById('new-song-modal').classList.remove('open');
+    const sel = document.getElementById('ns-type'); sel.value='song'; sel.dispatchEvent(new Event('change'));
+    renderSong(songs.length - 1);
+    return;
+  }
+
+  // Song / Chord Sheet flow
   const title = document.getElementById('ns-title').value.trim();
   if (!title) { document.getElementById('ns-title').focus(); return; }
-  const isABC = document.getElementById('ns-type')?.value === 'abc';
   const nsKey = document.getElementById('ns-key').value.trim();
   const nsArtist = document.getElementById('ns-artist').value.trim();
-  const abcTmpl = isABC ? ['X: 1','T: '+title,'C: '+nsArtist,'M: 4/4','L: 1/8',
-    'K: '+(nsKey||'C'),'','% Write your ABC notation below','z4|z4|z4|z4|'].join('\n') : '';
   const song = {
     title,
     artist:      nsArtist,
     key:         nsKey,
     capo:        parseInt(document.getElementById('ns-capo').value) || 0,
-    tab_content: isABC ? abcTmpl : '',
-    abc_text:    isABC ? abcTmpl : undefined,
-    type:        isABC ? 'Tune' : 'Chords',
-    _source:     isABC ? 'abc' : 'plaintext',
+    tab_content: '',
+    type:        'Chords',
+    _source:     'plaintext',
   };
   songs.push(song);
   saveSongs();
   buildSongList(document.getElementById('search-input').value);
   document.getElementById('new-song-modal').classList.remove('open');
   renderSong(songs.length - 1);
-  // open editor immediately so user can start typing
-  if (document.getElementById('ns-type')?.value === 'abc') {
-    setTimeout(() => document.getElementById('btn-abc-edit')?.click(), 100);
-  } else { setTimeout(() => setEditMode(true), 60); }
+  setTimeout(() => setEditMode(true), 60);
 });
 
 
@@ -9490,8 +9740,14 @@ function renderABCSong(song) {
   const _normKey = normaliseKeyStr(_rawKey || '') || song.key || '';
   song.key = _normKey;  // update in memory (and save so next load has correct key)
   const _dispKey = _normKey ? transposeKey(_normKey, transposeAmount) : '';
-  const meta = [song.type, _dispKey ? 'Key: ' + _dispKey : ''].filter(Boolean).join(' · ');
-  document.getElementById('abc-meta').textContent   = meta;
+  const _abcMetaEl = document.getElementById('abc-meta');
+  _abcMetaEl.innerHTML = '';
+  [['Type', song.type||null], ['Key', _dispKey||null]].forEach(([l,v])=>{
+    if(!v)return;
+    const p=document.createElement('div');p.className='meta-pill';
+    p.innerHTML=escapeHtml(l)+': <span>'+escapeHtml(v)+'</span>';
+    _abcMetaEl.appendChild(p);
+  });
   document.getElementById('abc-status').textContent = '';
   saveSongs();          // persist normalised key so reload shows 'Em' not 'Emin'
   updateKeyDisplay();  // syncs topbar ♭−[key]♯+ displayplay
@@ -9626,6 +9882,10 @@ document.getElementById('btn-abc-save').addEventListener('click', () => {
 document.getElementById('btn-abc-cancel').addEventListener('click', () => {
   document.getElementById('abc-editor-wrap').style.display = 'none';
   document.getElementById('btn-abc-edit').textContent = '✎ Edit ABC';
+});
+
+document.getElementById('btn-publish-abc').addEventListener('click', () => {
+  if (currentIdx >= 0) showPublishModal([currentIdx]);
 });
 
 document.getElementById('btn-abc-save-as').addEventListener('click', () => {
@@ -10526,41 +10786,69 @@ function parseIRealSong(str){
   const title=f[0].trim(),composer=f[1].trim(),style=f[3].trim(),key=f[4].trim();
   const rawC=f[6].trim(),bpm=parseInt(f[8])||0;
   if(!title||!rawC)return null;
-  const enc=rawC.length>9?rawC.slice(9):rawC;
+  const _mp='1r34LbKcu7',_pi=rawC.indexOf(_mp);
+  const enc=_pi!==-1?rawC.slice(_pi+_mp.length):(rawC.length>10?rawC.slice(10):rawC);
   const dec=irealDecode(enc);const chart=irealTokenise(dec);
   return{title,artist:composer,type:'Lead Sheet',_source:'ireal',
          key,style,bpm,tab_content:'',ireal_chart:chart,ireal_raw:dec};
 }
 function irealDecode(s){
-  let o='';
-  for(let i=0;i<s.length;i+=50){const b=s.substr(i,50);o+=b.length<50?b:b.substr(10,30)+b.substr(0,10)+b.substr(40,10);}
-  return o;
+  // iReal Pro obfusc50: swap first 5 ↔ last 5, then positions 10–23 ↔ 39–26
+  function obfusc50(str){
+    const a=str.split('');
+    for(let i=0;i<5;i++){a[49-i]=str[i];a[i]=str[49-i];}
+    for(let i=10;i<24;i++){a[49-i]=str[i];a[i]=str[49-i];}
+    return a.join('');
+  }
+  let r='';
+  while(s.length>50){const p=s.substring(0,50);s=s.substring(50);r+=s.length<2?p:obfusc50(p);}
+  return r+s;
 }
 function irealTokenise(s){
   const bars=[];let bar=iRB(),pSec=null,pEnd=null,pTim=null,oRep=false,i=0;
   function flush(m){if(pSec)bar.section=pSec;if(pEnd)bar.endingNum=pEnd;if(pTim)bar.timeChange=pTim;
     if(m==='Z')bar.final=true;if(oRep){bar.openRepeat=true;oRep=false;}
-    bars.push(bar);bar=iRB();pSec=pEnd=pTim=null;}
+    if(bar.chords.length||bar.section){bars.push(bar);}
+    else if(bars.length){const prev=bars[bars.length-1];if(bar.final)prev.final=true;if(bar.closeRepeat)prev.closeRepeat=true;}
+    bar=iRB();pSec=pEnd=pTim=null;}
   while(i<s.length){const c=s[i];
     if(/[ \t\r\n]/.test(c)){i++;continue;}
-    if(c==='|'||c==='l'||c===','){flush('|');i++;continue;}
+    // L = thin double barline, s = small barline — both act as bar separators
+    if(c==='|'||c==='l'||c==='s'){flush('|');i++;continue;}
+    if(c===','){i++;continue;}  // comma = visual spacer, not a barline
+    if(c==='L'){
+      // LZ together = barline + section end; skip both
+      flush('|');i++;
+      if(i<s.length&&s[i]==='Z'){i++;}
+      continue;
+    }
     if(c==='Z'){flush('Z');i++;continue;}
     if(c==='{'){oRep=true;i++;continue;}
     if(c==='}'){bar.closeRepeat=true;flush('}');i++;continue;}
     if(c==='['){if(i+1<s.length&&/[0-9]/.test(s[i+1])){pEnd=s[i+1];i+=2;}else i++;continue;}
-    if(c===']'){i++;continue;}
+    if(c===']'){
+      // end of section — mark current in-progress bar (flushed next) with double barline
+      bar.closeRepeat=true;
+      i++;continue;
+    }
+    if(c==='('){i++;continue;}  // skip optional-chord open paren
+    if(c===')'){i++;continue;}  // skip optional-chord close paren
     if(c==='*'){const NM={A:'A',B:'B',C:'C',D:'D',i:'intro',v:'verse'};pSec=NM[s[i+1]]||s[i+1]||'?';i+=2;continue;}
     if(c==='T'&&i+2<s.length&&/\d/.test(s[i+1])){pTim=s[i+1]+'/'+s[i+2];i+=3;continue;}
-    if('QSfYy'.includes(c)){i++;continue;}
+    if('QSfYyUKX'.includes(c)){i++;continue;}
     if(c==='x'){bar.chords.push({type:'rep1'});i++;continue;}
-    if(c==='n'||c==='p'){bar.chords.push({type:'nc'});i++;continue;}
+    if(c==='n'){bar.chords.push({type:'nc'});i++;continue;}
+    if(c==='p'){bar.chords.push({type:'slash'});i++;continue;}
     if(c==='W'){i++;continue;}
-    if(c==='b'||c==='#'||/[A-G]/.test(c)){
-      let root='';
-      if((c==='b'||c==='#')&&i+1<s.length&&/[A-G]/.test(s[i+1])){root=c+s[i+1];i+=2;}
-      else if(/[A-G]/.test(c)){root=c;i++;}else{i++;continue;}
+    if(/[A-G]/.test(c)){
+      let root=c;i++;
       let qual='';
-      while(i<s.length&&!/[ |lZ{}\[\]\r\n*xnpQSWfYy,]/.test(s[i])){qual+=s[i];i++;}
+      // qual terminates at spaces, bar chars, structural chars, parens, or uppercase L
+      while(i<s.length&&!/[ |lLZ{}\[\]()\r\n*xXnpQSWfYyUKs,]/.test(s[i])){qual+=s[i];i++;}
+      // In decoded iReal format, a leading 'b' or '#' in qual is a root accidental
+      if(qual.startsWith('b')&&qual.length>1&&!/\d/.test(qual[1])){root+='♭';qual=qual.slice(1);}
+      else if(qual.startsWith('b')){root+='♭';qual=qual.slice(1);}
+      else if(qual.startsWith('#')){root+='♯';qual=qual.slice(1);}
       let bass='';const sp=qual.indexOf('/');
       if(sp!==-1){bass=qual.slice(sp+1);qual=qual.slice(0,sp);}
       bar.chords.push({type:'chord',root,qual,bass});continue;
@@ -10572,9 +10860,18 @@ function irealTokenise(s){
 }
 function iRB(){return{chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,final:false};}
 function irealChordHTML(root,qual,bass){
-  const FM={bA:'A\u266d',bB:'B\u266d',bC:'C\u266d',bD:'D\u266d',bE:'E\u266d',bF:'F\u266d',bG:'G\u266d',
-    '#A':'A\u266f','#B':'B\u266f','#C':'C\u266f','#D':'D\u266f','#E':'E\u266f','#F':'F\u266f','#G':'G\u266f'};
-  const dr=FM[root]||root;
+  // root already has \u266d/\u266f embedded by tokenizer (e.g. 'B\u266d', 'E\u266d')
+  // bass may still be in raw ASCII form (e.g. 'Bb', 'Ab', 'F#') \u2014 normalise it
+  function normNote(n){
+    if(!n)return n;
+    // already contains unicode accidental
+    if(n.includes('\u266d')||n.includes('\u266f'))return n;
+    // ASCII post-root flat/sharp (new format): 'Bb' \u2192 'B\u266d'
+    if(n.length===2&&n[1]==='b')return n[0]+'\u266d';
+    if(n.length===2&&n[1]==='#')return n[0]+'\u266f';
+    return n;
+  }
+  const dr=normNote(root);
   const q=qual.replace(/\^/g,'<span class="ls-q">\u25b3</span>')
     .replace(/h/g,'<span class="ls-q">\u00f8</span>')
     .replace(/\bo\b/g,'<span class="ls-q">\u00b0</span>')
@@ -10584,24 +10881,316 @@ function irealChordHTML(root,qual,bass){
     .replace(/#([1-9])/g,'<span class="ls-q">\u266f$1</span>')
     .replace(/(\d+)/g,'<span class="ls-q">$1</span>')
     .replace(/\+/g,'<span class="ls-q">+</span>');
-  const db=bass?'<span class="ls-bs">/'+(FM[bass]||bass)+'</span>':'';
+  const db=bass?'<span class="ls-bs">/'+normNote(bass)+'</span>':'';
   return`<span class="ls-chord-nm">${dr}${q}${db}</span>`;
 }
+// Transpose a unicode-accidental root (e.g. 'B♭', 'E♭') by n semitones.
+// Always outputs flat-spelled notes (jazz convention).
+function transposeIRealRoot(root, n){
+  if(!n)return root;
+  const ascii=root.replace('♭','b').replace('♯','#');
+  const idx=noteIndex(ascii);if(idx===-1)return root;
+  const ni=((idx+n)%12+12)%12;
+  const note=FLATS[ni]; // e.g. 'Bb','Eb','Ab'
+  return note.replace('b','♭').replace('#','♯');
+}
+// Transpose an ASCII bass note (e.g. 'Bb','Ab') by n semitones — stays ASCII.
+function transposeIRealBass(bass,n){
+  if(!bass||!n)return bass;
+  const idx=noteIndex(bass);if(idx===-1)return bass;
+  const ni=((idx+n)%12+12)%12;
+  return FLATS[ni];
+}
+
+// ── iReal cell editing helpers ───────────────────────────────────────────────
+function _irealBarToText(bar){
+  if(!bar)return'';
+  return bar.chords.map(ch=>{
+    if(ch.type==='slash')return'/';
+    if(ch.type==='rep1')return'%';
+    if(ch.type==='nc')return'N.C.';
+    if(ch.type==='chord'){
+      const r=ch.root.replace('♭','b').replace('♯','#');
+      return r+ch.qual+(ch.bass?'/'+ch.bass:'');
+    }
+    return'';
+  }).filter(Boolean).join(' ');
+}
+function _irealTextToChords(text){
+  const chords=[];
+  for(const tok of text.trim().split(/\s+/)){
+    if(!tok)continue;
+    if(tok==='/')  {chords.push({type:'slash'});continue;}
+    if(tok==='%')  {chords.push({type:'rep1'});continue;}
+    if(/^n\.?c\.?$/i.test(tok)){chords.push({type:'nc'});continue;}
+    const m=tok.match(/^([A-G])([b#]?)(.*)$/);
+    if(!m)continue;
+    const root=m[1]+(m[2]==='b'?'♭':m[2]==='#'?'♯':'');
+    let qual=m[3],bass='';
+    const si=qual.indexOf('/');
+    if(si!==-1){bass=qual.slice(si+1);qual=qual.slice(0,si);}
+    chords.push({type:'chord',root,qual,bass});
+  }
+  return chords;
+}
+function _irealEditCell(cell, bar, song){
+  if(cell.classList.contains('ls-editing'))return;
+  // Preserve kebab button before clearing cell content
+  const _kbtn=cell.querySelector('.ls-kebab-btn');
+  // Lock current height so switching to textarea doesn't shift the grid
+  cell.style.height=cell.offsetHeight+'px';
+  cell.classList.add('ls-editing');
+  const prev=cell.innerHTML;
+  cell.innerHTML='';
+  const ta=document.createElement('textarea');
+  ta.className='ls-edit-input';
+  ta.value=_irealBarToText(bar);
+  ta.spellcheck=false;
+  cell.appendChild(ta);
+  if(_kbtn){
+    cell.appendChild(_kbtn);
+    // Prevent textarea blur when clicking the kebab (mousedown fires before blur)
+    _kbtn.addEventListener('mousedown',e=>{e.preventDefault();},{capture:true,once:false});
+  }
+  ta.focus();ta.select();
+  function commitSave(andRender){
+    const chords=_irealTextToChords(ta.value);
+    bar.chords=chords;
+    saveSongs();
+    if(andRender) renderIRealSong(song);
+  }
+  function cancel(){
+    cell.style.height='';
+    cell.classList.remove('ls-editing');
+    cell.innerHTML=prev;
+  }
+  ta.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();commitSave(true);}
+    if(e.key==='Escape'){e.preventDefault();cancel();}
+    e.stopPropagation();
+  });
+  // Persist blur handler: save data always, but only re-render when no menu/modal is open
+  function onTaBlur(){
+    commitSave(false);
+    if(!document.querySelector('.ls-cell-menu,.ls-cell-modal-overlay')){
+      ta.removeEventListener('blur',onTaBlur);
+      renderIRealSong(song);
+    }
+  }
+  ta.addEventListener('blur',onTaBlur);
+}
+
+// Render ireal_notes as chord-detected/transposed content (mirrors renderTabContent logic)
+function _renderNotesView(text, container){
+  let processed=transposeText(text,transposeAmount);
+  if(isSimplifiedView){
+    processed=processed.split('\n').map(line=>{
+      if(!lineIsChordLine(line))return line;
+      return line.replace(/\S+/g,tok=>{
+        if(!isChordToken(tok))return tok;
+        return simplifyChord(cleanToken(tok));
+      });
+    }).join('\n');
+  }
+  processed.split('\n').forEach(line=>{
+    const lineEl=document.createElement('div');
+    const isChord=lineIsChordLine(line);
+    const dispLine=(line.startsWith('!')||line.startsWith('~'))?line.slice(1):line;
+    if(isChord){
+      dispLine.split(/(\s+)/).forEach(part=>{
+        if(/^\s+$/.test(part)){lineEl.appendChild(document.createTextNode(part));}
+        else if(isChordToken(part)){
+          const sp=document.createElement('span');sp.className='chord-token';
+          sp.textContent=part;lineEl.appendChild(sp);
+        } else {lineEl.appendChild(document.createTextNode(part));}
+      });
+    } else {
+      const ok=applyMarkup(dispLine,lineEl);
+      if(!ok&&!lineEl.innerHTML)lineEl.textContent=dispLine;
+    }
+    container.appendChild(lineEl);
+  });
+}
+
+// Returns a base diagram scale for lead-sheet inline diagrams based on current SIZE setting.
+function _lsDiagScale() {
+  const sz = document.getElementById('font-size-sel').value || 'fs-md';
+  return {'fs-xs':0.72,'fs-sm':0.68,'fs-md':0.82,'fs-lg':0.82,'fs-xl':0.90}[sz] || 0.82;
+}
+
+// ── Per-cell kebab context menu ───────────────────────────────────────────────
+function _irealCellMenu(kbtn, cell, bar, song, chart){
+  // Close any open menu/modal
+  document.querySelectorAll('.ls-cell-menu').forEach(m=>m.remove());
+  document.querySelectorAll('.ls-cell-modal-overlay').forEach(m=>m.remove());
+  document.querySelectorAll('.ls-bar.ls-menu-open').forEach(b=>b.classList.remove('ls-menu-open'));
+  cell.classList.add('ls-menu-open');
+
+  const menu=document.createElement('div');menu.className='ls-cell-menu';
+  // Portal: append to body, fixed-position anchored to button
+  const r=kbtn.getBoundingClientRect();
+  menu.style.cssText='position:fixed;top:'+(r.bottom+4)+'px;right:'+(window.innerWidth-r.right)+'px;z-index:9999;min-width:190px;';
+
+  function closeMenu(){
+    menu.remove();
+    cell.classList.remove('ls-menu-open');
+    document.removeEventListener('keydown',menuKey);
+  }
+
+  function openModal(title,fields,onSubmit){
+    closeMenu();
+    const ov=document.createElement('div');ov.className='ls-cell-modal-overlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--c-card-fallback);color:var(--c-card-text);padding:24px 28px;border-radius:8px;min-width:280px;max-width:420px;width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+    const h=document.createElement('div');
+    h.style.cssText='font-weight:600;font-size:1rem;margin-bottom:16px;font-family:var(--font-chord);';
+    h.textContent=title;box.appendChild(h);
+    const inputs=[];
+    fields.forEach(f=>{
+      const lbl=document.createElement('label');
+      lbl.style.cssText='display:block;margin-bottom:12px;font-size:0.85rem;font-family:var(--font-chord);';
+      lbl.textContent=f.label;
+      const inp=document.createElement('input');inp.type='text';
+      inp.style.cssText='display:block;width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--c-accent);border-radius:4px;background:var(--c-chrome-bg2);color:var(--c-accent);font-family:var(--font-chord);font-size:0.9rem;box-sizing:border-box;';
+      inp.placeholder=f.placeholder||'';inp.value=f.value||'';
+      lbl.appendChild(inp);box.appendChild(lbl);inputs.push({key:f.key,inp});
+    });
+    const btnsRow=document.createElement('div');btnsRow.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:16px;';
+    const cancel=document.createElement('button');cancel.textContent='Cancel';
+    cancel.style.cssText='font-family:var(--font-chord);font-size:0.8rem;padding:5px 14px;cursor:pointer;';
+    cancel.addEventListener('click',()=>ov.remove());
+    const ok=document.createElement('button');ok.textContent='Apply';
+    ok.style.cssText='font-family:var(--font-chord);font-size:0.8rem;padding:5px 14px;cursor:pointer;background:var(--c-accent);color:#fff;border:none;border-radius:4px;';
+    ok.addEventListener('click',()=>{
+      const vals={};inputs.forEach(({key,inp})=>vals[key]=inp.value.trim());
+      ov.remove();onSubmit(vals);
+    });
+    btnsRow.appendChild(cancel);btnsRow.appendChild(ok);box.appendChild(btnsRow);
+    ov.appendChild(box);document.body.appendChild(ov);
+    if(inputs.length)inputs[0].inp.focus();
+    ov.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();ok.click();}
+      if(e.key==='Escape'){e.preventDefault();ov.remove();}
+    });
+    ov.addEventListener('mousedown',e=>{if(e.target===ov)ov.remove();});
+  }
+
+  function row(icon,label,cls,cb){
+    const d=document.createElement('div');d.className='ls-cell-menu-row'+(cls?' '+cls:'');
+    d.innerHTML='<span>'+icon+'</span><span>'+label+'</span>';
+    d.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();cb();});
+    return d;
+  }
+  function sep(){const d=document.createElement('div');d.className='ls-cell-menu-sep';return d;}
+
+  const bidx=chart.bars.indexOf(bar);
+  function emptyBar(){return{chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,final:false};}
+
+  // Time signature
+  menu.appendChild(row('♪', bar.timeChange ? 'Time: '+bar.timeChange : 'Set time sig', '', ()=>{
+    openModal('Set time signature',
+      [{label:'Time signature',placeholder:'e.g. 4/4',value:bar.timeChange||'',key:'t'}],
+      ({t})=>{bar.timeChange=t||null;saveSongs();renderIRealSong(song);}
+    );
+  }));
+
+  // Section marker
+  menu.appendChild(row('§', bar.section ? 'Section: '+bar.section : 'Set section', '', ()=>{
+    openModal('Set section marker',
+      [{label:'Section label',placeholder:'A, B, Intro, Coda…',value:bar.section||'',key:'s'}],
+      ({s})=>{bar.section=s||null;saveSongs();renderIRealSong(song);}
+    );
+  }));
+
+  menu.appendChild(sep());
+
+  // Barline type toggles
+  menu.appendChild(row(':||', bar.closeRepeat?'✓ Close repeat (remove)':'Set close repeat','',()=>{
+    bar.closeRepeat=!bar.closeRepeat;saveSongs();renderIRealSong(song);
+  }));
+  menu.appendChild(row('𝄂', bar.final?'✓ Final barline (remove)':'Set final barline','',()=>{
+    bar.final=!bar.final;saveSongs();renderIRealSong(song);
+  }));
+
+  menu.appendChild(sep());
+
+  menu.appendChild(row('➕','Add cell before','',()=>{
+    chart.bars.splice(bidx,0,emptyBar());saveSongs();renderIRealSong(song);
+  }));
+  menu.appendChild(row('➕','Add cell after','',()=>{
+    chart.bars.splice(bidx+1,0,emptyBar());saveSongs();renderIRealSong(song);
+  }));
+  if(chart.bars.length>1){
+    menu.appendChild(row('🗑','Delete this cell','danger',()=>{
+      openModal('Delete cell',
+        [{label:'Type DELETE to confirm',placeholder:'DELETE',value:'',key:'confirm'}],
+        ({confirm})=>{if(confirm.toUpperCase()==='DELETE'||confirm===''){chart.bars.splice(bidx,1);saveSongs();renderIRealSong(song);}}
+      );
+    }));
+  }
+
+  document.body.appendChild(menu);
+
+  const menuKey=e=>{if(e.key==='Escape')closeMenu();};
+  document.addEventListener('keydown',menuKey);
+  setTimeout(()=>{
+    function outside(e){if(!menu.contains(e.target)&&e.target!==kbtn){closeMenu();document.removeEventListener('mousedown',outside);}}
+    document.addEventListener('mousedown',outside);
+  },10);
+}
+
+
+function _makeBlankChart(){
+  function _bar(opts){return Object.assign({chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,final:false},opts);}
+  const sections=['A',null,null,null, null,null,null,null,
+                  'B',null,null,null, null,null,null,null,
+                  'A',null,null,null, null,null,null,null,
+                  'B',null,null,null, null,null,null,null];
+  const bars=sections.map((s,i)=>{
+    const opts={};
+    if(s)opts.section=s;
+    if(i===0)opts.timeChange='4/4';
+    if(i===31)opts.final=true;
+    return _bar(opts);
+  });
+  return{bars};
+}
+
 function renderIRealSong(song){
   document.getElementById('abc-song-card').style.display='none';
+  document.getElementById('abc-toolbar').style.display='none';
   document.getElementById('song-card').classList.remove('visible');
   document.getElementById('edit-toolbar').style.display='none';
   document.getElementById('abc-player-bar').style.display='none';
   document.getElementById('empty-state').style.display='none';
   const card=document.getElementById('ireal-song-card');card.style.display='';
+  document.getElementById('ireal-toolbar').style.display='';
+  // Reset edit mode when a different song is opened
+  if(song !== _lsEditSong){ isLsEditMode=false; _lsEditSong=song; }
+  card.classList.toggle('ls-edit-mode', isLsEditMode);
   const cont=document.getElementById('ireal-content');cont.innerHTML='';
   const chart=song.ireal_chart;
   if(!chart){cont.textContent='No chart data.';return;}
-  const hdr=document.createElement('div');hdr.className='ls-header';
-  hdr.innerHTML=(song.style?`<span class="ls-header-style">${escapeHtml(song.style)}</span>`:'')+
-    (song.key?`<span class="ls-header-key">Key of ${escapeHtml(song.key)}</span>`:'')+
-    (song.bpm?`<span>${song.bpm} bpm</span>`:'')+
-    (song.artist?`<span style="margin-left:auto;font-size:0.7rem;">${escapeHtml(song.artist)}</span>`:'');
+  // ── Song header (title / artist / meta pills) ────────────────────────────
+  const _dispKey=song.key?transposeKey(song.key,transposeAmount):'';
+  const hdr=document.createElement('div');hdr.className='song-header';
+  const _titleEl=document.createElement('div');_titleEl.className='song-main-title';
+  _titleEl.textContent=song.title||'Untitled';
+  const _artistEl=document.createElement('div');_artistEl.className='song-artist';
+  _artistEl.textContent=song.artist||'';
+  const _metaEl=document.createElement('div');_metaEl.className='song-meta';
+  [['Style',song.style],['Key',_dispKey||null],['BPM',song.bpm?String(song.bpm):null],
+   ['Transpose',transposeAmount?(transposeAmount>0?'+':'')+transposeAmount:null]
+  ].forEach(([l,v])=>{
+    if(!v)return;
+    const p=document.createElement('div');p.className='meta-pill';
+    p.innerHTML=escapeHtml(l)+': <span>'+escapeHtml(v)+'</span>';
+    _metaEl.appendChild(p);
+  });
+  hdr.appendChild(_titleEl);
+  if(song.artist)hdr.appendChild(_artistEl);
+  hdr.appendChild(_metaEl);
   cont.appendChild(hdr);
   const bars=chart.bars.slice();while(bars.length%4!==0)bars.push(null);
   const grid=document.createElement('div');grid.className='ls-grid';
@@ -10614,35 +11203,138 @@ function renderIRealSong(song){
     if(bar.section){const sl=document.createElement('div');sl.className='ls-section-lbl';sl.textContent=bar.section;cell.appendChild(sl);}
     if(bar.timeChange){const ts=document.createElement('div');ts.className='ls-timesig';ts.textContent=bar.timeChange;cell.appendChild(ts);}
     if(bar.endingNum){const en=document.createElement('div');en.className='ls-ending';en.textContent=bar.endingNum;cell.appendChild(en);}
-    if(!bar.chords.length){const sp=document.createElement('span');sp.className='ls-rep-sym';sp.textContent='/';cell.appendChild(sp);}
+    if(!bar.chords.length){cell.classList.add('ls-empty');const sp=document.createElement('span');sp.className='ls-rep-sym';sp.textContent='/';cell.appendChild(sp);}
+    // Scale diagrams: count actual chord entries to fit them all on one line
+    const nChords = bar.chords.filter(c=>c.type==='chord').length;
+    const _countAdj = nChords <= 2 ? 1.0 : nChords === 3 ? 0.72 : 0.57;
+    const _diagScale = _lsDiagScale() * _countAdj;
+    // Lead sheet cards have a dark background in some themes — use theme ink colour
+    const _lsInk = 'auto'; // SVG uses currentColor; colour set via CSS .ls-chord-unit { color: var(--c-notation-ink) }
     bar.chords.forEach(ch=>{
-      const sp=document.createElement('span');
-      if(ch.type==='chord'){sp.innerHTML=irealChordHTML(ch.root,ch.qual,ch.bass);}
-      else if(ch.type==='rep1'){sp.className='ls-rep-sym';sp.textContent='%';}
-      else if(ch.type==='nc'){sp.className='ls-nc';sp.textContent='N.C.';}
-      else return;
-      cell.appendChild(sp);
+      if(ch.type==='chord'){
+        const tr=transposeIRealRoot(ch.root,transposeAmount);
+        const tb=transposeIRealBass(ch.bass,transposeAmount);
+        const unit=document.createElement('div');
+        unit.className='ls-chord-unit';
+        const nm=document.createElement('span');
+        // Apply simplification: reduce to root+minor quality only when simplified view is on
+        // Simplified: root stays; minor quality preserved; diagram uses simplified key
+        const _dispQual=isSimplifiedView?(ch.qual&&ch.qual.match(/^[-m](?!aj)/)?'m':''):(ch.qual);
+        nm.innerHTML=irealChordHTML(tr,_dispQual,isSimplifiedView?'':tb);
+        unit.appendChild(nm);
+        if(currentInstrument&&currentInstrument!=='none'){
+          const key=irealChordKey(tr,_dispQual);
+          const svg=renderChordDiagram(key,currentInstrument,_diagScale,_lsInk);
+          if(svg){const d=document.createElement('div');d.innerHTML=svg;unit.appendChild(d.firstChild);}
+        }
+        cell.appendChild(unit);
+      } else {
+        const sp=document.createElement('span');
+        if(ch.type==='rep1'){sp.className='ls-rep-sym';sp.textContent='%';}
+        else if(ch.type==='slash'){sp.className='ls-rep-sym';sp.textContent='/';}
+        else if(ch.type==='nc'){sp.className='ls-nc';sp.textContent='N.C.';}
+        else return;
+        cell.appendChild(sp);
+      }
+    });
+    // Kebab menu button
+    const kbtn=document.createElement('button');kbtn.className='ls-kebab-btn';kbtn.textContent='⋮';
+    kbtn.title='Cell options';kbtn.setAttribute('aria-label','Cell options');
+    kbtn.addEventListener('click',e=>{e.stopPropagation();_irealCellMenu(kbtn,cell,bar,song,chart);});
+    cell.appendChild(kbtn);
+    cell.addEventListener('click',e=>{
+      if(!isLsEditMode)return;
+      if(e.target.closest('.ls-kebab-btn,.ls-cell-menu'))return;
+      if(!e.target.closest('textarea'))_irealEditCell(cell,bar,song);
     });
     grid.appendChild(cell);
   });
+  // ── Action toolbar (top of card) ─────────────────────────────────────────────
+  const tb=document.createElement('div');tb.className='ls-toolbar';
+  const saveBtn=document.createElement('button');saveBtn.textContent='⬇ Save As…';
+  saveBtn.title='Download this lead sheet as a .mslead file';
+  saveBtn.addEventListener('click',()=>{
+    const out=Object.assign({},song,{_ms_format:'lead-sheet',_ms_version:1});
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=(song.title||'lead-sheet').replace(/[^a-z0-9 _-]/gi,'_')+'.mslead';
+    a.click();URL.revokeObjectURL(a.href);
+  });
+  const newBtn=document.createElement('button');newBtn.textContent='✦ New';newBtn.title='Create a new lead sheet';
+  newBtn.addEventListener('click',()=>{
+    const sel=document.getElementById('ns-type');if(sel){sel.value='blank-lead';sel.dispatchEvent(new Event('change'));}
+    openNewSongModal();
+  });
+  const editLsBtn=document.createElement('button');editLsBtn.id='btn-ls-edit';
+  editLsBtn.textContent=isLsEditMode?'✎ Editing':'✎ Edit';
+  if(isLsEditMode)editLsBtn.classList.add('active');
+  editLsBtn.title=isLsEditMode?'Exit edit mode':'Edit this lead sheet';
+  editLsBtn.addEventListener('click',()=>{
+    // Close any open edit cell before toggling
+    document.querySelectorAll('.ls-bar.ls-editing').forEach(c=>c.dispatchEvent(new Event('blur',{bubbles:true})));
+    isLsEditMode=!isLsEditMode;
+    renderIRealSong(song);
+  });
+  const pubLsBtn=document.createElement('button');pubLsBtn.textContent='☁ Publish';
+  pubLsBtn.title='Publish this lead sheet to the online library';
+  pubLsBtn.addEventListener('click',()=>{
+    if(currentIdx>=0) showPublishModal([currentIdx]);
+  });
+  const irealTb=document.getElementById('ireal-toolbar');irealTb.innerHTML='';
+  irealTb.appendChild(newBtn);irealTb.appendChild(editLsBtn);irealTb.appendChild(saveBtn);irealTb.appendChild(pubLsBtn);irealTb.style.display='';
+
   cont.appendChild(grid);
+
+  // Notes / Lyrics annotation area
+  // Notes/Lyrics — textarea in edit mode, rendered view in read mode, hidden if empty
+  if(isLsEditMode){
+    const notesWrap=document.createElement('div');notesWrap.className='ls-notes-wrap';
+    const notesLbl=document.createElement('div');notesLbl.className='ls-notes-label';
+    notesLbl.textContent='Lyrics / Notes';
+    const notesTa=document.createElement('textarea');notesTa.className='ls-notes-ta';
+    notesTa.placeholder='Lyrics, annotations, performance notes...';
+    notesTa.value=song.ireal_notes||'';
+    notesTa.addEventListener('input',()=>{song.ireal_notes=notesTa.value;saveSongs();});
+    notesTa.addEventListener('keydown',e=>e.stopPropagation());
+    notesWrap.appendChild(notesLbl);notesWrap.appendChild(notesTa);
+    cont.appendChild(notesWrap);
+  } else if(song.ireal_notes&&song.ireal_notes.trim()){
+    const notesWrap=document.createElement('div');notesWrap.className='ls-notes-wrap';
+    const notesLbl=document.createElement('div');notesLbl.className='ls-notes-label';
+    notesLbl.textContent='Lyrics / Notes';
+    const notesView=document.createElement('div');notesView.className='ls-notes-view';
+    _renderNotesView(song.ireal_notes,notesView);
+    notesWrap.appendChild(notesLbl);notesWrap.appendChild(notesView);
+    cont.appendChild(notesWrap);
+  }
+
   updateSidebarActive();window.scrollTo(0,0);
 }
 // Modal wiring
 document.getElementById('ns-type').addEventListener('change',function(){
-  const isIReal=this.value==='ireal';
-  ['ns-title','ns-artist','ns-key','ns-capo'].forEach(id=>{
+  const v=this.value;
+  const isIReal=v==='ireal',isABC=v==='abc',isBlankLead=v==='blank-lead',isSong=v==='song';
+  const showFields=isSong||isBlankLead;
+  ['ns-title','ns-artist','ns-key'].forEach(id=>{
     const el=document.getElementById(id);
     const row=el&&(el.closest?.('.modal-field')||el.parentElement);
-    if(row)row.style.display=isIReal?'none':'';
+    if(row)row.style.display=showFields?'':'none';
   });
+  const capoEl=document.getElementById('ns-capo');
+  const capoRow=capoEl&&(capoEl.closest?.('.modal-field')||capoEl.parentElement);
+  if(capoRow)capoRow.style.display=isSong?'':'none';
   const fmt=document.getElementById('new-song-format');
-  if(fmt)fmt.style.display=isIReal?'none':'';
-  const sec=document.getElementById('ns-ireal-section');
-  if(sec)sec.style.display=isIReal?'':'none';
+  if(fmt)fmt.style.display=isSong?'':'none';
+  const secIReal=document.getElementById('ns-ireal-section');
+  if(secIReal)secIReal.style.display=isIReal?'':'none';
+  const secABC=document.getElementById('ns-abc-section');
+  if(secABC)secABC.style.display=isABC?'':'none';
   const btn=document.getElementById('btn-ns-create');
-  if(btn)btn.textContent=isIReal?'Import Lead Sheet':'Open Editor';
+  if(btn)btn.textContent=isIReal?'Import Lead Sheet(s)':isABC?'Import ABC':isBlankLead?'Create Lead Sheet':'Open Editor';
   if(isIReal){const ta=document.getElementById('ns-ireal-url');if(ta)ta.focus();}
+  if(isABC){const ta=document.getElementById('ns-abc-content');if(ta)ta.focus();}
+  if(showFields){const el=document.getElementById('ns-title');if(el)el.focus();}
 });document.getElementById('btn-ns-create').addEventListener('click',function(e){
   if(document.getElementById('ns-type')?.value!=='ireal')return;
   e.stopImmediatePropagation();
@@ -10655,14 +11347,13 @@ document.getElementById('ns-type').addEventListener('change',function(){
   const firstIdx=songs.length;
   parsed.forEach(s=>songs.push(s));
   saveAll();buildSongList('');
+  status.textContent=parsed.length===1?'\u2713 Imported 1 song.':'\u2713 Imported '+parsed.length+' songs.';
   document.getElementById('new-song-modal').classList.remove('open');
   const sel=document.getElementById('ns-type');sel.value='song';sel.dispatchEvent(new Event('change'));
   renderSong(firstIdx);
 },true);
 
-// ── SERVICE WORKER — offline caching for PWA install ─────────────────────────
-// Only active on real HTTPS deployments; skipped in previews and file:// to
-// prevent the "Failed: TypeError" console warning.
+// SERVICE WORKER
 if ('serviceWorker' in navigator &&
     (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') &&
     !location.hostname.includes('claudeusercontent')) {
@@ -10673,17 +11364,8 @@ if ('serviceWorker' in navigator &&
   });
 }
 
-// ── PWA INSTALL PROMPT ────────────────────────────────────────────────────────
-// Capture the browser's deferred install prompt for future use by app-store flow.
-let _pwaPrompt = null;
-window.addEventListener('beforeinstallprompt', function(e) { e.preventDefault(); _pwaPrompt = e; });
-window.addEventListener('appinstalled', function() { _pwaPrompt = null; });
-
-// ── INIT — restore songs from localStorage and render the first one if any ──
-// Try to auto-load the default soundfont if running from a file server
-// (won't work with file:// protocol due to browser security, but works with http)
 (function() {
-  if (location.protocol === 'file:') return;  // can't fetch local files
+  if (location.protocol === 'file:') return;
   const candidates = [
     'MagicScrollSoundfont.sf2',
     'MagicScrollSoundfont.sfz',
@@ -10698,124 +11380,129 @@ window.addEventListener('appinstalled', function() { _pwaPrompt = null; });
       if (url.endsWith('.sf2')) {
         await loadSF2File(new File([buf], url.split('/').pop(), {type:'audio/sf2'}));
       }
-      // SFZ auto-load skipped (needs sample files alongside it)
       return true;
     } catch(e) { return false; }
   }
   candidates.reduce((p, url) => p.then(loaded => loaded ? true : tryLoad(url)), Promise.resolve(false));
 })();
 
-
-// Move settings panels to <body> so position:fixed uses the true viewport.
-// Panels nested inside the sticky topbar are trapped in its stacking context
-// on mobile Safari/Chrome, making them invisible or clipped.
-(function() {
-  document.querySelectorAll('.settings-panel').forEach(function(p) {
-    document.body.appendChild(p);
+(function movePanelsToBody() {
+  ['theme-panel','chord-panel','publish-panel','settings-panel'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el && el.parentElement !== document.body) document.body.appendChild(el);
   });
-  // Metro panel is position:absolute inside topbar — move it too
-  var mp = document.getElementById('metro-panel');
-  if (mp) document.body.appendChild(mp);
 })();
 
-// ── SUPABASE CONFIG ──────────────────────────────────────────────────────────
-const SUPABASE_URL      = 'https://zpjaxauiuhvbvufrruhq.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_-ni2auG8V1xtw9MCxe1-Vw_ixflmdkZ';
-const FUNCTIONS_BASE    = SUPABASE_URL + '/functions/v1';
+setDiagramScale(diagramScale);
+buildSongList();
+if (songs.length > 0 && !_demoLoading) renderSong(0);
 
-// ── PUBLISH MODAL ─────────────────────────────────────────────────────────────
-let _publishIndices = [];
-let _publishMode    = 'songs'; // 'songs' | 'collection'
-let _publishFolderObj = null;  // { id, name, songIndices[] } when mode = 'collection'
+// ══════════════════════════════════════════════════════════════════════════
+// ONLINE PUBLISH / SEARCH  (Supabase Edge Functions)
+// ══════════════════════════════════════════════════════════════════════════
+var SUPABASE_URL    = 'https://zpjaxauiuhvbvufrruhq.supabase.co';
+var FUNCTIONS_BASE  = SUPABASE_URL + '/functions/v1';
+
+// ── PWA install prompt capture ─────────────────────────────────────────────
+var _pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) { e.preventDefault(); _pwaPrompt = e; });
+window.addEventListener('appinstalled',        function()  { _pwaPrompt = null; });
+
+// ── Publish modal state ────────────────────────────────────────────────────
+var _publishMode      = 'songs';   // 'songs' | 'collection'
+var _publishIndices   = [];        // song indices being published
+var _publishFolderObj = null;      // folder object when publishing a collection
 
 function showPublishModal(indices) {
   _publishMode    = 'songs';
   _publishIndices = indices;
-  const nameEl = document.getElementById('pub-song-name');
-  document.getElementById('publish-modal').querySelector('h3').textContent = '☁ Publish to Online Library';
+  var names = indices.map(function(i) {
+    var s = songs[i]; if (!s) return '';
+    return (s.title || 'Untitled') + (s.artist ? ' — ' + s.artist : '');
+  }).filter(Boolean).join(', ');
+  document.getElementById('pub-song-name').textContent = names.length > 80 ? names.slice(0, 77) + '…' : names;
   document.getElementById('pub-status').textContent = '';
   document.getElementById('pub-confirm-btn').disabled = false;
-  if (indices.length === 1) {
-    const s = songs[indices[0]];
-    nameEl.textContent = (s.title || 'Untitled') + (s.artist ? ' — ' + s.artist : '');
-  } else {
-    nameEl.textContent = indices.length + ' songs selected';
-  }
+  document.getElementById('pub-confirm-btn').textContent = 'Publish';
   document.getElementById('publish-modal').classList.add('open');
 }
 
 function showPublishCollectionModal(folderId) {
-  const f = folders.find(x => x.id === folderId);
+  var f = folders.find(function(x) { return x.id === folderId; });
   if (!f) return;
-  const count = (f.songIndices || []).length;
-  if (count === 0) { alert('This folder has no songs to publish.'); return; }
   _publishMode      = 'collection';
   _publishFolderObj = f;
-  document.getElementById('publish-modal').querySelector('h3').textContent = '☁ Publish Collection';
-  document.getElementById('pub-song-name').textContent = f.name + ' (' + count + ' song' + (count !== 1 ? 's' : '') + ')';
+  document.getElementById('pub-song-name').textContent =
+    '📁 ' + f.name + ' (' + f.songIndices.length + ' songs)';
   document.getElementById('pub-status').textContent = '';
   document.getElementById('pub-confirm-btn').disabled = false;
+  document.getElementById('pub-confirm-btn').textContent = 'Publish';
   document.getElementById('publish-modal').classList.add('open');
 }
 
-document.getElementById('pub-cancel-btn').addEventListener('click', () => {
+document.getElementById('pub-cancel-btn').addEventListener('click', function() {
   document.getElementById('publish-modal').classList.remove('open');
 });
 
-document.getElementById('publish-modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
-});
-
-document.getElementById('pub-confirm-btn').addEventListener('click', async () => {
-  const btn    = document.getElementById('pub-confirm-btn');
-  const status = document.getElementById('pub-status');
+document.getElementById('pub-confirm-btn').addEventListener('click', async function() {
+  var btn    = this;
+  var status = document.getElementById('pub-status');
   btn.disabled = true;
-  status.textContent = '';
+  status.textContent = 'Publishing…';
 
   if (_publishMode === 'collection') {
-    // ── Publish whole folder as a collection ──────────────────────────────────
-    const f = _publishFolderObj;
-    const collectionSongs = (f.songIndices || []).map(i => songs[i]).filter(Boolean).map(s => ({
-      title:       s.title || 'Untitled',
-      artist:        s.artist        || null,
-      tab_content:   s.tab_content   || s.content || s.tab || '',
-      key:           s.key           || null,
-      capo:          s.capo          || null,
-      type:          s.type          || null,
-      tuning:        s.tuning        || null,
-      _source:       s._source       || null,
-      abc_text:      s.abc_text      || null,
-      abc_file_name: s.abc_file_name || null,
-    }));
+    var f = _publishFolderObj;
+    var colSongs = f.songIndices.map(function(i) {
+      var s = songs[i]; if (!s) return null;
+      return {
+        title:         s.title || 'Untitled',
+        artist:        s.artist        || null,
+        tab_content:   s.tab_content   || s.content || s.tab || '',
+        key:           s.key           || null,
+        capo:          s.capo          || null,
+        type:          s.type          || null,
+        tuning:        s.tuning        || null,
+        _source:       s._source       || null,
+        abc_text:      s.abc_text      || null,
+        abc_file_name: s.abc_file_name || null,
+        ireal_chart:   s.ireal_chart   || null,
+        ireal_raw:     s.ireal_raw     || null,
+      };
+    }).filter(Boolean);
+
     try {
-      const res = await fetch(FUNCTIONS_BASE + '/publish-collection', {
+      var res  = await fetch(FUNCTIONS_BASE + '/publish-collection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: f.name, songs: collectionSongs }),
+        body: JSON.stringify({ name: f.name, songs: colSongs }),
       });
-      if (res.status === 201)      status.textContent = 'Collection published ✓';
-      else if (res.status === 409) status.textContent = 'This collection is already in the library';
-      else                         status.textContent = 'Failed (HTTP ' + res.status + ')';
-    } catch {
-      status.textContent = 'Network error — check your connection';
-    }
-    btn.disabled = false;
-    if (!status.textContent.includes('Failed') && !status.textContent.includes('error')) {
-      setTimeout(() => document.getElementById('publish-modal').classList.remove('open'), 2000);
+      var data = await res.json();
+      if (res.status === 409) {
+        status.textContent = 'This collection is already in the online library.';
+      } else if (!res.ok) {
+        status.textContent = 'Error: ' + (data.error || res.status);
+        btn.disabled = false;
+      } else {
+        status.textContent = '✓ Submitted for review! It will appear publicly once approved.';
+        setTimeout(function() { document.getElementById('publish-modal').classList.remove('open'); }, 2200);
+      }
+    } catch(e) {
+      status.textContent = 'Network error — are you online?';
+      btn.disabled = false;
     }
     return;
   }
 
-  // ── Publish individual songs ──────────────────────────────────────────────
-  const results = { ok: 0, dup: 0, err: 0 };
-  for (const idx of _publishIndices) {
-    const s = songs[idx];
+  // ── Publish individual songs ──────────────────────────────────────────
+  var errors = [], published = 0, dupes = 0;
+  for (var k = 0; k < _publishIndices.length; k++) {
+    var s = songs[_publishIndices[k]]; if (!s) continue;
     try {
-      const res = await fetch(FUNCTIONS_BASE + '/publish', {
+      var r = await fetch(FUNCTIONS_BASE + '/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title:         s.title         || 'Untitled',
+          title:         s.title || 'Untitled',
           artist:        s.artist        || null,
           content:       s.tab_content   || s.content || s.tab || '',
           _source:       s._source       || null,
@@ -10823,235 +11510,163 @@ document.getElementById('pub-confirm-btn').addEventListener('click', async () =>
           abc_file_name: s.abc_file_name || null,
           raw_html:      s.raw_html      || null,
           ireal_raw:     s.ireal_raw     || null,
+          ireal_chart:   s.ireal_chart   || null,
         }),
       });
-      if (res.status === 201)      results.ok++;
-      else if (res.status === 409) results.dup++;
-      else                         results.err++;
-    } catch {
-      results.err++;
+      var d = await r.json();
+      if (r.status === 409)  { dupes++; }
+      else if (!r.ok)        { errors.push(s.title + ': ' + (d.error || r.status)); }
+      else                   { published++; }
+    } catch(e) {
+      errors.push(s.title + ': network error');
     }
   }
-  const parts = [];
-  if (results.ok)  parts.push(results.ok  + ' published ✓');
-  if (results.dup) parts.push(results.dup + ' already in library');
-  if (results.err) parts.push(results.err + ' failed');
-  status.textContent = parts.join(' · ');
-  btn.disabled = false;
-  if (results.ok > 0 || results.dup > 0) {
-    setTimeout(() => document.getElementById('publish-modal').classList.remove('open'), 2000);
+
+  if (errors.length) {
+    status.textContent = errors.join(' | ');
+    btn.disabled = false;
+  } else if (dupes > 0 && published === 0) {
+    status.textContent = 'Already in the online library.';
+  } else {
+    var msg = published + ' song' + (published !== 1 ? 's' : '') + ' submitted for review!';
+    if (dupes) msg += ' (' + dupes + ' already existed)';
+    status.textContent = '✓ ' + msg + ' It will appear publicly once approved.';
+    setTimeout(function() { document.getElementById('publish-modal').classList.remove('open'); }, 2200);
   }
 });
 
-// ── PUBLISH BUTTON ON SONG PAGE ───────────────────────────────────────────────
-document.getElementById('btn-publish-song').addEventListener('click', () => {
+document.getElementById('publish-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+
+document.getElementById('btn-bulk-publish').addEventListener('click', function() {
+  var indices = Array.from(selectedSongs);
+  if (!indices.length) return;
+  showPublishModal(indices);
+});
+
+document.getElementById('btn-publish-song').addEventListener('click', function() {
   if (currentIdx < 0) return;
   showPublishModal([currentIdx]);
 });
 
-// ── BULK PUBLISH ──────────────────────────────────────────────────────────────
-document.getElementById('btn-bulk-publish').addEventListener('click', () => {
-  if (!selectedSongs.size) return;
-  showPublishModal([...selectedSongs]);
-});
+// ── Online search ──────────────────────────────────────────────────────────
+var _onlineTimer       = null;
+var _onlineData        = [];
+var _onlinePreviewSong = null;
 
-// ── SELECT ALL ────────────────────────────────────────────────────────────────
-document.getElementById('btn-bulk-select-all').addEventListener('click', () => {
-  document.querySelectorAll('#song-list .song-item').forEach(item => {
-    const idx = parseInt(item.dataset.songIdx);
-    if (isNaN(idx)) return;
-    const cb = item.querySelector('.song-check');
-    if (cb) cb.checked = true;
-    selectedSongs.add(idx);
-  });
-  updateBulkBar();
-});
-
-// ── ONLINE SEARCH ─────────────────────────────────────────────────────────────
-let _onlineSearchTimer = null;
-let _onlinePreviewSong = null;
-
-function clearOnlineResults() {
-  document.querySelectorAll('.online-section-header, .online-song-item').forEach(el => el.remove());
+function scheduleOnlineSearch(q) {
+  clearTimeout(_onlineTimer);
+  if (!q || q.trim().length < 2) { clearOnlineResults(); return; }
+  _onlineTimer = setTimeout(function() { doOnlineSearch(q.trim()); }, 400);
 }
 
-function scheduleOnlineSearch(query) {
-  clearTimeout(_onlineSearchTimer);
-  // Remove any existing online section (stale from prior query)
-  clearOnlineResults();
-
-  if (!navigator.onLine) return;
-  if (!query || query.length < 2) return;
-
-  // Show a loading indicator immediately
-  const list = document.getElementById('song-list');
-  const hdr = document.createElement('div');
-  hdr.className = 'online-section-header';
-  hdr.id = 'online-section-hdr';
-  hdr.innerHTML = '<span class="online-spinner"></span><span>Online</span>';
-  list.appendChild(hdr);
-
-  _onlineSearchTimer = setTimeout(() => doOnlineSearch(query), 400);
+function clearOnlineResults() {
+  _onlineData = [];
+  var existing = document.getElementById('online-results-section');
+  if (existing) existing.remove();
 }
 
 async function doOnlineSearch(query) {
-  const hdr = document.getElementById('online-section-hdr');
+  clearOnlineResults();
+  var list = document.getElementById('song-list');
+  var sec  = document.createElement('div');
+  sec.id   = 'online-results-section';
+  sec.innerHTML = '<div class="online-section-header"><span class="online-spinner"></span> Online</div>';
+  list.appendChild(sec);
+
   try {
-    const res = await fetch(
-      FUNCTIONS_BASE + '/search?q=' + encodeURIComponent(query) + '&limit=20'
-    );
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const results = await res.json();
+    var res  = await fetch(FUNCTIONS_BASE + '/search?q=' + encodeURIComponent(query) + '&limit=20');
+    if (!res.ok) throw new Error(res.status);
+    var data = await res.json();
+    _onlineData = data;
 
-    // Clear spinner from header
-    if (hdr) hdr.innerHTML = '<span>☁ Online</span>';
-
-    // Build a set of local content hashes for dedup detection
-    const localHashes = new Set(songs.map(s => {
-      const c = s.tab_content || s.content || s.tab || '';
-      return c.trim(); // simple text comparison (full hash would need crypto, this is fine for display)
-    }));
-
-    const list = document.getElementById('song-list');
-
-    if (!results.length) {
-      const none = document.createElement('div');
-      none.className = 'online-song-item';
-      none.style.cssText = 'color:var(--c-chrome-muted);font-size:0.75rem;cursor:default;';
-      none.textContent = `No online matches. Can't find the song you want? Add it yourself! Magic Scroll is entirely contributed by user-contributed-- If you're looking for a song, someone else will want it as well! Just copy it over from another site and publish to the database.`;
-      list.appendChild(none);
+    sec.innerHTML = '<div class="online-section-header">☁️ Online (' + data.length + ')</div>';
+    if (!data.length) {
+      sec.innerHTML += '<div style="padding:8px 12px;font-size:0.75rem;color:var(--c-chrome-muted);">No online results</div>';
       return;
     }
 
-    results.forEach(r => {
-      const alreadyLocal = songs.some(s => s.content_hash === r.content_hash ||
-        (s.title||'').toLowerCase() === (r.title||'').toLowerCase() &&
-        (s.tab_content||s.content||s.tab||'').trim() === (r.content||'').trim()
-      );
-
-      const item = document.createElement('div');
+    var localHashes = new Set(songs.map(function(s) { return s.content_hash; }).filter(Boolean));
+    data.forEach(function(r) {
+      var alreadyLocal = !!r.content_hash && localHashes.has(r.content_hash);
+      var item = document.createElement('div');
       item.className = 'online-song-item' + (alreadyLocal ? ' already-local' : '');
       item.innerHTML =
-        '<span class="osi-cloud">☁</span>' +
-        '<span class="osi-text">' +
-          '<div class="osi-title">' + escapeHtml(r.title || 'Untitled') + '</div>' +
-          (r.artist ? '<div class="osi-artist">' + escapeHtml(r.artist) + '</div>' : '') +
-        '</span>';
-
-      item.addEventListener('click', () => openOnlinePreview(r, alreadyLocal));
-      list.appendChild(item);
+        '<div class="s-title">' + escapeHtml(r.title || 'Untitled') + '</div>'
+        + '<div class="s-artist">' + escapeHtml(r.artist || '')
+        + (alreadyLocal ? ' · <em>in library</em>' : '') + '</div>';
+      item.addEventListener('click', function() { openOnlinePreview(r, alreadyLocal); });
+      sec.appendChild(item);
     });
-
-  } catch (err) {
-    const msg = err instanceof TypeError ? '☁ Offline' : '☁ Search unavailable';
-    if (hdr) hdr.innerHTML = '<span style="color:var(--c-chrome-muted)">' + msg + '</span>';
-    console.warn('[Magic Scroll] Online search error:', err);
+  } catch(e) {
+    sec.innerHTML = '<div class="online-section-header" style="color:var(--c-chrome-muted);">Offline</div>';
   }
 }
 
-// ── ONLINE PREVIEW MODAL ──────────────────────────────────────────────────────
-function openOnlinePreview(song, alreadyLocal) {
-  _onlinePreviewSong = song;
-  const modal   = document.getElementById('online-preview-modal');
-  const metaEl  = document.getElementById('online-preview-meta');
-  const bodyEl  = document.getElementById('online-preview-content');
-  const addBtn  = document.getElementById('online-preview-add');
+function openOnlinePreview(r, alreadyLocal) {
+  _onlinePreviewSong = r;
+  var meta   = document.getElementById('online-preview-meta');
+  var cont   = document.getElementById('online-preview-content');
+  var addBtn = document.getElementById('online-preview-add');
 
-  metaEl.textContent = [song.title, song.artist].filter(Boolean).join(' — ');
-  // Show the most meaningful text depending on source type
-  const previewText =
-    song._source === 'abc'   ? (song.abc_text  || song.content || '') :
-    song._source === 'ireal' ? (song.ireal_raw || song.content || '') :
-    song._source === 'html'  ? '(HTML file — full formatting not available in search results. Add to library to view, or find it in a shared collection for the complete version.)' :
-    (song.content || '');
-  bodyEl.textContent = previewText;
+  meta.textContent = (r.title || 'Untitled') + (r.artist ? ' — ' + r.artist : '');
+
+  var src = r._source;
+  var preview = '';
+  if (src === 'abc' && r.abc_text) {
+    preview = r.abc_text;
+  } else if (src === 'ireal' && (r.ireal_raw || r.ireal_chart)) {
+    preview = '🎼 Lead Sheet — ' + (r.title || '')
+            + '\nKey: ' + (r.key || '?') + '  Style: ' + (r.style || '?');
+  } else {
+    preview = r.content || '(no preview)';
+  }
+  cont.textContent = preview;
 
   if (alreadyLocal) {
-    addBtn.textContent = '✓ Already in Library';
+    addBtn.textContent = '✓ Already in library';
     addBtn.disabled = true;
   } else {
     addBtn.textContent = '+ Add to Library';
     addBtn.disabled = false;
   }
-  modal.classList.add('open');
+
+  document.getElementById('online-preview-modal').classList.add('open');
 }
 
-document.getElementById('online-preview-close').addEventListener('click', () => {
+document.getElementById('online-preview-close').addEventListener('click', function() {
   document.getElementById('online-preview-modal').classList.remove('open');
 });
-
-document.getElementById('online-preview-modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+document.getElementById('online-preview-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
 });
 
-document.getElementById('online-preview-add').addEventListener('click', () => {
-  if (!_onlinePreviewSong) return;
-  const r = _onlinePreviewSong;
+document.getElementById('online-preview-add').addEventListener('click', function() {
+  var r = _onlinePreviewSong; if (!r) return;
+  var title         = r.title         || 'Untitled';
+  var artist        = r.artist        || '';
+  var key           = r.key           || '';
+  var style         = r.style         || '';
+  var bpm           = r.bpm           || 0;
+  var content       = r.content       || '';
+  var abc_text      = r.abc_text      || null;
+  var abc_file_name = r.abc_file_name || null;
+  var ireal_raw     = r.ireal_raw     || null;
+  var ireal_chart   = r.ireal_chart   || null;
+  var raw_html      = r.raw_html      || null;
+  var content_hash  = r.content_hash  || null;
 
-  let newSong;
+  var newSong;
   if (r._source === 'abc') {
-    newSong = {
-      title:         r.title         || 'Untitled',
-      artist:        r.artist        || '',
-      key:           r.key           || null,
-      type:          r.type          || 'Sheet Music',
-      _source:       'abc',
-      abc_text:      r.abc_text      || '',
-      abc_file_name: r.abc_file_name || (r.title || 'song') + '.abc',
-      content_hash:  r.content_hash  || null,
-    };
+    newSong = { title: title, artist: artist, key: key, type: 'Sheet Music',
+                _source: 'abc', abc_text: abc_text, abc_file_name: abc_file_name,
+                content_hash: content_hash };
   } else if (r._source === 'ireal') {
-    // Re-derive ireal_chart from ireal_raw using the existing parser
-    const chart = typeof irealTokenise === 'function' && r.ireal_raw
-      ? irealTokenise(r.ireal_raw)
-      : null;
-    newSong = {
-      title:        r.title       || 'Untitled',
-      artist:       r.artist      || '',
-      key:          r.key         || null,
-      style:        r.style       || null,
-      bpm:          r.bpm         || null,
-      type:         'Lead Sheet',
-      _source:      'ireal',
-      ireal_raw:    r.ireal_raw   || '',
-      ireal_chart:  chart,
-      tab_content:  '',
-      content_hash: r.content_hash || null,
-    };
-  } else if (r._source === 'html') {
-    newSong = {
-      title:        r.title       || 'Untitled',
-      artist:       r.artist      || '',
-      _source:      'html',
-      raw_html:     r.raw_html    || '',
-      tab_content:  r.content     || '',
-      content_hash: r.content_hash || null,
-    };
-  } else {
-    newSong = {
-      title:        r.title       || 'Untitled',
-      artist:       r.artist      || '',
-      tab_content:  r.content     || '',
-      content:      r.content     || '',
-      _source:      'plaintext',
-      content_hash: r.content_hash || null,
-    };
-  }
-
-  songs.push(newSong);
-  saveSongs();
-  buildSongList(document.getElementById('search-input').value);
-  renderSong(songs.length - 1);
-  document.getElementById('online-preview-modal').classList.remove('open');
-});
-
-// ── Apply saved diagram scale immediately so the panel is right on first open
-setDiagramScale(diagramScale);
-buildSongList();
-// For first-time users the demo commit() handles renderSong;
-// for returning users render the first song as before.
-if (songs.length > 0 && !_demoLoading) renderSong(0);
-
-</script>
-</body>
-</html>
+    var chart = ireal_chart ||
+                (ireal_raw && typeof irealTokenise === 'function' ? irealTokenise(ireal_raw) : null);
+    newSong = { title: title, artist: artist, key: key, style: style, bpm: bpm,
+                type: 'Lead Sheet', _source: 'ireal',
+                ireal_raw: ireal_raw || '', ireal_chart: chart,
+                tab_content: '', content_hash: content_hash };
+  } else if (r
