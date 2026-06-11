@@ -48,6 +48,7 @@
   var _displayBar = 0;
   var _totalBars  = 0;
   var _bars_cache = null;
+  var _transpose  = 0;       // semitone offset from main app
   var _bt_state   = {};
 
   // ── Audio context ────────────────────────────────────────────────────────────
@@ -166,6 +167,7 @@
   var _NM = { C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11 };
   function _clean(r) { return (r||'').replace(/♯/g,'#').replace(/♭/g,'b'); }
   function _midi(root, oct) { var pc = _NM[_clean(root)]; return pc !== undefined ? (oct+1)*12 + pc : 60; }
+  function _tmidi(root, oct) { return _midi(root, oct) + (_transpose || 0); }
   var _QI = {
     '':[0,4,7],maj:[0,4,7],M:[0,4,7],m:[0,3,7],min:[0,3,7],'-':[0,3,7],
     '7':[0,4,7,10],maj7:[0,4,7,11],M7:[0,4,7,11],'Δ':[0,4,7,11],'Δ7':[0,4,7,11],'^7':[0,4,7,11],
@@ -179,7 +181,9 @@
     var ivs   = (_QI[qual] || [0,4,7]).slice(0, 4);
     var notes = ivs.map(function(i) { return base + i; });
     notes = notes.map(function(n) { return n > base + 14 ? n - 12 : n; });
-    if (bassNote) { var bm = _midi(bassNote, oct-1); if (bm !== notes[0]) notes.unshift(bm); }
+    var t = _transpose || 0;
+    notes = notes.map(function(n) { return n + t; });
+    if (bassNote) { var bm = _midi(bassNote, oct-1) + t; if (bm !== notes[0]) notes.unshift(bm); }
     return notes;
   }
 
@@ -399,21 +403,21 @@
     var bar = bars[bi]; if (!bar) return;
     var ch  = _chords(bar); if (!ch.length) return;
     var vol = state.volume * 0.82, bd = barDur / nb, pat = state.pattern, oct = 2;
-    function playR(c, when, dur, v) { _note('bass', ctx, dest, when, _midi(c.bass||c.root, oct), dur*0.82, v||vol); }
+    function playR(c, when, dur, v) { _note('bass', ctx, dest, when, _tmidi(c.bass||c.root, oct), dur*0.82, v||vol); }
     if      (pat === 'Root')        { playR(ch[0], t0, barDur*0.9); }
     else if (pat === 'Root–5') {
-      var r5 = _midi(ch[0].root, oct);
+      var r5 = _tmidi(ch[0].root, oct);
       _note('bass', ctx, dest, t0,            r5,   bd*0.82, vol);
       _note('bass', ctx, dest, t0+bd*(nb>=4?2:1), r5+7, bd*0.82, vol);
     } else if (pat === 'Octave pump') {
       for (var b=0; b<nb; b++) {
         var c = ch[Math.min(Math.floor(b*ch.length/nb), ch.length-1)];
-        _note('bass', ctx, dest, t0+b*bd, _midi(c.root, b%2===0 ? oct : oct+1), bd*0.82, vol);
+        _note('bass', ctx, dest, t0+b*bd, _tmidi(c.root, b%2===0 ? oct : oct+1), bd*0.82, vol);
       }
     } else if (pat === 'Walking') {
-      var r0 = _midi(ch[0].root, oct), f0 = r0 + 7;
+      var r0 = _tmidi(ch[0].root, oct), f0 = r0 + 7;
       var nxt = bars[(bi+1) % bars.length], nch = _chords(nxt);
-      var app = nch.length ? _midi(nch[0].root, oct) - 1 : r0 + 11;
+      var app = nch.length ? _tmidi(nch[0].root, oct) - 1 : r0 + 11;
       if (nb === 4) {
         _note('bass',ctx,dest,t0,      r0,  bd*0.82,vol);  _note('bass',ctx,dest,t0+bd,  r0+2,bd*0.82,vol*0.85);
         _note('bass',ctx,dest,t0+bd*2, f0,  bd*0.82,vol);  _note('bass',ctx,dest,t0+bd*3,app, bd*0.82,vol*0.9);
@@ -574,6 +578,7 @@
 
   // ── Playback control ──────────────────────────────────────────────────────────
   function _btStartFromBar(startBar) {
+    _transpose = (typeof window !== 'undefined' && typeof window.getTransposeAmount === 'function') ? window.getTransposeAmount() : 0;
     var song = (typeof songs !== 'undefined' && typeof currentIdx !== 'undefined' && currentIdx >= 0)
                ? songs[currentIdx] : null;
     if (!song || !song.ireal_chart) {

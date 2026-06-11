@@ -263,10 +263,16 @@
 
   // -- Build output object -----------------------------------------------------
   function _buildOutput(frets, N, tuning) {
-    var base = 0;
+    var base = 0, maxFret = 0;
     for (var s = 0; s < N; s++) {
-      if (frets[s] > 0 && (base === 0 || frets[s] < base)) base = frets[s];
+      if (frets[s] > 0) {
+        if (base === 0 || frets[s] < base) base = frets[s];
+        if (frets[s] > maxFret) maxFret = frets[s];
+      }
     }
+    // If all fretted notes fit within a nut-anchored 4-fret window (frets 1–4),
+    // always display from the nut (base=1) so the diagram shows position clearly.
+    if (maxFret <= 4) base = 1;
     if (base === 0) base = 1;
     var barres  = _detectBarres(frets, N);
     var fingers = _assignFingers(frets, N);
