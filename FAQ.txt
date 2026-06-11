@@ -27,15 +27,13 @@ Credits:
 
 Fonts are Typographer Gotisch and a modified version of HYWenHei. 
 
-Default soundfont is Upright Piano KW by Roberto and Gonzalo of Freepats/Zenvoid.
+Default soundfont is Upright Piano KW by Roberto and Gonzalo of Freepats/Zenvoid. Backing track is built out of Sergey Surikov's WebAudioFont.
 
 YIN pitch detection algorithm by de Cheveigné & Kawahara (2002).
 
-Special thanks to our angel investor for providing the $125 to bring this app to the app stores, The Session website for curating such a fine selection of traditional music and hilarious comment section arguments, and anyone who has ever uploaded chord sheets, tabs, or anything of the like to the internet. Thank you all for helping bring us together through the world of music.
+Special thanks to The Session website for curating such a fine selection of traditional music and hilarious comment section arguments, and anyone who has ever uploaded chord sheets, tabs, or anything of the like to the internet. Thank you all for helping bring us together through the world of music.
 
-Beta testers: Chris Smit, Hulda Elira, Alex Smith, and Oscar Law, with more to come until we hit a full release!
-
-Special thanks to
+Beta testers: Chris Smit, Hulda Elira, Alex Smith, Oscar Law, Em Sollerman, with more to come until we hit a full release!
 
 Magic Scroll was designed and programmed by Spencer “Sunny” California, given freely to the people without charge. All of the art/images were also by Spencer/Sunny, given reluctantly to the people also without charge. This project is dedicated to my mother Kristina, who is part of the reason I got into music and entirely the reason I became the person I am. 
 
