@@ -1936,27 +1936,27 @@
     #bt-player-inner { padding: 8px 10px 6px; gap: 4px; }
     /* Stack the three bt-row divs vertically */
     #bt-player-controls {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      gap: 4px;
-      overflow: visible;
-      flex-wrap: nowrap;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 4px !important;
+      overflow: visible !important;
+      flex-wrap: nowrap !important;
     }
     /* Each row lays out its own items horizontally */
     .bt-row {
-      display: flex;
-      flex-direction: row;
-      flex-wrap: nowrap;
-      align-items: center;
-      gap: 5px;
-      width: 100%;
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      gap: 5px !important;
+      width: 100% !important;
     }
     /* Spacer keeps pushing content apart on each row */
-    .bt-flex-spacer { flex: 1; min-width: 0; }
-    #bt-status { display: none; }
-    .bt-tempo-slider { width: 52px; }
-    .bt-vol-slider   { width: 40px; }
+    .bt-flex-spacer { flex: 1 !important; min-width: 0 !important; }
+    #bt-status { display: none !important; }
+    .bt-tempo-slider { width: 52px !important; }
+    .bt-vol-slider   { width: 40px !important; }
   }
 
   /* ── PRINT STYLES ────────────────────────────────────────────────────────────

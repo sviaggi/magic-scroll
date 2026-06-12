@@ -714,6 +714,24 @@
 
   // ── UI builder ────────────────────────────────────────────────────────────────
   function _buildBTBar() {
+    // Inject mobile layout styles once — guarantees correct layout regardless
+    // of whether the HTML file is served fresh or from a stale SW cache.
+    if (!document.getElementById('_bt_mobile_css')) {
+      var mstyle = document.createElement('style');
+      mstyle.id = '_bt_mobile_css';
+      mstyle.textContent =
+        '@media (max-width:620px){' +
+          '#bt-bar{left:8px!important;right:8px!important;width:auto!important;transform:none!important;}' +
+          '#bt-player-controls{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:4px!important;overflow:visible!important;flex-wrap:nowrap!important;}' +
+          '.bt-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:5px!important;width:100%!important;}' +
+          '.bt-flex-spacer{flex:1!important;min-width:0!important;}' +
+          '#bt-status{display:none!important;}' +
+          '.bt-tempo-slider{width:52px!important;}' +
+          '.bt-vol-slider{width:40px!important;}' +
+        '}';
+      document.head.appendChild(mstyle);
+    }
+
     var container = document.getElementById('bt-bar');
     if (!container) return;
     container.innerHTML = '';
@@ -752,60 +770,33 @@
     var inner = document.createElement('div');
     inner.id = 'bt-player-inner';
 
-    // Controls row
+    // Controls — 3 logical rows (collapse to column on mobile)
     var controls = document.createElement('div');
     controls.id = 'bt-player-controls';
+
+    // ── Row 1: transport + plays ──────────────────────────────────────────────
+    var row1 = document.createElement('div'); row1.className = 'bt-row bt-row-1';
 
     var playBtn = document.createElement('button');
     playBtn.id = 'bt-play-btn'; playBtn.className = 'bt-ctrl-btn bt-play-btn';
     playBtn.textContent = '▶'; playBtn.title = 'Play / Pause';
     playBtn.addEventListener('click', _btPlayPause);
-    controls.appendChild(playBtn);
+    row1.appendChild(playBtn);
 
     var stopBtn = document.createElement('button');
     stopBtn.id = 'bt-stop-btn'; stopBtn.className = 'bt-ctrl-btn';
     stopBtn.textContent = '⏹'; stopBtn.title = 'Stop and return to start';
     stopBtn.addEventListener('click', btStop);
-    controls.appendChild(stopBtn);
-
-    var bpmLbl = document.createElement('label');
-    bpmLbl.textContent = 'BPM';
-    controls.appendChild(bpmLbl);
-
-    var tempoSlider = document.createElement('input');
-    tempoSlider.type = 'range'; tempoSlider.id = 'bt-tempo';
-    tempoSlider.min = '40'; tempoSlider.max = '240'; tempoSlider.value = '120';
-    tempoSlider.className = 'bt-tempo-slider';
-    controls.appendChild(tempoSlider);
-
-    var tempoLbl = document.createElement('span');
-    tempoLbl.id = 'bt-tempo-lbl'; tempoLbl.className = 'bt-tempo-lbl';
-    tempoLbl.textContent = '120';
-    tempoSlider.addEventListener('input', function() { tempoLbl.textContent = tempoSlider.value; });
-    controls.appendChild(tempoLbl);
-
-    var meterLbl = document.createElement('label');
-    meterLbl.textContent = 'Meter';
-    controls.appendChild(meterLbl);
-
-    var timeSigSel = document.createElement('select');
-    timeSigSel.id = 'bt-time-sig'; timeSigSel.className = 'bt-ctrl-btn';
-    ['4/4','3/4','2/4','6/8','5/4','7/8'].forEach(function(v) {
-      var opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      timeSigSel.appendChild(opt);
-    });
-    controls.appendChild(timeSigSel);
+    row1.appendChild(stopBtn);
 
     var playsLbl = document.createElement('label');
-    playsLbl.textContent = 'Plays';
-    controls.appendChild(playsLbl);
+    playsLbl.id = 'bt-plays-lbl'; playsLbl.textContent = 'Plays';
+    row1.appendChild(playsLbl);
 
     var playsInput = document.createElement('input');
     playsInput.type = 'number'; playsInput.id = 'bt-plays';
     playsInput.min = '1'; playsInput.max = '10'; playsInput.step = '1';
     playsInput.className = 'bt-plays-input';
-    // Set initial value from song default or smart default
     playsInput.value = String((_bt_song && _bt_song.plays) || 3);
     playsInput.title = 'Number of times to play through the chart';
     playsInput.addEventListener('change', function() {
@@ -816,15 +807,54 @@
         if (typeof saveSongs === 'function') saveSongs();
       }
     });
-    controls.appendChild(playsInput);
+    row1.appendChild(playsInput);
 
     var spacer = document.createElement('span');
     spacer.className = 'bt-flex-spacer';
-    controls.appendChild(spacer);
+    row1.appendChild(spacer);
 
     var status = document.createElement('span');
     status.id = 'bt-status';
-    controls.appendChild(status);
+    row1.appendChild(status);
+
+    controls.appendChild(row1);
+
+    // ── Row 2: tempo + meter ──────────────────────────────────────────────────
+    var row2 = document.createElement('div'); row2.className = 'bt-row bt-row-2';
+
+    var bpmLbl = document.createElement('label');
+    bpmLbl.id = 'bt-bpm-lbl'; bpmLbl.textContent = 'BPM';
+    row2.appendChild(bpmLbl);
+
+    var tempoSlider = document.createElement('input');
+    tempoSlider.type = 'range'; tempoSlider.id = 'bt-tempo';
+    tempoSlider.min = '40'; tempoSlider.max = '240'; tempoSlider.value = '120';
+    tempoSlider.className = 'bt-tempo-slider';
+    row2.appendChild(tempoSlider);
+
+    var tempoLbl = document.createElement('span');
+    tempoLbl.id = 'bt-tempo-lbl'; tempoLbl.className = 'bt-tempo-lbl';
+    tempoLbl.textContent = '120';
+    tempoSlider.addEventListener('input', function() { tempoLbl.textContent = tempoSlider.value; });
+    row2.appendChild(tempoLbl);
+
+    var meterLbl = document.createElement('label');
+    meterLbl.id = 'bt-meter-lbl'; meterLbl.textContent = 'Meter';
+    row2.appendChild(meterLbl);
+
+    var timeSigSel = document.createElement('select');
+    timeSigSel.id = 'bt-time-sig'; timeSigSel.className = 'bt-ctrl-btn';
+    ['4/4','3/4','2/4','6/8','5/4','7/8'].forEach(function(v) {
+      var opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      timeSigSel.appendChild(opt);
+    });
+    row2.appendChild(timeSigSel);
+
+    controls.appendChild(row2);
+
+    // ── Row 3: instrument toggles + settings ─────────────────────────────────
+    var row3 = document.createElement('div'); row3.className = 'bt-row bt-row-3';
 
     var toggleWrap = document.createElement('span');
     toggleWrap.className = 'bt-inst-toggles';
@@ -842,7 +872,7 @@
       });
       toggleWrap.appendChild(btn);
     });
-    controls.appendChild(toggleWrap);
+    row3.appendChild(toggleWrap);
 
     var settBtn = document.createElement('button');
     settBtn.id = 'bt-settings-btn'; settBtn.className = 'bt-ctrl-btn';
@@ -852,7 +882,9 @@
       instPanel.style.display = open ? 'none' : '';
       settBtn.classList.toggle('active', !open);
     });
-    controls.appendChild(settBtn);
+    row3.appendChild(settBtn);
+
+    controls.appendChild(row3);
 
     inner.appendChild(controls);
 
