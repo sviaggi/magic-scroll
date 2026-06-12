@@ -1256,19 +1256,32 @@
 
   /* ── XS: phone-size layout (≤ 520 px) ────────────────────────────────────── */
   @media (max-width: 520px) {
-    /* ABC playbar: full-width on mobile (min-width:340px overflows narrow screens) */
+    /* ABC playbar: fit-content, centred on mobile */
     #abc-player-bar {
-      left: 0 !important; right: 0 !important;
-      transform: none !important;
-      width: auto !important; min-width: 0 !important;
-      border-radius: 0 !important;
-      bottom: 0 !important;
-      /* lift above Android nav bar / iOS home indicator */
-      padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-      z-index: 450 !important;
-      border-left: none; border-right: none; border-bottom: none;
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      width: fit-content;
+      max-width: calc(100vw - 16px);
+      min-width: 0;
+      border-radius: 6px;
+      bottom: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      z-index: 450;
     }
-    #abc-player-controls { flex-wrap: wrap; gap: 4px; }
+    /* Two-row layout: play/stop on row 1, BPM+Meter on row 2 */
+    #abc-player-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 5px;
+    }
+    /* Hidden span injected after stop button forces a row break */
+    .abc-row-break { display: block; flex-basis: 100%; height: 0; order: 1; }
+    #abc-play-btn, #abc-stop-btn { order: 0; }
+    #abc-player-controls label,
+    #abc-tempo, #abc-tempo-label,
+    #abc-time-sig, #abc-status { order: 2; }
     /* Sidebar becomes a fixed overlay drawer, starts off-screen */
     #sidebar {
       position: fixed !important;
@@ -1832,7 +1845,7 @@
   /* Spacer pushes instruments to right edge */
   .bt-flex-spacer { flex: 1; min-width: 4px; overflow: hidden; }
   /* Row containers inside the controls bar */
-  .bt-row { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .bt-row { display: flex; flex-direction: row; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: nowrap; }
   #bt-status {
     font-size: 0.63rem;
     color: var(--c-chrome-muted);
@@ -1909,30 +1922,35 @@
   }
   /* Mobile: full-width bars */
   @media (max-width: 620px) {
-    /* Fit-content bar centred in viewport — no full-width stretch */
+    /* Fit-content bar centred in viewport */
     #bt-bar {
       left: 50%;
       right: auto;
       transform: translateX(-50%);
-      width: max-content;
+      width: fit-content;
       max-width: calc(100vw - 16px);
       border-radius: 6px;
     }
     #bt-inst-panel { border-radius: 6px 6px 0 0; left: -1px; right: -1px; }
     #bt-player-inner { padding: 8px 10px 6px; gap: 4px; }
-    /* Stack rows vertically; bar auto-sizes to widest row */
+    /* Stack the three bt-row divs vertically */
     #bt-player-controls {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       gap: 4px;
       overflow: visible;
+      flex-wrap: nowrap;
     }
-    .bt-row { gap: 5px; }
-    /* Hide desktop spacer/status on mobile — status rarely has content */
+    /* Each row lays out its own items horizontally */
+    .bt-row {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 5px;
+    }
+    /* Hide desktop push-spacer and transient status text */
     .bt-flex-spacer { display: none; }
     #bt-status { display: none; }
-    /* Slightly narrower sliders to keep rows compact */
     .bt-tempo-slider { width: 52px; }
     .bt-vol-slider   { width: 40px; }
   }
@@ -2217,6 +2235,7 @@
     <div id="abc-player-controls">
       <button id="abc-play-btn" class="abc-ctrl-btn" disabled>▶</button>
       <button id="abc-stop-btn" class="abc-ctrl-btn" disabled>⏹</button>
+      <span class="abc-row-break"></span>
       <label>BPM</label>
       <input  id="abc-tempo" type="range" min="40" max="240" value="120" style="width:72px;">
       <span   id="abc-tempo-label" style="min-width:44px;font-variant-numeric:tabular-nums;">120</span>
