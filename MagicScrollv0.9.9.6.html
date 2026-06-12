@@ -796,6 +796,12 @@
   body.ui-xs #main { padding: 16px 10px 80px; }
   /* on xs, always show song action buttons — no hover on touch */
   body.ui-xs .song-actions { opacity: 1; }
+  /* ── Lead sheet: smaller cells on mobile so 1-3 chords don't stack ───── */
+  body.ui-xs .ls-grid  { row-gap: 7px; }
+  body.ui-xs .ls-bar   { min-height: 72px; padding: 12px 3px 5px; gap: 2px 3px; }
+  body.ui-xs .ls-chord-nm { font-size: 0.88em; }
+  body.ui-xs .ls-section-lbl { font-size: 0.52rem; }
+  body.ui-xs .ls-timesig, body.ui-xs .ls-ending { font-size: 0.52rem; }
   #tab-content.fs-sm { font-size: 0.82rem; }
   #tab-content.fs-md { font-size: 0.95rem; }
   #tab-content.fs-lg { font-size: 1.12rem; }
@@ -1905,6 +1911,12 @@
     #bt-inst-panel { left: 0; right: 0; border-radius: 0; }
     .bt-vol-slider { width: 44px; }
     .bt-tempo-slider { width: 44px; }
+    /* Wrap controls to two rows instead of scrolling on narrow screens */
+    #bt-player-controls { flex-wrap: wrap; overflow-x: visible; row-gap: 5px; }
+    #bt-player-inner { padding: 8px 10px 6px; gap: 5px; }
+    /* Keep play/stop + core controls on first row; instrument toggles wrap below */
+    .bt-flex-spacer { display: none; }
+    .bt-inst-toggles { width: 100%; justify-content: flex-start; gap: 4px; }
   }
 
   /* ── PRINT STYLES ────────────────────────────────────────────────────────────
@@ -11827,10 +11839,10 @@ document.getElementById('pub-confirm-btn').addEventListener('click', function() 
     });
   }).then(function() {
     statusEl.textContent = 'Published successfully!';
-    btn.disabled = false;
     setTimeout(function() {
       document.getElementById('publish-modal').classList.remove('open');
     }, 1800);
+    btn.disabled = false;
   }).catch(function(e) {
     statusEl.textContent = 'Failed: ' + (e.message || 'unknown error');
     btn.disabled = false;
