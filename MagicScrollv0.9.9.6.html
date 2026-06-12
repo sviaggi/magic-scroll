@@ -802,6 +802,9 @@
   body.ui-xs .ls-chord-nm { font-size: 0.88em; }
   body.ui-xs .ls-section-lbl { font-size: 0.52rem; }
   body.ui-xs .ls-timesig, body.ui-xs .ls-ending { font-size: 0.52rem; }
+  /* 1-2 chords per cell: stack vertically so diagrams don't squeeze side-by-side */
+  body.ui-xs .ls-bar[data-chord-count="1"] .ls-chord-unit,
+  body.ui-xs .ls-bar[data-chord-count="2"] .ls-chord-unit { flex: 1 1 100%; }
   #tab-content.fs-sm { font-size: 0.82rem; }
   #tab-content.fs-md { font-size: 0.95rem; }
   #tab-content.fs-lg { font-size: 1.12rem; }
@@ -1258,30 +1261,30 @@
   @media (max-width: 520px) {
     /* ABC playbar: fit-content, centred on mobile */
     #abc-player-bar {
-      left: 50%;
-      right: auto;
-      transform: translateX(-50%);
-      width: fit-content;
-      max-width: calc(100vw - 16px);
-      min-width: 0;
+      left: 8px;
+      right: 8px;
+      width: auto;
+      transform: none;
       border-radius: 6px;
       bottom: 0;
       padding-bottom: env(safe-area-inset-bottom, 0px);
       z-index: 450;
     }
-    /* Two-row layout: play/stop on row 1, BPM+Meter on row 2 */
+    /* Two-row layout via explicit row containers */
     #abc-player-controls {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 4px 5px;
+      flex-direction: column;
+      gap: 4px;
     }
-    /* Hidden span injected after stop button forces a row break */
-    .abc-row-break { display: block; flex-basis: 100%; height: 0; order: 1; }
-    #abc-play-btn, #abc-stop-btn { order: 0; }
-    #abc-player-controls label,
-    #abc-tempo, #abc-tempo-label,
-    #abc-time-sig, #abc-status { order: 2; }
+    .abc-row-1, .abc-row-2 {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+    }
+    .abc-row-break { display: none; }
     /* Sidebar becomes a fixed overlay drawer, starts off-screen */
     #sidebar {
       position: fixed !important;
@@ -1920,15 +1923,13 @@
     outline: 1.5px solid var(--c-accent);
     outline-offset: -1px;
   }
-  /* Mobile: full-width bars */
+  /* Mobile: stretch bar edge-to-edge with 8px margins */
   @media (max-width: 620px) {
-    /* Fit-content bar centred in viewport */
     #bt-bar {
-      left: 50%;
-      right: auto;
-      transform: translateX(-50%);
-      width: fit-content;
-      max-width: calc(100vw - 16px);
+      left: 8px;
+      right: 8px;
+      width: auto;
+      transform: none;
       border-radius: 6px;
     }
     #bt-inst-panel { border-radius: 6px 6px 0 0; left: -1px; right: -1px; }
@@ -1937,19 +1938,22 @@
     #bt-player-controls {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: stretch;
       gap: 4px;
       overflow: visible;
       flex-wrap: nowrap;
     }
     /* Each row lays out its own items horizontally */
     .bt-row {
+      display: flex;
       flex-direction: row;
       flex-wrap: nowrap;
+      align-items: center;
       gap: 5px;
+      width: 100%;
     }
-    /* Hide desktop push-spacer and transient status text */
-    .bt-flex-spacer { display: none; }
+    /* Spacer keeps pushing content apart on each row */
+    .bt-flex-spacer { flex: 1; min-width: 0; }
     #bt-status { display: none; }
     .bt-tempo-slider { width: 52px; }
     .bt-vol-slider   { width: 40px; }
@@ -2233,18 +2237,21 @@
 <div id="abc-player-bar" style="display:none" tabindex="-1">
   <div id="abc-player-inner">
     <div id="abc-player-controls">
-      <button id="abc-play-btn" class="abc-ctrl-btn" disabled>▶</button>
-      <button id="abc-stop-btn" class="abc-ctrl-btn" disabled>⏹</button>
-      <span class="abc-row-break"></span>
-      <label>BPM</label>
-      <input  id="abc-tempo" type="range" min="40" max="240" value="120" style="width:72px;">
-      <span   id="abc-tempo-label" style="min-width:44px;font-variant-numeric:tabular-nums;">120</span>
-      <label>Meter</label>
-      <select id="abc-time-sig" class="abc-ctrl-btn" style="font-size:0.7rem;padding:2px 4px;">
-        <option>4/4</option><option>3/4</option><option>2/4</option>
-        <option>6/8</option><option>5/4</option><option>7/8</option>
-      </select>
-      <span id="abc-status" style="font-size:0.64rem;color:var(--c-chrome-muted);margin-left:4px;"></span>
+      <div class="abc-row-1">
+        <button id="abc-play-btn" class="abc-ctrl-btn" disabled>▶</button>
+        <button id="abc-stop-btn" class="abc-ctrl-btn" disabled>⏹</button>
+      </div>
+      <div class="abc-row-2">
+        <label>BPM</label>
+        <input  id="abc-tempo" type="range" min="40" max="240" value="120" style="width:72px;">
+        <span   id="abc-tempo-label" style="min-width:44px;font-variant-numeric:tabular-nums;">120</span>
+        <label>Meter</label>
+        <select id="abc-time-sig" class="abc-ctrl-btn" style="font-size:0.7rem;padding:2px 4px;">
+          <option>4/4</option><option>3/4</option><option>2/4</option>
+          <option>6/8</option><option>5/4</option><option>7/8</option>
+        </select>
+        <span id="abc-status" style="font-size:0.64rem;color:var(--c-chrome-muted);margin-left:4px;"></span>
+      </div>
     </div>
     <hr>
     <div id="abc-progress-row">
@@ -11614,6 +11621,7 @@ function renderIRealSong(song){
     if(bar.endingNum){const en=document.createElement('div');en.className='ls-ending';en.textContent=bar.endingNum;cell.appendChild(en);}
     if(!(bar.chords&&bar.chords.length)){cell.classList.add('ls-empty');const sp=document.createElement('span');sp.className='ls-rep-sym';sp.textContent='/';cell.appendChild(sp);}
     const nChords=(bar.chords||[]).filter(c=>c.type==='chord').length;
+    cell.dataset.chordCount=String(nChords);
     const _countAdj=nChords<=2?1.0:nChords===3?0.72:0.57;
     const _diagScale=_lsDiagScale()*_countAdj;
     const _lsInk='auto';
