@@ -10996,6 +10996,11 @@ function _loadBuiltinCollections() {
 function _loadCommunityCollections(query) {
   if (_collectionsTab !== 'community') return;
   var list = document.getElementById('collections-list');
+  if (!FUNCTIONS_BASE) {
+    console.warn('[Magic Scroll] FUNCTIONS_BASE is not set — community library is disabled.');
+    list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">Community library not configured for this build.</div>';
+    return;
+  }
   list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;"><span class="online-spinner"></span></div>';
   var url = FUNCTIONS_BASE + '/get-collections?limit=30' + (query ? '&q=' + encodeURIComponent(query) : '');
   fetch(url)
@@ -11679,7 +11684,14 @@ function _makeBlankChart() {
 }
 
 // ── ONLINE SEARCH STUBS ───────────────────────────────────────────────────────
-var FUNCTIONS_BASE     = '';  // backend endpoint -- set for deployed builds
+// ── BACKEND CONFIG ────────────────────────────────────────────────────────────
+// Set this to your Supabase project's Edge Functions base URL before deploying.
+// Format: 'https://<project-ref>.supabase.co/functions/v1'
+// Find your project ref at: supabase.com → your project → Settings → General
+// Leave as '' to disable all community/online features (local-only mode).
+//
+// Example: var FUNCTIONS_BASE = 'https://abcdefghijklmno.supabase.co/functions/v1';
+var FUNCTIONS_BASE     = 'https://zpjaxauiuhvbvufrruhq.supabase.co/functions/v1';
 var _onlineSearchTimer = null;
 var _onlineSearchQ     = '';
 var _pendingOnlineSong = null;
@@ -11701,7 +11713,7 @@ function scheduleOnlineSearch(q) {
 }
 
 function _runOnlineSearch(q) {
-  if (!FUNCTIONS_BASE) return;
+  if (!FUNCTIONS_BASE) { console.warn('[Magic Scroll] FUNCTIONS_BASE is not set — community search is disabled.'); return; }
   fetch(FUNCTIONS_BASE + '/search-songs?q=' + encodeURIComponent(q))
     .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
     .then(function(results) {
@@ -11719,16 +11731,33 @@ function _runOnlineSearch(q) {
         var item = document.createElement('div');
         item.className = 'song-item online-result-item';
         var td = document.createElement('div'); td.className = 'song-item-text';
-        td.innerHTML = '<div class="s-title">' + escapeHtml(song.title || '') + '</div>' +
+        var titleBadge = (song._ms_format === 'lead-sheet' || song._source === 'ireal')
+          ? ' <span style="font-size:0.55rem;opacity:0.55;vertical-align:middle;">🎼</span>' : '';
+        td.innerHTML = '<div class="s-title">' + escapeHtml(song.title || '') + titleBadge + '</div>' +
                        '<div class="s-artist">' + escapeHtml(song.artist || '') + '</div>';
         item.appendChild(td);
         item.addEventListener('click', function() {
           _pendingOnlineSong = song;
+          var isLeadSheet = song._ms_format === 'lead-sheet' || song._source === 'ireal';
           document.getElementById('online-preview-meta').innerHTML =
             '<strong>' + escapeHtml(song.title || 'Untitled') + '</strong>' +
-            (song.artist ? ' &mdash; ' + escapeHtml(song.artist) : '');
-          document.getElementById('online-preview-content').textContent =
-            song.tab_content || song.abc_text || '(no preview)';
+            (song.artist ? ' &mdash; ' + escapeHtml(song.artist) : '') +
+            (isLeadSheet ? ' <span style="font-size:0.65rem;opacity:0.6;font-style:italic;">Lead Sheet</span>' : '');
+          var previewText;
+          if (isLeadSheet && song.ireal_chart) {
+            var ic = song.ireal_chart;
+            var parts = [];
+            if (ic.style) parts.push('Style: ' + ic.style);
+            if (ic.key)   parts.push('Key: '   + ic.key);
+            if (ic.tempo) parts.push('Tempo: ' + ic.tempo + ' bpm');
+            var barCount = 0;
+            if (Array.isArray(ic.cells)) barCount = ic.cells.filter(function(c) { return c && c.type === 'bar'; }).length;
+            if (barCount) parts.push(barCount + ' bars');
+            previewText = parts.length ? parts.join('  ·  ') : '(lead sheet)';
+          } else {
+            previewText = song.tab_content || song.abc_text || '(no preview)';
+          }
+          document.getElementById('online-preview-content').textContent = previewText;
           document.getElementById('online-preview-modal').classList.add('open');
         });
         list.appendChild(item);
