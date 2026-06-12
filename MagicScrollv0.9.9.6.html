@@ -11785,6 +11785,7 @@ function showPublishModal(indices) {
     .filter(Boolean).join(', ');
   document.getElementById('pub-song-name').textContent = names;
   document.getElementById('pub-status').textContent = '';
+  document.getElementById('pub-confirm-btn').disabled = false;
   document.getElementById('publish-modal').classList.add('open');
 }
 
@@ -11795,6 +11796,7 @@ function showPublishCollectionModal(folderId) {
   document.getElementById('pub-song-name').textContent =
     'Collection: ' + folder.name + ' (' + _publishIndices.length + ' songs)';
   document.getElementById('pub-status').textContent = '';
+  document.getElementById('pub-confirm-btn').disabled = false;
   document.getElementById('publish-modal').classList.add('open');
 }
 
@@ -11819,10 +11821,13 @@ document.getElementById('pub-confirm-btn').addEventListener('click', function() 
     headers: _sbHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   }).then(function(r) {
-    if (!r.ok) throw new Error('Server error ' + r.status);
-    return r.json();
+    return r.json().then(function(data) {
+      if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
+      return data;
+    });
   }).then(function() {
     statusEl.textContent = 'Published successfully!';
+    btn.disabled = false;
     setTimeout(function() {
       document.getElementById('publish-modal').classList.remove('open');
     }, 1800);
