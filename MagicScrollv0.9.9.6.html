@@ -792,8 +792,8 @@
   body.ui-xs #sidebar-footer button { font-size: 0.55rem; padding: 2px 4px; }
   body.ui-xs .song-main-title { font-size: 1.2rem; }
   body.ui-xs .song-artist { font-size: 0.9rem; }
-  body.ui-xs #song-card { padding: 20px 16px 36px; }
-  body.ui-xs #main { padding: 16px 10px 80px; }
+  body.ui-xs #song-card { padding: 20px 8px 36px; }
+  body.ui-xs #main { padding: 12px 0 80px; }
   /* on xs, always show song action buttons — no hover on touch */
   body.ui-xs .song-actions { opacity: 1; }
   /* ── Lead sheet: smaller cells on mobile so 1-3 chords don't stack ───── */
@@ -802,9 +802,7 @@
   body.ui-xs .ls-chord-nm { font-size: 0.88em; }
   body.ui-xs .ls-section-lbl { font-size: 0.52rem; }
   body.ui-xs .ls-timesig, body.ui-xs .ls-ending { font-size: 0.52rem; }
-  /* 1-2 chords per cell: stack vertically so diagrams don't squeeze side-by-side */
-  body.ui-xs .ls-bar[data-chord-count="1"] .ls-chord-unit,
-  body.ui-xs .ls-bar[data-chord-count="2"] .ls-chord-unit { flex: 1 1 100%; }
+
   #tab-content.fs-sm { font-size: 0.82rem; }
   #tab-content.fs-md { font-size: 0.95rem; }
   #tab-content.fs-lg { font-size: 1.12rem; }
@@ -11622,7 +11620,7 @@ function renderIRealSong(song){
     if(!(bar.chords&&bar.chords.length)){cell.classList.add('ls-empty');const sp=document.createElement('span');sp.className='ls-rep-sym';sp.textContent='/';cell.appendChild(sp);}
     const nChords=(bar.chords||[]).filter(c=>c.type==='chord').length;
     cell.dataset.chordCount=String(nChords);
-    const _countAdj=nChords<=2?1.0:nChords===3?0.72:0.57;
+    const _countAdj=nChords<=1?1.0:nChords<=3?0.72:0.57;
     const _diagScale=_lsDiagScale()*_countAdj;
     const _lsInk='auto';
     (bar.chords||[]).forEach(ch=>{
