@@ -1831,6 +1831,8 @@
   .bt-tempo-lbl { font-size: 0.7rem; min-width: 26px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
   /* Spacer pushes instruments to right edge */
   .bt-flex-spacer { flex: 1; min-width: 4px; overflow: hidden; }
+  /* Row containers inside the controls bar */
+  .bt-row { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
   #bt-status {
     font-size: 0.63rem;
     color: var(--c-chrome-muted);
@@ -1907,16 +1909,32 @@
   }
   /* Mobile: full-width bars */
   @media (max-width: 620px) {
-    #bt-bar  { left: 0; right: 0; transform: none; width: 100%; max-width: 100%; border-radius: 0; }
-    #bt-inst-panel { left: 0; right: 0; border-radius: 0; }
-    .bt-vol-slider { width: 44px; }
-    .bt-tempo-slider { width: 44px; }
-    /* Wrap controls to two rows instead of scrolling on narrow screens */
-    #bt-player-controls { flex-wrap: wrap; overflow-x: visible; row-gap: 5px; }
-    #bt-player-inner { padding: 8px 10px 6px; gap: 5px; }
-    /* Keep play/stop + core controls on first row; instrument toggles wrap below */
+    /* Fit-content bar centred in viewport — no full-width stretch */
+    #bt-bar {
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: calc(100vw - 16px);
+      border-radius: 6px;
+    }
+    #bt-inst-panel { border-radius: 6px 6px 0 0; left: -1px; right: -1px; }
+    #bt-player-inner { padding: 8px 10px 6px; gap: 4px; }
+    /* Stack rows vertically; bar auto-sizes to widest row */
+    #bt-player-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      overflow: visible;
+    }
+    .bt-row { gap: 5px; }
+    /* Hide desktop spacer/status on mobile — status rarely has content */
     .bt-flex-spacer { display: none; }
-    .bt-inst-toggles { width: 100%; justify-content: flex-start; gap: 4px; }
+    #bt-status { display: none; }
+    /* Slightly narrower sliders to keep rows compact */
+    .bt-tempo-slider { width: 52px; }
+    .bt-vol-slider   { width: 40px; }
   }
 
   /* ── PRINT STYLES ────────────────────────────────────────────────────────────
