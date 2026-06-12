@@ -11003,7 +11003,7 @@ function _loadCommunityCollections(query) {
   }
   list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;"><span class="online-spinner"></span></div>';
   var url = FUNCTIONS_BASE + '/get-collections?limit=30' + (query ? '&q=' + encodeURIComponent(query) : '');
-  fetch(url)
+  fetch(url, { headers: _sbHeaders() })
     .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(data) {
       if (_collectionsTab !== 'community') return; // tab changed while fetching
@@ -11062,7 +11062,7 @@ function _renderCollectionRow(list, col, source) {
 
 function _fetchAndAddCommunityCollection(col, btn) {
   // col has: id, name, song_count — fetch full songs from edge function
-  fetch(FUNCTIONS_BASE + '/get-collections?id=' + encodeURIComponent(col.id))
+  fetch(FUNCTIONS_BASE + '/get-collections?id=' + encodeURIComponent(col.id), { headers: _sbHeaders() })
     .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(data) {
       if (!data.songs || !Array.isArray(data.songs)) throw new Error('Invalid collection data');
@@ -11691,7 +11691,16 @@ function _makeBlankChart() {
 // Leave as '' to disable all community/online features (local-only mode).
 //
 // Example: var FUNCTIONS_BASE = 'https://abcdefghijklmno.supabase.co/functions/v1';
-var FUNCTIONS_BASE     = 'https://zpjaxauiuhvbvufrruhq.supabase.co/functions/v1';
+var FUNCTIONS_BASE    = 'https://zpjaxauiuhvbvufrruhq.supabase.co/functions/v1';
+var SUPABASE_ANON_KEY = 'sb_publishable_-ni2auG8V1xtw9MCxe1-Vw_ixflmdkZ';
+// Supabase Edge Functions require a Bearer token on every request.
+// Use _sbHeaders() on all fetch() calls that target the edge functions.
+function _sbHeaders(extra) {
+  return Object.assign({
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'apikey': SUPABASE_ANON_KEY,
+  }, extra || {});
+}
 var _onlineSearchTimer = null;
 var _onlineSearchQ     = '';
 var _pendingOnlineSong = null;
@@ -11714,7 +11723,7 @@ function scheduleOnlineSearch(q) {
 
 function _runOnlineSearch(q) {
   if (!FUNCTIONS_BASE) { console.warn('[Magic Scroll] FUNCTIONS_BASE is not set — community search is disabled.'); return; }
-  fetch(FUNCTIONS_BASE + '/search-songs?q=' + encodeURIComponent(q))
+  fetch(FUNCTIONS_BASE + '/search-songs?q=' + encodeURIComponent(q), { headers: _sbHeaders() })
     .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
     .then(function(results) {
       clearOnlineResults();
@@ -11807,7 +11816,7 @@ document.getElementById('pub-confirm-btn').addEventListener('click', function() 
   var payload = _publishIndices.map(function(i) { return songs[i]; }).filter(Boolean);
   fetch(FUNCTIONS_BASE + '/publish-songs', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: _sbHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   }).then(function(r) {
     if (!r.ok) throw new Error('Server error ' + r.status);
