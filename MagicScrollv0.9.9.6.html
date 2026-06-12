@@ -795,6 +795,10 @@
   body.ui-xs #song-card { padding: 20px 8px 36px; }
   body.ui-xs #ireal-song-card { padding: 20px 8px 24px !important; }
   body.ui-xs #main { padding: 12px 0 80px; }
+  /* Zero #main side padding on phones (portrait & landscape) */
+  @media (max-width: 960px) {
+    #main { padding-left: 0 !important; padding-right: 0 !important; }
+  }
   /* on xs, always show song action buttons — no hover on touch */
   body.ui-xs .song-actions { opacity: 1; }
   /* ── Lead sheet: smaller cells on mobile so 1-3 chords don't stack ───── */
@@ -2022,7 +2026,7 @@
   }
 
   /* ── iReal Lead Sheet ───────────────────────────────────────── */
-  #ireal-song-card{padding:40px 28px 32px;width:100%;max-width:820px;box-sizing:border-box;
+  #ireal-song-card{padding:16px 4px 20px;width:100%;max-width:820px;box-sizing:border-box;
     font-size:0.95rem;
     background-color:var(--c-card-fallback);color:var(--c-card-text);
     border-radius:2px;box-shadow:0 4px 6px rgba(0,0,0,0.25),0 12px 40px rgba(0,0,0,0.3);}
@@ -2031,6 +2035,11 @@
   #ireal-song-card.fs-md{font-size:0.95rem;}
   #ireal-song-card.fs-lg{font-size:1.12rem;}
   #ireal-song-card.fs-xl{font-size:1.32rem;}
+  /* Restore comfortable padding on desktops/large tablets */
+  @media (min-width: 1000px) {
+    #ireal-song-card { padding: 40px 28px 32px !important; }
+    #main { padding-left: 24px !important; padding-right: 24px !important; }
+  }
   .ls-header{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;
     margin-bottom:14px;font-size:0.75rem;color:var(--c-chrome-muted);}
   .ls-header-style{font-style:italic;}.ls-header-key{font-weight:bold;color:var(--c-chrome-text);}
@@ -11607,6 +11616,11 @@ function renderIRealSong(song){
   cont.appendChild(hdr);
   const bars=(chart.bars||[]).slice();while(bars.length%4!==0)bars.push(null);
   const grid=document.createElement('div');grid.className='ls-grid';
+  // Measure actual cell width from the card once before the loop
+  const _lsISC=document.getElementById('ireal-song-card');
+  const _lsISCS=_lsISC&&getComputedStyle(_lsISC);
+  const _lsPadLR=_lsISCS?(parseFloat(_lsISCS.paddingLeft)+parseFloat(_lsISCS.paddingRight)):8;
+  const _lsCellW=Math.max(70,(_lsISC?_lsISC.clientWidth-_lsPadLR:window.innerWidth-8)/4);
   bars.forEach((bar,i)=>{
     const cell=document.createElement('div');cell.className='ls-bar';
     if(!bar){cell.style.borderColor='transparent';grid.appendChild(cell);return;}
@@ -11622,13 +11636,9 @@ function renderIRealSong(song){
     if(!(bar.chords&&bar.chords.length)){cell.classList.add('ls-empty');const sp=document.createElement('span');sp.className='ls-rep-sym';sp.textContent='/';cell.appendChild(sp);}
     const nChords=(bar.chords||[]).filter(c=>c.type==='chord').length;
     cell.dataset.chordCount=String(nChords);
-    // Diagram scale: adapts to actual cell width so 2-chord cells
-    // display side-by-side in portrait and fill space in landscape.
-    const _cardW=Math.min(window.innerWidth,820);
-    const _cellW=Math.max(70,(_cardW-16)/4);
-    const _countAdj=nChords<=1?1.0:
-      nChords===2?Math.min(1.0,(_cellW*0.44)/(80*_lsDiagScale())):
-      nChords===3?0.72:0.57;
+    const _countAdj=nChords<=1?1.0
+      :nChords===2?Math.min(1.0,(_lsCellW*0.44)/(80*_lsDiagScale()))
+      :nChords===3?0.72:0.57;
     const _diagScale=_lsDiagScale()*_countAdj;
     const _lsInk='auto';
     (bar.chords||[]).forEach(ch=>{
