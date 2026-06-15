@@ -1,8 +1,5 @@
 FAQ:
 
-Q: How do I download this?
-A: On iOS/Android, go to the settings menu of your browser, and scroll until you see something like "Add to home screen." It should work from there!
-
 Q: How do I add songs?
 A: Tap the "Songs" button and either click "New" to type/paste chord sheets directly or click-and-drag your .txt or .json files in there to add them!
 
@@ -18,22 +15,21 @@ A: My bad! Tell me which and I’ll fix it. Overall I had to hand-program about 
 Q: Can you make it so we can download songs directly from Ultimate Guitar/Musescore/Other services?
 A: I’d really like to, but then I would run into this unfortunate issue called That’s Illegal and They’ll Get Me. Nobody can stop you from copy/pasting things in from there and circulating your collections, though! If you’re savvy, there’s always a way. 
 
-
 Q: Why isn’t [Feature] included?
 A: I threw this together over the course of a few commutes and one spirited weekend. I’m not a programmer and my job is in a different field entirely. If a feature is feasible/would improve UX enough I’ll find time to make it happen.
 
 
 Credits: 
 
-Fonts are Typographer Gotisch and a modified version of HYWenHei. 
+Fonts are Typographer Gotisch (by Dieter Steffmann and Peter Wiegel, used in a non-commercial capacity) and Valeson by Jeremy Dooley (Used with a standard application license). 
 
-Default soundfont is Upright Piano KW by Roberto and Gonzalo of Freepats/Zenvoid. Backing track is built out of Sergey Surikov's WebAudioFont.
+Default soundfont is from the FluidR3 soundbank. Backing track is built out of Sergey Surikov's WebAudioFont.
 
 YIN pitch detection algorithm by de Cheveigné & Kawahara (2002).
 
 Special thanks to The Session website for curating such a fine selection of traditional music and hilarious comment section arguments, and anyone who has ever uploaded chord sheets, tabs, or anything of the like to the internet. Thank you all for helping bring us together through the world of music.
 
-Beta testers: Chris Smit, Hulda Elira, Alex Smith, Oscar Law, Em Sollerman, with more to come until we hit a full release!
+Beta testers: Chris Smit, Hulda Elira, Alex Smith, Oscar Law, Em Sollerman, Olly Andrews, with more to come until we hit a full release!
 
 Magic Scroll was designed and programmed by Spencer “Sunny” California, given freely to the people without charge. All of the art/images were also by Spencer/Sunny, given reluctantly to the people also without charge. This project is dedicated to my mother Kristina, who is part of the reason I got into music and entirely the reason I became the person I am. 
 
