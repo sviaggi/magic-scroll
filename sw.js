@@ -2,7 +2,7 @@
 // Fixes offline support: shell files now cached dynamically from the
 // installing page's URL, so renaming the HTML file never breaks caching.
 
-const CACHE_VERSION = 'magic-scroll-v10';
+const CACHE_VERSION = 'magic-scroll-v11';
 
 // ── Install ───────────────────────────────────────────────────────────────────
 // Strategy: cache-on-navigate for the HTML shell (so renaming never breaks it),
@@ -53,8 +53,8 @@ self.addEventListener('install', function(event) {
         './GotischD.otf',
         './GotischSchmuck.otf',
         './parchment.jpg', './parchment.png',
-        './dark.jpg',      './dark.png',
-        './green.jpg',     './green.png',
+        './obsidian.png',
+        './mossy.png',
         './session.jpg',   './session.png',
         './fonts/courier-prime-400.woff2',
         './fonts/courier-prime-400italic.woff2',

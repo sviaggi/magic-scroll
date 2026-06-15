@@ -12423,6 +12423,219 @@ function renderIRealSong(song){
   updateSidebarActive();
   window.scrollTo(0, 0);
 }
+
+
+// ── BLANK LEAD SHEET FACTORY ──────────────────────────────────────────────────
+function _makeBlankChart() {
+  var bars = [];
+  for (var i = 0; i < 32; i++) {
+    bars.push({ chords:[], section:null, endingNum:null, timeChange:null,
+                openRepeat:false, closeRepeat:false,
+                sectionStart:false, sectionEnd:false, final:false });
+  }
+  return { bars: bars };
+}
+
+// ── ONLINE SEARCH STUBS ───────────────────────────────────────────────────────
+// ── BACKEND CONFIG ────────────────────────────────────────────────────────────
+// Set this to your Supabase project's Edge Functions base URL before deploying.
+// Format: 'https://<project-ref>.supabase.co/functions/v1'
+// Find your project ref at: supabase.com → your project → Settings → General
+// Leave as '' to disable all community/online features (local-only mode).
+//
+// Example: var FUNCTIONS_BASE = 'https://abcdefghijklmno.supabase.co/functions/v1';
+var FUNCTIONS_BASE    = 'https://zpjaxauiuhvbvufrruhq.supabase.co/functions/v1';
+var SUPABASE_ANON_KEY = 'sb_publishable_-ni2auG8V1xtw9MCxe1-Vw_ixflmdkZ';
+// Supabase Edge Functions require a Bearer token on every request.
+// Use _sbHeaders() on all fetch() calls that target the edge functions.
+function _sbHeaders(extra) {
+  return Object.assign({
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'apikey': SUPABASE_ANON_KEY,
+  }, extra || {});
+}
+var _onlineSearchTimer = null;
+var _onlineSearchQ     = '';
+var _pendingOnlineSong = null;
+
+function clearOnlineResults() {
+  document.querySelectorAll('.online-result-item, .online-results-header')
+    .forEach(function(el) { el.remove(); });
+}
+
+function scheduleOnlineSearch(q) {
+  _onlineSearchQ = q;
+  clearTimeout(_onlineSearchTimer);
+  clearOnlineResults();
+  if (!q || q.length < 2) return;
+  _onlineSearchTimer = setTimeout(function() {
+    if (q !== _onlineSearchQ) return;
+    _runOnlineSearch(q);
+  }, 500);
+}
+
+function _runOnlineSearch(q) {
+  if (!FUNCTIONS_BASE) { console.warn('[Magic Scroll] FUNCTIONS_BASE is not set — community search is disabled.'); return; }
+  fetch(FUNCTIONS_BASE + '/search-songs?q=' + encodeURIComponent(q), { headers: _sbHeaders() })
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function(results) {
+      clearOnlineResults();
+      if (!results || !results.length) return;
+      var list = document.getElementById('song-list');
+      if (!list) return;
+      var hdr = document.createElement('div');
+      hdr.className = 'online-results-header';
+      hdr.style.cssText = 'padding:6px 12px;font-size:0.68rem;color:var(--c-chrome-muted);' +
+                          'text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;';
+      hdr.textContent = 'Online results';
+      list.appendChild(hdr);
+      results.forEach(function(song) {
+        var item = document.createElement('div');
+        item.className = 'song-item online-result-item';
+        var td = document.createElement('div'); td.className = 'song-item-text';
+        var titleBadge = (song._ms_format === 'lead-sheet' || song._source === 'ireal')
+          ? ' <span style="font-size:0.55rem;opacity:0.55;vertical-align:middle;">🎼</span>' : '';
+        td.innerHTML = '<div class="s-title">' + escapeHtml(song.title || '') + titleBadge + '</div>' +
+                       '<div class="s-artist">' + escapeHtml(song.artist || '') + '</div>';
+        item.appendChild(td);
+        item.addEventListener('click', function() {
+          _pendingOnlineSong = song;
+          var isLeadSheet = song._ms_format === 'lead-sheet' || song._source === 'ireal';
+          document.getElementById('online-preview-meta').innerHTML =
+            '<strong>' + escapeHtml(song.title || 'Untitled') + '</strong>' +
+            (song.artist ? ' &mdash; ' + escapeHtml(song.artist) : '') +
+            (isLeadSheet ? ' <span style="font-size:0.65rem;opacity:0.6;font-style:italic;">Lead Sheet</span>' : '');
+          var previewText;
+          if (isLeadSheet && song.ireal_chart) {
+            var ic = song.ireal_chart;
+            var parts = [];
+            if (ic.style) parts.push('Style: ' + ic.style);
+            if (ic.key)   parts.push('Key: '   + ic.key);
+            if (ic.tempo) parts.push('Tempo: ' + ic.tempo + ' bpm');
+            var barCount = 0;
+            if (Array.isArray(ic.cells)) barCount = ic.cells.filter(function(c) { return c && c.type === 'bar'; }).length;
+            if (barCount) parts.push(barCount + ' bars');
+            previewText = parts.length ? parts.join('  ·  ') : '(lead sheet)';
+          } else {
+            previewText = song.tab_content || song.abc_text || '(no preview)';
+          }
+          document.getElementById('online-preview-content').textContent = previewText;
+          document.getElementById('online-preview-modal').classList.add('open');
+        });
+        list.appendChild(item);
+      });
+    })
+    .catch(function() { clearOnlineResults(); });
+}
+
+// ── PUBLISH MODAL ─────────────────────────────────────────────────────────────
+var _publishIndices = [];
+
+function showPublishModal(indices) {
+  _publishIndices = indices || [];
+  var names = _publishIndices
+    .map(function(i) { return songs[i] ? (songs[i].title || 'Untitled') : ''; })
+    .filter(Boolean).join(', ');
+  document.getElementById('pub-song-name').textContent = names;
+  document.getElementById('pub-status').textContent = '';
+  document.getElementById('pub-confirm-btn').disabled = false;
+  document.getElementById('publish-modal').classList.add('open');
+}
+
+function showPublishCollectionModal(folderId) {
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
+  _publishIndices = (folder.songIndices || []).filter(function(i) { return i < songs.length; });
+  document.getElementById('pub-song-name').textContent =
+    'Collection: ' + folder.name + ' (' + _publishIndices.length + ' songs)';
+  document.getElementById('pub-status').textContent = '';
+  document.getElementById('pub-confirm-btn').disabled = false;
+  document.getElementById('publish-modal').classList.add('open');
+}
+
+document.getElementById('pub-cancel-btn').addEventListener('click', function() {
+  document.getElementById('publish-modal').classList.remove('open');
+});
+document.getElementById('publish-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+document.getElementById('pub-confirm-btn').addEventListener('click', function() {
+  var statusEl = document.getElementById('pub-status');
+  var btn = this;
+  if (!FUNCTIONS_BASE) {
+    statusEl.textContent = 'Publishing not configured for this deployment.';
+    return;
+  }
+  statusEl.textContent = 'Publishing...';
+  btn.disabled = true;
+  var payload = _publishIndices.map(function(i) { return songs[i]; }).filter(Boolean);
+  fetch(FUNCTIONS_BASE + '/publish-songs', {
+    method: 'POST',
+    headers: _sbHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  }).then(function(r) {
+    return r.json().then(function(data) {
+      if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
+      return data;
+    });
+  }).then(function() {
+    statusEl.textContent = 'Published successfully!';
+    setTimeout(function() {
+      document.getElementById('publish-modal').classList.remove('open');
+    }, 1800);
+    btn.disabled = false;
+  }).catch(function(e) {
+    statusEl.textContent = 'Failed: ' + (e.message || 'unknown error');
+    btn.disabled = false;
+  });
+});
+
+document.getElementById('btn-publish-song').addEventListener('click', function() {
+  if (currentIdx >= 0) showPublishModal([currentIdx]);
+});
+document.getElementById('btn-bulk-publish').addEventListener('click', function() {
+  var indices = Array.from(selectedSongs);
+  if (!indices.length) { showToast('Select songs first'); return; }
+  showPublishModal(indices);
+});
+
+// ── ONLINE PREVIEW MODAL ──────────────────────────────────────────────────────
+document.getElementById('online-preview-close').addEventListener('click', function() {
+  document.getElementById('online-preview-modal').classList.remove('open');
+  _pendingOnlineSong = null;
+});
+document.getElementById('online-preview-modal').addEventListener('click', function(e) {
+  if (e.target === this) { this.classList.remove('open'); _pendingOnlineSong = null; }
+});
+document.getElementById('online-preview-add').addEventListener('click', function() {
+  if (!_pendingOnlineSong) return;
+  var s = Object.assign({}, _pendingOnlineSong);
+  songs.push(s);
+  saveSongs();
+  buildSongList(document.getElementById('search-input').value);
+  document.getElementById('online-preview-modal').classList.remove('open');
+  _pendingOnlineSong = null;
+  renderSong(songs.length - 1);
+  showToast('Added: ' + (s.title || 'Untitled'));
+});
+
+// ── NEW SONG MODAL — type selector ────────────────────────────────────────────
+document.getElementById('ns-type').addEventListener('change', function() {
+  var v = this.value;
+  var fmtDiv = document.getElementById('new-song-format');
+  var abcDiv = document.getElementById('ns-abc-section');
+  var irDiv  = document.getElementById('ns-ireal-section');
+  if (fmtDiv) fmtDiv.style.display = (v === 'song')   ? '' : 'none';
+  if (abcDiv) abcDiv.style.display = (v === 'abc')    ? '' : 'none';
+  if (irDiv)  irDiv.style.display  = (v === 'ireal')  ? '' : 'none';
+  var showMeta = (v === 'song' || v === 'blank-lead');
+  ['ns-title', 'ns-artist', 'ns-key', 'ns-capo'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var field = el.closest ? el.closest('.modal-field') : el.parentElement;
+    if (field) field.style.display = showMeta ? '' : 'none';
+  });
+});
 </script>
 </body>
 </html>
