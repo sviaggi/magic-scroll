@@ -307,7 +307,27 @@
     var mustPCs = {};
     for (var mi = 0; mi < mustPCsArr.length; mi++) mustPCs[mustPCsArr[mi]] = true;
 
-    var bestFrets = null, bestScore = -Infinity;
+    // Keep the best TOPK distinct voicings (by fret signature) so callers can
+    // offer alternatives to cycle through, not just the single best shape.
+    var TOPK = 8;
+    var best = []; // sorted desc by score: [{frets, score, sig}]
+    function _consider(frets, score) {
+      var sig = frets.join(',');
+      for (var i = 0; i < best.length; i++) {
+        if (best[i].sig === sig) {
+          if (score > best[i].score) {
+            best[i].score = score;
+            best.sort(function(a,b){return b.score-a.score;});
+          }
+          return;
+        }
+      }
+      if (best.length < TOPK || score > best[best.length-1].score) {
+        best.push({ frets: frets.slice(), score: score, sig: sig });
+        best.sort(function(a,b){return b.score-a.score;});
+        if (best.length > TOPK) best.length = TOPK;
+      }
+    }
 
     for (var fmin = 0; fmin <= MAX_FRET - SPAN + 1; fmin++) {
       var fmax  = fmin + SPAN - 1;
@@ -344,7 +364,7 @@
         if (s === N) {
           for (var pc in mustPCs) { if (!covered[pc]) return; }
           var sc = _score(assign, N, tuning, rootPC, tones);
-          if (sc > bestScore) { bestScore = sc; bestFrets = assign.slice(); }
+          _consider(assign, sc);
           return;
         }
         // Prune: check remaining strings can cover all uncovered mustPCs
@@ -372,19 +392,26 @@
       dfs(0);
     }
 
-    if (!bestFrets) return null;
-    return _buildOutput(bestFrets, N, tuning);
+    if (!best.length) return [];
+    return best.map(function(b){ return _buildOutput(b.frets, N, tuning); });
   }
 
   // -- Cache & public API ------------------------------------------------------
   var _cache = Object.create(null);
 
-  window.computeVoicing = function (chordName, instrument) {
-    if (!chordName || !instrument || instrument === 'none' || instrument === 'piano') return null;
+  // Returns an array of up to `max` distinct voicings, best-first (may be empty).
+  window.computeVoicings = function (chordName, instrument, max) {
+    if (!chordName || !instrument || instrument === 'none' || instrument === 'piano') return [];
     var key = chordName + '\x00' + instrument;
-    if (key in _cache) return _cache[key];
-    _cache[key] = _search(chordName, instrument);
-    return _cache[key];
+    if (!(key in _cache)) _cache[key] = _search(chordName, instrument) || [];
+    var all = _cache[key];
+    return (max && max < all.length) ? all.slice(0, max) : all;
+  };
+
+  // Back-compat: single best voicing (or null).
+  window.computeVoicing = function (chordName, instrument) {
+    var a = window.computeVoicings(chordName, instrument);
+    return (a && a.length) ? a[0] : null;
   };
 
 })();

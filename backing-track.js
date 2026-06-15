@@ -27,11 +27,19 @@
   var LOOKAHEAD = 0.35;
   var TICK_MS   = 100;
 
+  // Primary fonts: FluidR3 (higher quality, bundled in sounds/).
+  // `fb` = fallback to the original lightweight Aspirin font if the FluidR3
+  // one fails to load/decode. If BOTH fail, playback drops to the oscillator
+  // synth (see _drum/_note below) so the app is never silent.
   var FONTS = {
-    piano:  { file:'0000_Aspirin_sf2_file.js',    v:'_tone_0000_Aspirin_sf2_file'    },
-    guitar: { file:'0240_Aspirin_sf2_file.js',    v:'_tone_0240_Aspirin_sf2_file'    },
-    bass:   { file:'0330_Aspirin_sf2_file.js',    v:'_tone_0330_Aspirin_sf2_file'    },
-    drums:  { file:'12800_0_Aspirin_sf2_file.js', v:'_tone_12800_0_Aspirin_sf2_file' },
+    piano:  { file:'0000_FluidR3_GM_sf2_file.js',    v:'_tone_0000_FluidR3_GM_sf2_file',
+              fb:{ file:'0000_Aspirin_sf2_file.js',    v:'_tone_0000_Aspirin_sf2_file'    } },
+    guitar: { file:'0240_FluidR3_GM_sf2_file.js',    v:'_tone_0240_FluidR3_GM_sf2_file',
+              fb:{ file:'0240_Aspirin_sf2_file.js',    v:'_tone_0240_Aspirin_sf2_file'    } },
+    bass:   { file:'0330_FluidR3_GM_sf2_file.js',    v:'_tone_0330_FluidR3_GM_sf2_file',
+              fb:{ file:'0330_Aspirin_sf2_file.js',    v:'_tone_0330_Aspirin_sf2_file'    } },
+    drums:  { file:'12800_0_FluidR3_GM_sf2_file.js', v:'_tone_12800_0_FluidR3_GM_sf2_file',
+              fb:{ file:'12800_0_Aspirin_sf2_file.js', v:'_tone_12800_0_Aspirin_sf2_file' } },
   };
 
   // State
@@ -41,6 +49,7 @@
   var _bt_song    = null;
   var _waf        = null;
   var _fontReady  = {};
+  var _fontVar    = {};   // key → global var name that actually loaded (FluidR3 or Aspirin fallback)
   var _playerReady = false;
   var _schedID    = null;
   var _schedBar   = 0;
@@ -55,6 +64,33 @@
   function _ctx() {
     return typeof getSharedAudioCtx === 'function' ? getSharedAudioCtx()
          : null;
+  }
+
+  // ── Reverb master bus ────────────────────────────────────────────────────────
+  // All instruments play through a shared dry + convolution-reverb bus so notes
+  // blend together and abrupt sample tails are softened by the reverb decay.
+  var _master = null, _masterCtx = null;
+  function _makeImpulse(ctx, seconds, decay) {
+    var rate = ctx.sampleRate, len = Math.max(1, Math.floor(rate * seconds));
+    var buf = ctx.createBuffer(2, len, rate);
+    for (var c = 0; c < 2; c++) {
+      var d = buf.getChannelData(c);
+      for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    return buf;
+  }
+  function _getMaster(ctx) {
+    if (_master && _masterCtx === ctx) return _master;
+    try {
+      var input = ctx.createGain();
+      var dry   = ctx.createGain(); dry.gain.value = 0.88;
+      var wet   = ctx.createGain(); wet.gain.value = 1.0;
+      var conv  = ctx.createConvolver(); conv.buffer = _makeImpulse(ctx, 2.0, 2.6);
+      input.connect(dry);  dry.connect(ctx.destination);
+      input.connect(conv); conv.connect(wet); wet.connect(ctx.destination);
+      _master = input; _masterCtx = ctx;
+      return input;
+    } catch (e) { return ctx.destination; }
   }
 
   // ── BPM / time-sig helpers (read from OWN bar controls) ─────────────────────
@@ -121,19 +157,32 @@
   }
 
   // ── Font loading: local → IndexedDB → CDN ───────────────────────────────────
-  function _loadFont(key, cb) {
-    var f = FONTS[key];
-    if (!f) { cb(false); return; }
-    if (window[f.v]) { cb(true); return; }
-    _loadTag(SOUNDS + f.file, function(ok) {
-      if (ok && window[f.v]) { cb(true); return; }
-      _dbGet(f.file, function(cached) {
-        if (cached) { _runText(cached, function(ok2) { cb(ok2 && !!window[f.v]); }); return; }
-        fetch(CDN + f.file)
+  // Load one font variant ({file, v}) via local sounds/ → IndexedDB → CDN.
+  // cb(true) only if the expected global variable is present afterwards.
+  function _loadVariant(variant, cb) {
+    if (window[variant.v]) { cb(true); return; }
+    _loadTag(SOUNDS + variant.file, function(ok) {
+      if (ok && window[variant.v]) { cb(true); return; }
+      _dbGet(variant.file, function(cached) {
+        if (cached) { _runText(cached, function(ok2) { cb(ok2 && !!window[variant.v]); }); return; }
+        fetch(CDN + variant.file)
           .then(function(r) { return r.ok ? r.text() : Promise.reject(r.status); })
-          .then(function(text) { _dbPut(f.file, text); _runText(text, function(ok3) { cb(ok3 && !!window[f.v]); }); })
+          .then(function(text) { _dbPut(variant.file, text); _runText(text, function(ok3) { cb(ok3 && !!window[variant.v]); }); })
           .catch(function() { cb(false); });
       });
+    });
+  }
+
+  // Load an instrument: try the high-quality primary font, then fall back to
+  // the original default soundfont. Reports the global var name that loaded
+  // (or null if both failed → caller uses the synth).
+  function _loadFont(key, cb) {
+    var f = FONTS[key];
+    if (!f) { cb(null); return; }
+    _loadVariant(f, function(ok) {
+      if (ok) { cb(f.v); return; }
+      if (f.fb) { _loadVariant(f.fb, function(ok2) { cb(ok2 ? f.fb.v : null); }); }
+      else { cb(null); }
     });
   }
 
@@ -152,9 +201,10 @@
       var keys = Object.keys(FONTS);
       var pending = keys.length;
       keys.forEach(function(k) {
-        _loadFont(k, function(ok) {
-          if (ok && _waf && audioCtx && window[FONTS[k].v]) {
-            try { _waf.loader.decodeAfterLoading(audioCtx, FONTS[k].v); } catch(e) {}
+        _loadFont(k, function(varName) {
+          if (varName && _waf && audioCtx && window[varName]) {
+            try { _waf.loader.decodeAfterLoading(audioCtx, varName); } catch(e) {}
+            _fontVar[k]   = varName;
             _fontReady[k] = true;
           }
           if (--pending === 0) { _playerReady = true; done(); }
@@ -237,15 +287,14 @@
   }
 
   function _drum(ctx, dest, when, midiNote, synType, vol) {
-    if (_waf && _fontReady.drums && window[FONTS.drums.v]) {
-      try { _waf.queueWaveTable(ctx, dest, window[FONTS.drums.v], when, midiNote, 0.5, vol); return; } catch(e) {}
+    if (_waf && _fontReady.drums && window[_fontVar.drums]) {
+      try { _waf.queueWaveTable(ctx, dest, window[_fontVar.drums], when, midiNote, 0.5, vol); return; } catch(e) {}
     }
     _synDrum(ctx, dest, when, synType, vol);
   }
   function _note(fk, ctx, dest, when, midi, dur, vol) {
-    var f = FONTS[fk];
-    if (_waf && _fontReady[fk] && f && window[f.v]) {
-      try { _waf.queueWaveTable(ctx, dest, window[f.v], when, midi, dur, vol); return; } catch(e) {}
+    if (_waf && _fontReady[fk] && _fontVar[fk] && window[_fontVar[fk]]) {
+      try { _waf.queueWaveTable(ctx, dest, window[_fontVar[fk]], when, midi, dur, vol); return; } catch(e) {}
     }
     _synNote(ctx, dest, midi, when, dur, vol);
   }
@@ -397,6 +446,21 @@
       play(ch[0], t0, bd*0.85); play(ch[0], t0+bd*1.5, bd*0.75);
       if (nb >= 4) play(ch.length>1?ch[1]:ch[0], t0+bd*3, bd*0.85);
     }
+    else if (pat === 'Arpeggio') {
+      var an0 = _chordNotes(ch[0].root, ch[0].qual, ch[0].bass, 4);
+      var aLad = an0.concat([an0[0] + 12]);                 // climb up to the octave
+      var aSeq = aLad.concat(aLad.slice(1, -1).reverse());  // then back down (no repeated ends)
+      var steps = Math.max(8, nb * 2), sd = barDur / steps;
+      for (var ai = 0; ai < steps; ai++)
+        _note('piano', ctx, dest, t0 + ai * sd, aSeq[ai % aSeq.length], sd * 1.7, vol);
+    }
+    else if (pat === 'Ballad roll') {
+      var bn = _chordNotes(ch[0].root, ch[0].qual, ch[0].bass, 3);
+      _note('piano', ctx, dest, t0, bn[0], barDur * 0.95, vol);            // sustained low root
+      var up = _chordNotes(ch[0].root, ch[0].qual, null, 4);
+      var st2 = barDur / Math.max(3, up.length);
+      up.forEach(function(m, i) { _note('piano', ctx, dest, t0 + i * st2, m, st2 * 1.9, vol * 0.8); });
+    }
   }
 
   function scheduleBass(ctx, dest, bars, bi, t0, barDur, state, nb, denom) {
@@ -443,12 +507,22 @@
       playG(ch[0], t0, bd*0.85); playG(ch[0], t0+bd*1.5, bd*0.75);
       if (nb >= 4) playG(ch.length>1?ch[1]:ch[0], t0+bd*3, bd*0.82);
     } else if (pat === 'Arpeggio') {
-      var notes = _chordNotes(ch[0].root, ch[0].qual, null, oct);
-      var nd    = barDur / Math.max(notes.length, 1);
-      notes.forEach(function(m, i) { _note('guitar', ctx, dest, t0+i*nd, m, nd*0.88, vol); });
+      var gA = _chordNotes(ch[0].root, ch[0].qual, null, oct);
+      var gLad = gA.concat([gA[0] + 12]);
+      var gSeq = gLad.concat(gLad.slice(1, -1).reverse());  // up then down
+      var gSteps = Math.max(8, nb * 2), gnd = barDur / gSteps;
+      for (var gi = 0; gi < gSteps; gi++)
+        _note('guitar', ctx, dest, t0 + gi * gnd, gSeq[gi % gSeq.length], gnd * 1.6, vol);
     } else if (pat === 'Offbeat') {
       for (var b2=1; b2<nb; b2+=2)
         playG(ch[Math.min(Math.floor(b2*ch.length/nb),ch.length-1)], t0+b2*bd, bd*0.82);
+    } else if (pat === 'Fingerpick') {
+      var fn = _chordNotes(ch[0].root, ch[0].qual, null, oct), low = fn[0], hi = fn.slice(1);
+      var steps = Math.max(4, nb * 2), sd = barDur / steps;
+      for (var fi = 0; fi < steps; fi++) {
+        if (fi % 2 === 0) _note('guitar', ctx, dest, t0 + fi * sd, low, sd * 1.9, vol);
+        else { var hm = hi[Math.floor(fi / 2) % hi.length] || low; _note('guitar', ctx, dest, t0 + fi * sd, hm, sd * 1.9, vol * 0.85); }
+      }
     }
   }
 
@@ -457,14 +531,14 @@
     { id:'drums',  label:'Drums',  fontKey:'drums',
       patterns: Object.keys(DRUM_PATTERNS), defaultPattern:'Ballad',     defaultVol:0.70, schedule:scheduleDrums  },
     { id:'keys',   label:'Keys',   fontKey:'piano',
-      patterns: ['Whole note','Half notes','Offbeat','Comp'],             defaultVol:0.32, schedule:scheduleKeys,
-      defaultPattern:'Half notes' },
+      patterns: ['Whole note','Half notes','Offbeat','Comp','Arpeggio','Ballad roll'], defaultVol:0.32, schedule:scheduleKeys,
+      defaultPattern:'Comp' },
     { id:'bass',   label:'Bass',   fontKey:'bass',
       patterns: ['Root','Root–5','Octave pump','Walking'],                defaultVol:0.50, schedule:scheduleBass,
-      defaultPattern:'Root' },
+      defaultPattern:'Walking' },
     { id:'guitar', label:'Guitar', fontKey:'guitar',
-      patterns: ['Strum','Comp','Arpeggio','Offbeat'],                    defaultVol:0.42, schedule:scheduleGuitar,
-      defaultPattern:'Comp' },
+      patterns: ['Strum','Comp','Arpeggio','Offbeat','Fingerpick'], defaultVol:0.42, schedule:scheduleGuitar,
+      defaultPattern:'Arpeggio' },
   ];
   BT_INSTRUMENTS.forEach(function(inst) {
     _bt_state[inst.id] = { enabled:true, pattern:inst.defaultPattern, volume:inst.defaultVol };
@@ -569,7 +643,7 @@
       })(bi, t0, bars[bi] && bars[bi]._chartIdx != null ? bars[bi]._chartIdx : bi);
       BT_INSTRUMENTS.forEach(function(inst) {
         var s = _bt_state[inst.id];
-        if (s && s.enabled) inst.schedule(ctx, ctx.destination, bars, bi, t0, barDur, s, nb, denom);
+        if (s && s.enabled) inst.schedule(ctx, _getMaster(ctx), bars, bi, t0, barDur, s, nb, denom);
       });
       _schedNext += barDur;
       _schedBar++;
@@ -926,6 +1000,31 @@
   } else {
     _buildBTBar();
   }
+
+  // ── Sheet-music integration ────────────────────────────────────────────────
+  // Lets the abcjs sheet-music player reuse the loaded FluidR3 piano with the
+  // same FluidR3 → Aspirin → (caller's synth) fallback chain.
+  //   btEnsureAudio(cb)  — load/decode the soundfonts once (idempotent).
+  //   btPlayPianoNote(…) — queue one piano note; returns false if no sampled
+  //                        font is ready, so the caller keeps its oscillator.
+  window.btEnsureAudio = function(cb) {
+    try { _initPlayer(function() { if (typeof cb === 'function') cb(); }); }
+    catch (e) { if (typeof cb === 'function') cb(); }
+  };
+  window.btPlayPianoNote = function(ctx, dest, midi, when, dur, vol) {
+    if (_waf && _fontReady.piano && _fontVar.piano && window[_fontVar.piano]) {
+      try { _waf.queueWaveTable(ctx, dest, window[_fontVar.piano], when, midi, dur, (vol == null ? 0.8 : vol)); return true; } catch (e) {}
+    }
+    return false;
+  };
+
+  window.btAudioState = function() {
+    return {
+      player: !!_waf,
+      ready: { piano:!!_fontReady.piano, bass:!!_fontReady.bass, guitar:!!_fontReady.guitar, drums:!!_fontReady.drums },
+      vars:  { piano:_fontVar.piano||null, bass:_fontVar.bass||null, guitar:_fontVar.guitar||null, drums:_fontVar.drums||null }
+    };
+  };
 
   window.btStart        = btStart;
   window.btStop         = btStop;

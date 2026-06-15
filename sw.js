@@ -2,7 +2,7 @@
 // Fixes offline support: shell files now cached dynamically from the
 // installing page's URL, so renaming the HTML file never breaks caching.
 
-const CACHE_VERSION = 'magic-scroll-v8';
+const CACHE_VERSION = 'magic-scroll-v10';
 
 // ── Install ───────────────────────────────────────────────────────────────────
 // Strategy: cache-on-navigate for the HTML shell (so renaming never breaks it),
@@ -26,6 +26,16 @@ self.addEventListener('install', function(event) {
         './chord-engine.js',
         './abcjs-basic.js',
         './manifest.json',
+        // Audio engine + bundled FluidR3 soundfonts (primary, higher quality)
+        './sounds/WebAudioFontPlayer.js',
+        './sounds/0000_FluidR3_GM_sf2_file.js',
+        './sounds/0240_FluidR3_GM_sf2_file.js',
+        './sounds/0330_FluidR3_GM_sf2_file.js',
+        './sounds/12800_0_FluidR3_GM_sf2_file.js',
+        // Aspirin backup fonts (loaded only if a FluidR3 font fails)
+        './sounds/0000_Aspirin_sf2_file.js',
+        './sounds/0240_Aspirin_sf2_file.js',
+        './sounds/0330_Aspirin_sf2_file.js',
         './icon-192.png',
         './icon-512.png',
         './apple-touch-icon.png',
@@ -38,6 +48,7 @@ self.addEventListener('install', function(event) {
 
       // 2. Optional assets (fonts, theme images) — cache whatever exists
       var optional = [
+        './Valeson-ExtBla.otf',
         './SunnyDay.otf',
         './GotischD.otf',
         './GotischSchmuck.otf',
@@ -107,7 +118,7 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // ── Soundfont (large binary): network-first, cache on first load ──────────
+  // ── Soundfont (large binary): cache-first, cache on first load ────────────
   if (url.includes('Soundfont') || url.endsWith('.sf2') || url.endsWith('.sfz')) {
     event.respondWith(
       caches.open(CACHE_VERSION).then(function(cache) {
@@ -123,25 +134,16 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // ── Everything else: cache-first, populate cache on first fetch ───────────
-  // This covers the HTML file regardless of its name, plus all other assets.
-  // On first online visit the page loads normally and gets cached.
-  // On subsequent visits (online or offline) it's served from cache instantly.
+  // ── Everything else: NETWORK-FIRST ────────────────────────────────────────
+  // Always fetch the freshest copy when online (so edits to the HTML/JS appear
+  // on the very next reload), falling back to cache only when offline.
   event.respondWith(
     caches.open(CACHE_VERSION).then(function(cache) {
-      return cache.match(event.request).then(function(cached) {
-        if (cached) {
-          // Revalidate in the background so the cache stays fresh
-          fetch(event.request).then(function(res) {
-            if (res && res.ok) cache.put(event.request, res.clone());
-          }).catch(function() {});
-          return cached;
-        }
-        // Not in cache — fetch and store for next time
-        return fetch(event.request).then(function(res) {
-          if (res && res.ok) cache.put(event.request, res.clone());
-          return res;
-        });
+      return fetch(event.request).then(function(res) {
+        if (res && res.ok) cache.put(event.request, res.clone());
+        return res;
+      }).catch(function() {
+        return cache.match(event.request);
       });
     })
   );
