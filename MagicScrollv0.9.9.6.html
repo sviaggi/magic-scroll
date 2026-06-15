@@ -528,7 +528,7 @@
   .song-kebab-menu {
     display: none;
     position: fixed;
-    z-index: 400;
+    z-index: 600;
     background: var(--c-chrome-bg);
     border: 1px solid var(--c-chrome-border);
     border-radius: 3px;
@@ -2622,9 +2622,9 @@
 <div id="layout">
   <div id="sidebar">
     <div id="sidebar-header">
-      <span>Songs</span>
+      <span>Library</span>
       <button id="btn-multiselect" title="Select multiple songs">☑</button>
-      <button id="btn-clear-all" class="danger" style="font-size:0.65rem;padding:2px 6px;">✕ Clear</button>
+      <button id="btn-clear-all" class="danger" style="font-size:0.65rem;padding:2px 6px;">🗑 Empty library</button>
     </div>
     <div id="sidebar-search">
       <input type="search" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
@@ -3244,7 +3244,7 @@ function cssColorToHex(str) {
 
 // Read current CSS variable values into the colour pickers
 function syncColorPickersFromVars() {
-  const cs = getComputedStyle(document.documentElement);
+  const cs = getComputedStyle(document.body);  // read the ACTIVE theme's colours (theme class lives on <body>)
   COLOR_VARS.forEach(([varName, inputId]) => {
     if (!inputId) return;
     const el = document.getElementById(inputId);
@@ -3259,6 +3259,7 @@ function syncColorPickersFromVars() {
 // Apply colour picker values to CSS variables on :root
 function applyColorPickerValues() {
   const root = document.documentElement;
+  document.body.className = '';  // become a custom (classless) theme so edits override the preset
   COLOR_VARS.forEach(([varName, inputId]) => {
     if (!inputId) return;
     const el = document.getElementById(inputId);
@@ -3425,6 +3426,7 @@ function openSettingsPanel(panel, triggerEl) {
   document.querySelectorAll('.settings-panel').forEach(function(p){ p.classList.remove('open'); });
   if (!panel) return;
   panel.classList.add('open');
+  if (window.innerWidth <= 520 && panel.parentElement !== document.body) document.body.appendChild(panel);  // escape topbar overflow clipping on mobile
   requestAnimationFrame(function() {
     var tr = triggerEl.getBoundingClientRect();
     var pw = panel.offsetWidth  || 300;
@@ -9059,14 +9061,24 @@ document.addEventListener('mouseup', function(e) {
 });
 
 // ── CLEAR ALL — wipes localStorage too so songs don't come back on reload ──
-document.getElementById('btn-clear-all').addEventListener('click',()=>{
-  if(!confirm('Clear all saved songs?')) return;
-  songs=[];folders=[];currentIdx=-1;saveAll();
-  document.getElementById('search-input').value='';
-  buildSongList('');
-  document.getElementById('song-card').classList.remove('visible');
-  document.getElementById('empty-state').style.display='flex';
-});
+(function(){
+  var _clrBtn = document.getElementById('btn-clear-all');
+  var _clrArmed = false, _clrTimer = null, _clrLabel = _clrBtn.innerHTML;
+  function _clrReset(){ _clrArmed=false; _clrBtn.innerHTML=_clrLabel; _clrBtn.classList.remove('active'); if(_clrTimer){clearTimeout(_clrTimer);_clrTimer=null;} }
+  _clrBtn.addEventListener('click',function(){
+    if(!_clrArmed){           // first tap arms; second tap within the window confirms
+      _clrArmed=true; _clrBtn.textContent='Tap to confirm'; _clrBtn.classList.add('active');
+      _clrTimer=setTimeout(_clrReset, 3500);
+      return;
+    }
+    _clrReset();
+    songs=[];folders=[];currentIdx=-1;saveAll();
+    document.getElementById('search-input').value='';
+    buildSongList('');
+    document.getElementById('song-card').classList.remove('visible');
+    document.getElementById('empty-state').style.display='flex';
+  });
+})();
 
 // ── EDITOR — state & functions ────────────────────────────────────────────────
 let isEditMode        = false;
@@ -9740,6 +9752,7 @@ document.getElementById('btn-metro-toggle').addEventListener('click', e => {
   // close other settings panels first
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
   panel.classList.toggle('open', !isOpen);
+  if (!isOpen && window.innerWidth <= 520 && panel.parentElement !== document.body) document.body.appendChild(panel);  // escape topbar overflow clipping on mobile
   document.getElementById('btn-metro-toggle').setAttribute('aria-pressed', isOpen ? 'false' : 'true');
   // Position panel via same logic as openSettingsPanel
   if (!isOpen) {
