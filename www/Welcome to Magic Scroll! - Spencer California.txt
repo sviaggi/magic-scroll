@@ -1,0 +1,29 @@
+----------------------------------------------------------------------
+Song name: Welcome to Magic Scroll!  by  Spencer California
+----------------------------------------------------------------------
+**Hello and welcome to Magic Scroll!**
+
+I'm Spencer, I'm the developer of this app. Thank you for giving it a try!
+
+Magic Scroll is a platform for anyone interested in making music *(from hobbyists to songwriters)* to format and share the songs they want to play, however they want to play them. It's totally ad-free, so no subscriptions, pop-ups, or anything of that ilk can bother you when you just want to share some tunes with your band or strum a little bit with your ukulele group.
+
+If you want to get started, you can access the "Library" sidebar to add your own music, search for new ones, or organise the music you already have! If you're at a loss for what to try, check out our pre-made collections full of traditional tunes and folk bangers! If that's not your speed, then you can add your own music in and enjoy playing without pop-ups, ads, or in-app purchases!
+
+Magic Scroll is compatible with song/chord charts (see Worth the Weight), lead sheets (see When The Saints Go Marching In), and sheet music (see Wizard's Walk or Weary Wayfarer). You can write music directly into here or copy/paste in things from your own collection/other websites, and enjoy features like auto-scroll, transcription, chord diagrams across countless instruments, and printing in case you want to make physical copies.
+
+Chord sheets are usually formatted like this:
+      C                        F                         G                    Am
+Here are some examples of lyrics I could type
+Am9                      Dm11sus4                            Gmaj7add9
+Here are some needlessly overwrought chords
+
+You can transpose these chords with the buttons available in the top bar, as well as simplify more difficult chords depending on your skill level. These options work across all types of music, so your sheet music and lead sheets can be transposed and simplified as well. If you're not interested in playing guitar, you can select chord diagrams for plenty of other instruments and tuning systems!
+
+In the song text editor, there are a few rich text options such as bolding, underlining, and italics if you feel those would help readers when they're playing the song! Add two asterisks on each side of a line for **Boldness**, one asterisk on each side for *Italics*, and one underscore for _Underlines_. You can also embed videos, if that'll help people figure out how to play the music... Here's a short film I made about a year ago:
+[yt: https://youtu.be/Nd2pXWlviRc]
+
+If you'd like to share your music with the world, you have a few options! Magic Scroll works entirely with text-based files, so the first and easiest is simply to save the song in an easily-accessible location on your device and send it to a friend via a messaging app or email. You can also export whole folders with the drop-down menu, which will give you a .json file you can send and share the exact same way. Finally, you can upload things to our cloud storage. **Publishing a song is final, as there's no way to make new versions or take the old ones down,** so I would advise only doing it for songs you know are finished and have as much information in them as people will need to play them. For sharing incomplete/WIP songs with a small group of friends or bandmates, the other options will be much better.
+
+Finally, if you have any questions, comments, concerns, or requests, you can always just ask me! My contact detail is available in the tab on the bottom left corner, as well as the FAQ and credits.
+
+Have fun!

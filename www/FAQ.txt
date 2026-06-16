@@ -27,7 +27,9 @@ Default soundfont is from the FluidR3 soundbank. Backing track is built out of S
 
 YIN pitch detection algorithm by de Cheveigné & Kawahara (2002).
 
-Special thanks to The Session website for curating such a fine selection of traditional music and hilarious comment section arguments, and anyone who has ever uploaded chord sheets, tabs, or anything of the like to the internet. Thank you all for helping bring us together through the world of music.
+Default tunes are by Jay Ungar and my dear friend Corwin Zekley (check out their bands Towse & Raven and Goose!!!). When the Saints go Marching In is traditional, Worth the Weight is by me!
+
+Special thanks to our Anonymouse Angel Investor for providing the needed funds to bring this app to the app store! Additional thanks to the actual geniuses at Technimo who managed to make lead sheets such an accessible text-only format for iReal Pro (A much better app than this one which is definitely worth the sticker price if you have the money), The Session website for curating such a fine selection of traditional music and hilarious comment section arguments, and anyone who has ever uploaded chord sheets, tabs, or anything of the like to the internet. Thank you all for helping bring us together through the world of music.
 
 Beta testers: Chris Smit, Hulda Elira, Alex Smith, Oscar Law, Em Sollerman, Olly Andrews, with more to come until we hit a full release!
 

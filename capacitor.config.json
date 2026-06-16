@@ -3,6 +3,6 @@
   "appName": "Magic Scroll",
   "webDir": "www",
   "server": {
-  	"appStartPath": "/MagicScrollv0.9.9.6.html"
+  	"appStartPath": "/MagicScrollv1.0.0.html"
   	}
 }
