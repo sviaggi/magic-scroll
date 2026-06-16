@@ -35,8 +35,10 @@ workflows:
           app-store-connect fetch-signing-files \
               "$BUNDLE_ID" \
               --type IOS_APP_STORE \
-              --create
+              --create \
+              --verbose
           keychain add-certificates
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/ || echo "NO PROFILES FOUND"
           xcode-project use-profiles
 
       - name: Increment build number
