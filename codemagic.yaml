@@ -14,16 +14,13 @@ workflows:
     environment:
       groups:
         - magic-scroll
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.magicscroll.app
       vars:
         BUNDLE_ID: "com.magicscroll.app"
         XCODE_WORKSPACE: "App/App.xcworkspace"
         XCODE_SCHEME: "App"
       xcode: latest
       cocoapods: default
-      node: latest    
+      node: latest
     scripts:
       - name: Install dependencies
         script: npm install
