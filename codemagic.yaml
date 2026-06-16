@@ -11,48 +11,41 @@ workflows:
           include: true
     integrations:
       app_store_connect: Codemagic
-    environment:
-      groups:
-        - magic-scroll
-      vars:
-        BUNDLE_ID: "com.magicscroll.app"
-        XCODE_WORKSPACE: "App/App.xcworkspace"
-        XCODE_SCHEME: "App"
-      xcode: latest
-      node: latest
-    scripts:
-      - name: Install dependencies
-        script: npm install
+environment:
+  groups:
+    - magic-scroll
+  ios_signing:
+    distribution_type: app_store
+    bundle_identifier: com.magicscroll.app
+  vars:
+    BUNDLE_ID: "com.magicscroll.app"
+    XCODE_SCHEME: "App"
+  xcode: latest
+  node: latest
+scripts:
+  - name: Install dependencies
+    script: npm install
 
-      - name: Add iOS platform
-        script: |
-          npx cap add ios
-          npx cap sync ios
+  - name: Add iOS platform
+    script: |
+      npx cap add ios
+      npx cap sync ios
 
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files \
-              "$BUNDLE_ID" \
-              --type IOS_APP_STORE \
-              --create \
-              --verbose
-          keychain add-certificates
-          ls ~/Library/MobileDevice/Provisioning\ Profiles/ || echo "NO PROFILES FOUND"
-          xcode-project use-profiles
+  - name: Set up code signing
+    script: xcode-project use-profiles
 
-      - name: Increment build number
-        script: |
-          cd "$CM_BUILD_DIR/ios/App"
-          LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo "0")
-          agvtool new-version -all $(($LATEST + 1))
+  - name: Increment build number
+    script: |
+      cd "$CM_BUILD_DIR/ios/App"
+      LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo "0")
+      agvtool new-version -all $(($LATEST + 1))
 
-      - name: Build IPA
-        script: |
-          xcode-project build-ipa \
-            --project "$CM_BUILD_DIR/ios/App/App.xcodeproj" \
-            --scheme "$XCODE_SCHEME"
-
+  - name: Build IPA
+    script: |
+      xcode-project build-ipa \
+        --project "$CM_BUILD_DIR/ios/App/App.xcodeproj" \
+        --scheme "$XCODE_SCHEME"
+        
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
