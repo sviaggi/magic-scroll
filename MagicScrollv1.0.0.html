@@ -4157,10 +4157,7 @@ function renderTabContent() {
       if (!lineIsChordLine(line)) return line;
       return line.replace(/\S+/g, tok => {
         if (!isChordToken(tok)) return tok;
-        const inner = cleanToken(tok);
-        const simple = simplifyChord(inner);
-        if (tok.match(/^\([^)]+\)$/)) return '(' + simple + ')';
-        return simple;
+        return simplifyTokenPad(tok);
       });
     }).join('\n');
   }
@@ -8797,9 +8794,25 @@ document.querySelectorAll('.inst-select').forEach(sel => {
 // Fmaj7add11/A → F,  Am7b5 → Am (keeps minor quality),  C#maj7 → C#
 // Rule: keep root [b#]? and 'm' if present (for minor), drop everything else.
 function simplifyChord(name) {
-  const m = name.match(/^([A-G][b#]?)(m)?/);
+  const m = name.match(/^([A-G][b#]?)/);
   if (!m) return name;
-  return m[1] + (m[2] || '');
+  const root = m[1];
+  const qual = name.slice(root.length);
+  // Keep the minor quality ONLY when the chord is actually minor: a leading
+  // 'm' (but not the 'm' of 'maj'/'major') or '-'. So Gm7→Gm, Gmmaj7→Gm,
+  // but Gmaj7→G and Gmajor→G.
+  const isMinor = /^(?:m(?!aj)|-)/.test(qual);
+  return root + (isMinor ? 'm' : '');
+}
+
+// Simplify a chord token for display, padding the result with trailing spaces
+// so its column width is unchanged — this preserves the spacing of the chord
+// line (and thus its alignment with the lyrics below it).
+function simplifyTokenPad(tok) {
+  let out = simplifyChord(cleanToken(tok));
+  if (/^\([^)]+\)$/.test(tok)) out = '(' + out + ')';
+  if (out.length < tok.length) out += ' '.repeat(tok.length - out.length);
+  return out;
 }
 
 // The currently right-clicked chord token element (for context menu actions)
@@ -12263,7 +12276,7 @@ function _renderNotesView(text, container){
       if(!lineIsChordLine(line))return line;
       return line.replace(/\S+/g,tok=>{
         if(!isChordToken(tok))return tok;
-        return simplifyChord(cleanToken(tok));
+        return simplifyTokenPad(tok);
       });
     }).join('\n');
   }

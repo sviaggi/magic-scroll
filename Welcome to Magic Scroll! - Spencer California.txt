@@ -14,7 +14,7 @@ Magic Scroll is compatible with song/chord charts (see Worth the Weight), lead s
 Chord sheets are usually formatted like this:
       C                        F                         G                    Am
 Here are some examples of lyrics I could type
-Am9                      Dm11                                          G7
+Am9                      Dm11sus4                            Gmaj7add9
 Here are some needlessly overwrought chords
 
 You can transpose these chords with the buttons available in the top bar, as well as simplify more difficult chords depending on your skill level. These options work across all types of music, so your sheet music and lead sheets can be transposed and simplified as well. If you're not interested in playing guitar, you can select chord diagrams for plenty of other instruments and tuning systems!
