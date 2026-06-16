@@ -12,6 +12,8 @@ workflows:
     integrations:
       app_store_connect: Codemagic
     environment:
+      groups:
+        - magic-scroll
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.magicscroll.app
@@ -21,7 +23,7 @@ workflows:
         XCODE_SCHEME: "App"
       xcode: latest
       cocoapods: default
-      node: latest
+      node: latest    
     scripts:
       - name: Install dependencies
         script: npm install
