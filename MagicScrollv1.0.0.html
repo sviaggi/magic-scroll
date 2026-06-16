@@ -1401,16 +1401,10 @@
 
     /* Song content */
     #song-card { padding: 16px 12px 32px; }
-    /* Lead sheets: maximise usable width on phones — tiny side margins, and
-       bump the base size up a step so chords/diagrams read larger. */
-    #ireal-song-card { padding: 16px 2px 20px !important; font-size: 1.08rem; }
-    #ireal-song-card.fs-xs { font-size: 0.80rem; }
-    #ireal-song-card.fs-sm { font-size: 0.94rem; }
-    #ireal-song-card.fs-md { font-size: 1.08rem; }
-    #ireal-song-card.fs-lg { font-size: 1.26rem; }
-    #ireal-song-card.fs-xl { font-size: 1.46rem; }
+    /* Lead-sheet mobile sizing lives in a dedicated block AFTER the base
+       lead-sheet styles (search "Lead sheet — phone sizing") so it isn't
+       overridden by those later same-specificity rules. */
     #main { padding-left: 4px !important; padding-right: 4px !important; }
-    .ls-bar { padding: 18px 3px 8px; }
     .song-main-title { font-size: 1.25rem; }
     .tab-content {
       font-size: 0.8rem;
@@ -2107,6 +2101,13 @@
     padding:18px 6px 8px;min-height:110px;position:relative;
     display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;justify-content:center;
     min-width:0;}
+  /* ── Lead sheet — phone margins ────────────────────────────────────────────
+     Just trim the side padding on phones (smaller safety margins). Font size and
+     4-bars-per-row layout are intentionally left at the XS preset so lead sheets
+     stay compact and don't run too tall. */
+  @media (max-width: 520px) {
+    body #ireal-song-card { padding: 16px 2px 20px !important; }
+  }
   /* ── Repeat bars — thick line + thin line + two dots ──────────────────── */
   .ls-bar.ls-rep-open{border-left:2px solid var(--c-accent);padding-left:14px;}
   .ls-bar.ls-rep-open::before{content:'';position:absolute;left:4px;top:8%;height:84%;
@@ -3115,29 +3116,100 @@ egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
 =cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^de|
 egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
 =cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^d2-|d1d/e5E/||`;
-    parseABCFile(wizABC, "The Wizard's Walk.abc").forEach(function(s) { songs.push(s); });
+    // The Starter pack: a welcome song, a lead sheet, two tunes, and (when
+    // available) the Worth the Weight chord chart — all grouped in one folder.
+    var starterIndices = [];
+    function addStarter(s) { if (s) { songs.push(s); starterIndices.push(songs.length - 1); } }
+
+    // Wizard's Walk (sheet music)
+    parseABCFile(wizABC, "The Wizard's Walk.abc").forEach(addStarter);
+
+    // Welcome to Magic Scroll! (song / chord chart) — built directly so the
+    // intro text is the body, with a clean title/artist.
+    var _welcomeBody = `**Hello and welcome to Magic Scroll!**
+
+I'm Spencer, I'm the developer of this app. Thank you for giving it a try!
+
+Magic Scroll is a platform for anyone interested in making music *(from hobbyists to songwriters)* to format and share the songs they want to play, however they want to play them. It's totally ad-free, so no subscriptions, pop-ups, or anything of that ilk can bother you when you just want to share some tunes with your band or strum a little bit with your ukulele group.
+
+If you want to get started, you can access the "Library" sidebar to add your own music, search for new ones, or organise the music you already have! If you're at a loss for what to try, check out our pre-made collections full of traditional tunes and folk bangers! If that's not your speed, then you can add your own music in and enjoy playing without pop-ups, ads, or in-app purchases!
+
+Magic Scroll is compatible with song/chord charts (see Worth the Weight), lead sheets (see When The Saints Go Marching In), and sheet music (see Wizard's Walk or Weary Wayfarer). You can write music directly into here or copy/paste in things from your own collection/other websites, and enjoy features like auto-scroll, transcription, chord diagrams across countless instruments, and printing in case you want to make physical copies.
+
+Chord sheets are usually formatted like this:
+      C                        F                         G                    Am
+Here are some examples of lyrics I could type
+Am9                      Dm11                                          G7
+Here are some needlessly overwrought chords
+
+You can transpose these chords with the buttons available in the top bar, as well as simplify more difficult chords depending on your skill level. These options work across all types of music, so your sheet music and lead sheets can be transposed and simplified as well. If you're not interested in playing guitar, you can select chord diagrams for plenty of other instruments and tuning systems!
+
+In the song text editor, there are a few rich text options such as bolding, underlining, and italics if you feel those would help readers when they're playing the song! Add two asterisks on each side of a line for **Boldness**, one asterisk on each side for *Italics*, and one underscore for _Underlines_. You can also embed videos, if that'll help people figure out how to play the music... Here's a short film I made about a year ago:
+[yt: https://youtu.be/Nd2pXWlviRc]
+
+If you'd like to share your music with the world, you have a few options! Magic Scroll works entirely with text-based files, so the first and easiest is simply to save the song in an easily-accessible location on your device and send it to a friend via a messaging app or email. You can also export whole folders with the drop-down menu, which will give you a .json file you can send and share the exact same way. Finally, you can upload things to our cloud storage. **Publishing a song is final, as there's no way to make new versions or take the old ones down,** so I would advise only doing it for songs you know are finished and have as much information in them as people will need to play them. For sharing incomplete/WIP songs with a small group of friends or bandmates, the other options will be much better.
+
+Finally, if you have any questions, comments, concerns, or requests, you can always just ask me! My contact detail is available in the tab on the bottom left corner, as well as the FAQ and credits.
+
+Have fun!`;
+    addStarter({ title:'Welcome to Magic Scroll!', artist:'Spencer California', album:'', tuning:'', capo:0,
+                 type:'Tab', _source:'plaintext', tab_content:_welcomeBody });
+
+    // When The Saints Go Marching In (lead sheet) — embedded as a JS object so
+    // the \n escapes in the notes become real newlines.
+    var saints = {"title":"When The Saints Go Marching In","artist":"Traditional","type":"Lead Sheet","_source":"ireal","key":"F","style":"Medium Swing","bpm":160,"plays":3,"tab_content":"","ireal_chart":{"bars":[{"chords":[{"type":"chord","root":"F","qual":"","bass":""}],"section":null,"endingNum":null,"timeChange":"4/4","openRepeat":false,"closeRepeat":false,"sectionStart":true,"sectionEnd":false,"final":false},{"chords":[{"type":"rep1"}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"7","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"C","qual":"","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"7","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"C","qual":"","bass":""},{"type":"chord","root":"C","qual":"7","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"7","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"B♭","qual":"","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"B","qual":"o7","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"","bass":"C"},{"type":"chord","root":"D","qual":"9","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"G","qual":"7","bass":""},{"type":"chord","root":"C","qual":"7","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"F","qual":"","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":false},{"chords":[{"type":"chord","root":"C","qual":"7","bass":""}],"section":null,"endingNum":null,"timeChange":null,"openRepeat":false,"closeRepeat":false,"sectionStart":false,"sectionEnd":false,"final":true}]},"ireal_raw":"[T44F,XyQKcl LZ x LZ x LZF,XyQKcl LZC7XyQKcl LZF,XyQ|F7XyQ|Bb,XyQ,|Bo7,XyQ|F/C, D9LZG7 C7LZF,XyQ|C7XyQZ","ireal_notes":"[Verse 1]\nOh, when the saints go marchin' in\nOh, when the saints go marchin' in\nI want to be part of that number\nWhen the saints go marchin' in\n\n[Verse 2]\nOh, when they crown Him, Lord of Lords\nOh, when they crown Him, Lord of Lords\nI want to be part of that number\nWhen they crown Him, Lord of Lords\n\n[Verse 3]\nOh, when they march around the throne\nOh, when they march around the throne\nI want to be part of that number\nWhen they march around the throne","_ms_format":"lead-sheet","_ms_version":1};
+    addStarter(saints);
+
+    // Weary Wayfarer (sheet music)
+    var wearyABC = `X: 1
+T: Weary Wayfarer
+C: Corwin Zekley
+M: 3/4
+R: Waltz
+L: 1/8
+K: D
+dc | B3dBA | F2A3D | E3FED
+B,3A,DC | B,3A,B,C | D3CDE | FGA2GF
+E3Adc | B3dBA | F2A3D | E3FED
+B,3EFA | B3ABc | d2DFAd | f2FAdf
+a4a2 | b3afa | e2c4 | a3gfd
+B4B2 | g3fed | f3edA | FAdfad'
+c'4a2 | b3afa | e2c4 | a3gfd
+B3EFA | B3dBA | F2A3D | E3DC2
+D6 |]`;
+    parseABCFile(wearyABC, "Weary Wayfarer.abc").forEach(addStarter);
+
     function commit() {
-      _demoLoading = false;
-      if (songs.length === 0) return;
-      saveSongs(); buildSongList();
-      // Prefer Worth the Weight as the first-time example; fall back to last song
-      var wtwIdx = songs.findIndex(function(s) {
-        return (s.title || '').toLowerCase().indexOf('worth') >= 0;
-      });
-      renderSong(wtwIdx >= 0 ? wtwIdx : songs.length - 1);
+      if (songs.length === 0) { _demoLoading = false; return; }
+      // Group every starter sample into a "Starter pack" folder.
+      folders.push({ id: makeFolderId(), name: 'Starter pack', songIndices: starterIndices.slice(), collapsed: false });
+      saveAll();
+      setTimeout(function() {
+        _demoLoading = false;
+        buildSongList('');
+        // First-load selection: always the welcome note, regardless of order.
+        var welIdx = songs.findIndex(function(s) {
+          return (s.title || '').toLowerCase().indexOf('welcome to magic scroll') >= 0;
+        });
+        renderSong(welIdx >= 0 ? welIdx : 0);
+      }, 0);
     }
+
+    // Worth the Weight (chord chart) — fetched from the server, silently
+    // skipped (and just left out of the pack) if unavailable / offline.
     if (location.protocol !== 'file:') {
       fetch('Worth%20the%20Weight.txt')
         .then(function(r) { return r.ok ? r.text() : Promise.reject(); })
         .then(function(text) {
           var s = parsePlainText(text, 'Worth the Weight.txt');
-          if (s && (s.title || s.tab_content)) songs.push(s);
+          if (s && (s.title || s.tab_content)) addStarter(s);
         }).catch(function() {}).finally(commit);
     } else { commit(); }
   })();
 }
-// Returning user init: deferred so all `let` declarations (currentIdx etc.) are in scope
-if (songs.length > 0) {
+// Returning user init: deferred so all `let` declarations (currentIdx etc.) are in
+// scope. Skipped during first-run seeding — commit() handles that selection.
+if (songs.length > 0 && !_demoLoading) {
   setTimeout(function() { buildSongList(''); renderSong(0); }, 0);
 }
 let currentIdx      = -1;
@@ -5772,7 +5844,9 @@ document.getElementById('font-size-sel').addEventListener('change',e=>{
 });
 // restore saved font size on load
 (function(){
-  // On phones (≤ 520 px) default to XS if no preference is saved yet
+  // Phones default to XS so song text stays readable and lead sheets don't get
+  // too tall; desktop defaults to medium. (Sheet-music notation is enlarged
+  // separately, so XS doesn't shrink the actual tunes — see _abcStaffW.)
   const saved = localStorage.getItem('ug_fontsize') ||
                 (window.innerWidth <= 520 ? 'fs-xs' : 'fs-md');
   const tc = document.getElementById('tab-content');
@@ -10915,6 +10989,20 @@ function renderABCSong(song) {
   const notationEl = document.getElementById('abc-notation');
   notationEl.innerHTML = '';
   abcVisualObj = [];
+  // Sheet music is laid out at a fixed staff width (760) then scaled to fit the
+  // container — so on a ~360px phone it shrinks to ~half size, and in XS view it
+  // would otherwise stay small too. Lay it out narrower in those cases so abcjs
+  // wraps more bars per line and the notation renders larger.
+  const _abcXS       = document.body.classList.contains('ui-xs');
+  const _abcIsMobile = window.innerWidth <= 600;
+  const _abcDefaultW = _wtActive ? 580 : 760;
+  let _abcStaffW = _abcDefaultW;
+  if (_abcIsMobile) {
+    const _cw = notationEl.clientWidth || (window.innerWidth - 16);
+    _abcStaffW = Math.max(300, Math.min(_abcDefaultW, _cw - 6));  // ~full width on phones
+  } else if (_abcXS) {
+    _abcStaffW = Math.round(_abcDefaultW * 0.62);                 // enlarge notation in XS view
+  }
   const blocks = song.abc_text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
   blocks.forEach(function(block, i) {
     var titleMatch = block.match(/^T:\s*(.+)/m);
@@ -10932,7 +11020,7 @@ function renderABCSong(song) {
     notationEl.appendChild(notDiv);
     var vo = ABCJS.renderAbc('abc-notation-' + i, block, {
       responsive: 'resize', add_classes: true,
-      staffwidth: _wtActive ? 580 : 760,
+      staffwidth: _abcStaffW,
       paddingbottom: _wtActive ? 110 : 20,
       paddingtop: 15,
       scale: _wtActive ? 1.3 : 1.0,  // 1.3 spreads staves ~1.5x further apart
@@ -12192,9 +12280,7 @@ function _renderNotesView(text, container){
 // Returns a base diagram scale for lead-sheet inline diagrams based on current SIZE setting.
 function _lsDiagScale() {
   const sz = document.getElementById('font-size-sel').value || 'fs-md';
-  let s = {'fs-xs':0.72,'fs-sm':0.68,'fs-md':0.82,'fs-lg':0.82,'fs-xl':0.90}[sz] || 0.82;
-  // On phones, scale diagrams up so the sheet reads larger overall.
-  if (typeof window !== 'undefined' && window.innerWidth <= 520) s *= 1.18;
+  const s = {'fs-xs':0.72,'fs-sm':0.68,'fs-md':0.82,'fs-lg':0.82,'fs-xl':0.90}[sz] || 0.82;
   return s;
 }
 
