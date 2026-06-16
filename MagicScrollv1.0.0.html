@@ -1689,6 +1689,11 @@
     box-shadow: 0 4px 6px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.5),
                 inset 0 0 80px rgba(0,0,0,0.06);
   }
+  /* Phones: trim the big side padding so the sheet music can span nearly the
+     full width of the card (keep a tall bottom pad to clear the player bar). */
+  @media (max-width: 520px) {
+    #abc-song-card { padding: 22px 8px 96px; }
+  }
   /* ── ABC PLAYER BAR — floating panel, fixed above the contact tab ────────── */
   #abc-player-bar {
     position: fixed;
@@ -10998,8 +11003,13 @@ function renderABCSong(song) {
   const _abcDefaultW = _wtActive ? 580 : 760;
   let _abcStaffW = _abcDefaultW;
   if (_abcIsMobile) {
-    const _cw = notationEl.clientWidth || (window.innerWidth - 16);
-    _abcStaffW = Math.max(300, Math.min(_abcDefaultW, _cw - 6));  // ~full width on phones
+    // Derive the staff width from the viewport (NOT clientWidth, which can read
+    // 0 mid-layout and then differ between tunes — that caused inconsistent
+    // sizing). The card uses ~8px side padding on phones, so this lays the music
+    // out nearly card-wide and renders it ~1.18x natural size, the same for
+    // every tune.
+    const _vw = window.innerWidth || 360;
+    _abcStaffW = Math.max(280, Math.round((_vw - 24) * 0.85));
   } else if (_abcXS) {
     _abcStaffW = Math.round(_abcDefaultW * 0.62);                 // enlarge notation in XS view
   }
