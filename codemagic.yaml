@@ -19,7 +19,6 @@ workflows:
         XCODE_WORKSPACE: "App/App.xcworkspace"
         XCODE_SCHEME: "App"
       xcode: latest
-      cocoapods: default
       node: latest
     scripts:
       - name: Install dependencies
@@ -29,11 +28,6 @@ workflows:
         script: |
           npx cap add ios
           npx cap sync ios
-
-      - name: Install CocoaPods
-        script: |
-          cd ios/App
-          pod install
 
       - name: Set up code signing
         script: |
