@@ -263,7 +263,13 @@
   #topbar {
     background: var(--c-chrome-bg);
     border-bottom: 1px solid var(--c-chrome-border);
-    padding: 10px 16px;
+    /* Pad past the iOS status bar / camera notch (safe-area insets) so controls
+       aren't hidden, while the bar's background still fills to the screen edge
+       and the status bar info shows through on top of it. */
+    padding: calc(10px + env(safe-area-inset-top, 0px))
+             calc(16px + env(safe-area-inset-right, 0px))
+             10px
+             calc(16px + env(safe-area-inset-left, 0px));
     display: flex;
     align-items: center;
     gap: 12px;
@@ -804,7 +810,7 @@
   #tab-content.fs-xs { font-size: 0.68rem; line-height: 1.5; }
 
   /* ── UI-XS: full chrome scale-down for portrait phones ──────────────────── */
-  body.ui-xs #topbar { padding: 6px 8px; gap: 7px; }
+  body.ui-xs #topbar { padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px; gap: 7px; }
   body.ui-xs .app-title { font-size: 0.85rem; }
   body.ui-xs .ctrl-label { font-size: 0.55rem; }
   body.ui-xs button { font-size: 0.68rem; padding: 3px 7px; }
@@ -1089,7 +1095,7 @@
     border-bottom: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-muted);
     font-size: 0.6rem;
-    padding: 3px 0;
+    padding: calc(3px + env(safe-area-inset-top, 0px)) 0 3px;
     width: 100%;
     text-align: center;
     cursor: pointer;
@@ -1391,7 +1397,7 @@
 
     /* Compact topbar */
     #topbar {
-      padding: 6px 10px;
+      padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 6px;
       gap: 6px;
       flex-wrap: nowrap;
       overflow-x: auto;
@@ -4073,6 +4079,16 @@ function extractYTId(url) {
   const m = url.match(/(?:youtu\.be\/|[?&]v=)([\w-]{11})/);
   return m ? m[1] : null;
 }
+// True when running inside the native (Capacitor) app rather than a normal
+// browser. YouTube's iframe player rejects the webview's capacitor:// origin
+// (error 153), so embeds are shown as tap-to-open thumbnails there instead.
+function _isNativeApp() {
+  try {
+    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function')
+      return window.Capacitor.isNativePlatform();
+    return /^(capacitor|ionic|file):$/i.test(location.protocol);
+  } catch (e) { return false; }
+}
 function applyMarkup(line, lineEl) {
   // YouTube / video tags → placeholder so we can build real DOM nodes later
   line = line.replace(/\[(yt|video):\s*([^\]]+)\]/gi, function(_, _k, url) {
@@ -4109,6 +4125,30 @@ function applyMarkup(line, lineEl) {
     parts.forEach(function(part, i) {
       if (i % 2 === 0) {
         if (part) { const s = document.createElement('span'); s.innerHTML = part; wrap.appendChild(s); }
+      } else if (_isNativeApp()) {
+        // Native app: the webview's capacitor:// origin makes the iframe player
+        // fail (error 153), so show a tap-to-open thumbnail that launches the
+        // video in the system browser / YouTube app instead.
+        const a = document.createElement('a');
+        a.href = 'https://www.youtube.com/watch?v=' + part;
+        a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.className = 'yt-thumb-link';
+        a.style.cssText = 'position:relative;display:block;max-width:min(100%,560px);'
+          + 'margin:6px 0;border-radius:6px;overflow:hidden;text-decoration:none;background:#000;';
+        const img = document.createElement('img');
+        img.src = 'https://img.youtube.com/vi/' + part + '/hqdefault.jpg';
+        img.alt = 'YouTube video — tap to watch';
+        img.loading = 'lazy';
+        img.style.cssText = 'display:block;width:100%;height:auto;';
+        a.appendChild(img);
+        const play = document.createElement('div');
+        play.textContent = '▶';
+        play.setAttribute('aria-hidden', 'true');
+        play.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);'
+          + 'width:64px;height:44px;background:rgba(0,0,0,0.7);color:#fff;border-radius:10px;'
+          + 'display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;';
+        a.appendChild(play);
+        wrap.appendChild(a);
       } else {
         // Responsive 16:9 iframe embed — shows real YouTube UI, plays in-page
         const ywrap = document.createElement('div');
