@@ -835,10 +835,35 @@
   function btStart() { _btStartFromBar(0); }
 
   // ── Bar open/close ────────────────────────────────────────────────────────────
+  // Reserve blank space at the bottom of the scroll area equal to the playbar's
+  // height (it's fixed-position and can be 2–3 rows tall on phones) so it never
+  // covers the last lines of a lead sheet / song.
+  var _btPadObserver = null;
+  function _btAdjustBottomPad() {
+    var bar  = document.getElementById('bt-bar');
+    var main = document.getElementById('main');
+    if (!main) return;
+    // NOTE: don't test offsetParent — it's always null for position:fixed elements
+    // (which the bar is), which previously made this never reserve any space.
+    if (bar && bar.style.display !== 'none' && bar.offsetHeight > 0) {
+      // The bar sits ~38px above the screen bottom; clear its full height + that gap.
+      var reserve = bar.offsetHeight + 56;
+      main.style.paddingBottom = reserve + 'px';
+    } else {
+      main.style.paddingBottom = '';
+    }
+  }
+
   function btOpenBar(song) {
     // Show the bar immediately — before any stop/reset that might throw
     var bar = document.getElementById('bt-bar');
     if (bar) bar.style.display = '';
+    // Keep the bottom padding in sync with the bar's (variable) height.
+    if (bar && typeof ResizeObserver !== 'undefined' && !_btPadObserver) {
+      _btPadObserver = new ResizeObserver(function() { _btAdjustBottomPad(); });
+      _btPadObserver.observe(bar);
+    }
+    setTimeout(_btAdjustBottomPad, 0);
     if (song && song !== _bt_song && _running) { try { btStop(); } catch(e) { console.error('[BT] btStop error:', e); } }
     if (song) _bt_song = song;
     // Annotate each bar with its chart index so the tick highlights the right cell during repeats
@@ -862,6 +887,7 @@
     btStop();
     var bar = document.getElementById('bt-bar');
     if (bar) bar.style.display = 'none';
+    _btAdjustBottomPad();   // release the reserved space
   }
 
   // ── UI builder ────────────────────────────────────────────────────────────────

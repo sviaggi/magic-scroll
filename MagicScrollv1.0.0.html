@@ -263,7 +263,13 @@
   #topbar {
     background: var(--c-chrome-bg);
     border-bottom: 1px solid var(--c-chrome-border);
-    padding: 10px 16px;
+    /* Pad past the iOS status bar / camera notch (safe-area insets) so controls
+       aren't hidden, while the bar's background still fills to the screen edge
+       and the status bar info shows through on top of it. */
+    padding: calc(10px + env(safe-area-inset-top, 0px))
+             calc(16px + env(safe-area-inset-right, 0px))
+             10px
+             calc(16px + env(safe-area-inset-left, 0px));
     display: flex;
     align-items: center;
     gap: 12px;
@@ -804,7 +810,7 @@
   #tab-content.fs-xs { font-size: 0.68rem; line-height: 1.5; }
 
   /* ── UI-XS: full chrome scale-down for portrait phones ──────────────────── */
-  body.ui-xs #topbar { padding: 6px 8px; gap: 7px; }
+  body.ui-xs #topbar { padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px; gap: 7px; }
   body.ui-xs .app-title { font-size: 0.85rem; }
   body.ui-xs .ctrl-label { font-size: 0.55rem; }
   body.ui-xs button { font-size: 0.68rem; padding: 3px 7px; }
@@ -1089,7 +1095,7 @@
     border-bottom: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-muted);
     font-size: 0.6rem;
-    padding: 3px 0;
+    padding: calc(3px + env(safe-area-inset-top, 0px)) 0 3px;
     width: 100%;
     text-align: center;
     cursor: pointer;
@@ -1347,6 +1353,11 @@
       transition: transform 0.22s ease;
       border-right: 1px solid var(--c-chrome-border) !important;
       box-shadow: 4px 0 24px rgba(0,0,0,0.35);
+      /* Keep the drawer's header/controls out of the status-bar/notch area and
+         clear of the home indicator at the bottom. */
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     /* Collapsed class does nothing extra on mobile — hidden via transform */
     #sidebar.collapsed {
@@ -1391,7 +1402,7 @@
 
     /* Compact topbar */
     #topbar {
-      padding: 6px 10px;
+      padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 6px;
       gap: 6px;
       flex-wrap: nowrap;
       overflow-x: auto;
@@ -2004,20 +2015,30 @@
       overflow: visible !important;
       flex-wrap: nowrap !important;
     }
-    /* Each row lays out its own items horizontally */
+    /* Each row fills the full width with its items sharing the space evenly, so
+       the bar is centred/justified rather than leaning left. */
     .bt-row {
       display: flex !important;
       flex-direction: row !important;
       flex-wrap: nowrap !important;
       align-items: center !important;
-      gap: 5px !important;
+      justify-content: center !important;
+      gap: 6px !important;
       width: 100% !important;
     }
-    /* Spacer keeps pushing content apart on each row */
-    .bt-flex-spacer { flex: 1 !important; min-width: 0 !important; }
+    /* Every control in a row grows to take an even share of the width. */
+    #bt-player-controls .bt-row > * {
+      flex: 1 1 0 !important;
+      min-width: 0 !important;
+      text-align: center !important;
+    }
+    /* The empty spacer would otherwise eat a whole share — drop it on mobile. */
+    .bt-flex-spacer { display: none !important; }
     #bt-status { display: none !important; }
-    .bt-tempo-slider { width: 52px !important; }
-    .bt-vol-slider   { width: 40px !important; }
+    /* Sliders grow with their share instead of a fixed width. */
+    .bt-tempo-slider { width: auto !important; }
+    .bt-inst-toggles { display: flex !important; flex: 1 1 0 !important; }
+    .bt-inst-toggles .bt-inst-toggle { flex: 1 1 0 !important; }
   }
 
   /* ── PRINT STYLES ────────────────────────────────────────────────────────────
@@ -2112,7 +2133,14 @@
      stay compact and don't run too tall. */
   @media (max-width: 520px) {
     body #ireal-song-card { padding: 16px 2px 20px !important; }
+    /* Keep the grid full-width, but indent the title/meta + notes so they line up
+       with the headers on songs and sheet music instead of hugging the far edge. */
+    #ireal-song-card .song-header,
+    #ireal-song-card .ls-notes-wrap { padding-left: 10px; padding-right: 10px; }
   }
+  /* Long titles/meta wrap onto new lines rather than overflowing. */
+  #ireal-song-card .song-main-title { overflow-wrap: anywhere; }
+  #ireal-song-card .song-meta { flex-wrap: wrap; }
   /* ── Repeat bars — thick line + thin line + two dots ──────────────────── */
   .ls-bar.ls-rep-open{border-left:2px solid var(--c-accent);padding-left:14px;}
   .ls-bar.ls-rep-open::before{content:'';position:absolute;left:4px;top:8%;height:84%;
@@ -2190,7 +2218,7 @@
   /* notes / lyrics annotation area */
   .ls-notes-wrap{margin-top:20px;}
   .ls-notes-label{font-size:0.68rem;font-weight:bold;text-transform:uppercase;letter-spacing:0.07em;
-    color:var(--c-card-meta);margin-bottom:5px;}
+    color:var(--c-card-meta);margin-bottom:5px;padding-left:11px;}
   .ls-notes-view{font-family:var(--font-chord);font-size:0.88rem;line-height:1.7;
     padding:9px 11px;color:var(--c-card-text);white-space:pre-wrap;}
   .ls-notes-view .chord-token{color:var(--c-chord-text);font-weight:bold;cursor:default;}
@@ -3144,7 +3172,7 @@ Magic Scroll is compatible with song/chord charts (see Worth the Weight), lead s
 Chord sheets are usually formatted like this:
       C                        F                         G                    Am
 Here are some examples of lyrics I could type
-Am9                      Dm11                                          G7
+Am9                      Dm11sus4                            Gmaj7add9
 Here are some needlessly overwrought chords
 
 You can transpose these chords with the buttons available in the top bar, as well as simplify more difficult chords depending on your skill level. These options work across all types of music, so your sheet music and lead sheets can be transposed and simplified as well. If you're not interested in playing guitar, you can select chord diagrams for plenty of other instruments and tuning systems!
@@ -4073,6 +4101,16 @@ function extractYTId(url) {
   const m = url.match(/(?:youtu\.be\/|[?&]v=)([\w-]{11})/);
   return m ? m[1] : null;
 }
+// True when running inside the native (Capacitor) app rather than a normal
+// browser. YouTube's iframe player rejects the webview's capacitor:// origin
+// (error 153), so embeds are shown as tap-to-open thumbnails there instead.
+function _isNativeApp() {
+  try {
+    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function')
+      return window.Capacitor.isNativePlatform();
+    return /^(capacitor|ionic|file):$/i.test(location.protocol);
+  } catch (e) { return false; }
+}
 function applyMarkup(line, lineEl) {
   // YouTube / video tags → placeholder so we can build real DOM nodes later
   line = line.replace(/\[(yt|video):\s*([^\]]+)\]/gi, function(_, _k, url) {
@@ -4109,6 +4147,30 @@ function applyMarkup(line, lineEl) {
     parts.forEach(function(part, i) {
       if (i % 2 === 0) {
         if (part) { const s = document.createElement('span'); s.innerHTML = part; wrap.appendChild(s); }
+      } else if (_isNativeApp()) {
+        // Native app: the webview's capacitor:// origin makes the iframe player
+        // fail (error 153), so show a tap-to-open thumbnail that launches the
+        // video in the system browser / YouTube app instead.
+        const a = document.createElement('a');
+        a.href = 'https://www.youtube.com/watch?v=' + part;
+        a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.className = 'yt-thumb-link';
+        a.style.cssText = 'position:relative;display:block;max-width:min(100%,560px);'
+          + 'margin:6px 0;border-radius:6px;overflow:hidden;text-decoration:none;background:#000;';
+        const img = document.createElement('img');
+        img.src = 'https://img.youtube.com/vi/' + part + '/hqdefault.jpg';
+        img.alt = 'YouTube video — tap to watch';
+        img.loading = 'lazy';
+        img.style.cssText = 'display:block;width:100%;height:auto;';
+        a.appendChild(img);
+        const play = document.createElement('div');
+        play.textContent = '▶';
+        play.setAttribute('aria-hidden', 'true');
+        play.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);'
+          + 'width:64px;height:44px;background:rgba(0,0,0,0.7);color:#fff;border-radius:10px;'
+          + 'display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;';
+        a.appendChild(play);
+        wrap.appendChild(a);
       } else {
         // Responsive 16:9 iframe embed — shows real YouTube UI, plays in-page
         const ywrap = document.createElement('div');
@@ -5840,9 +5902,10 @@ document.getElementById('font-size-sel').addEventListener('change',e=>{
   // xs size shrinks the whole chrome UI, not just text
   document.body.classList.toggle('ui-xs', e.target.value === 'fs-xs');
   localStorage.setItem('ug_fontsize', e.target.value);
-  // Re-render lead sheet to pick up new diagram scale
+  // Re-render the active sheet so the new size takes effect.
   const _cs=currentIdx>=0?songs[currentIdx]:null;
   if(_cs&&_cs._source==='ireal'&&isc.style.display!=='none') renderIRealSong(_cs);
+  else if(_cs&&_cs._source==='abc'&&document.getElementById('abc-song-card').style.display!=='none'&&typeof renderABCSong==='function') renderABCSong(_cs);
 });
 // restore saved font size on load
 (function(){
@@ -9122,6 +9185,47 @@ if (window.innerWidth <= 520) {
   document.getElementById('sidebar').classList.add('collapsed');
 }
 
+// Re-render sheet music / lead sheet when the viewport changes (e.g. rotating the
+// phone) so the staff width updates — landscape fits more bars per line, portrait
+// fewer. Debounced; ignores pure height changes (e.g. the iOS keyboard).
+(function() {
+  let _lastW = window.innerWidth, _reflowT = null;
+  function _reflowOnResize() {
+    if (window.innerWidth === _lastW) return;   // width unchanged → skip
+    _lastW = window.innerWidth;
+    clearTimeout(_reflowT);
+    _reflowT = setTimeout(function() {
+      if (currentIdx < 0 || !songs[currentIdx]) return;
+      const s = songs[currentIdx];
+      if (s._source === 'abc' && document.getElementById('abc-song-card').style.display !== 'none'
+          && typeof renderABCSong === 'function') {
+        renderABCSong(s);
+      } else if (s._source === 'ireal' && document.getElementById('ireal-song-card').style.display !== 'none'
+          && typeof renderIRealSong === 'function') {
+        renderIRealSong(s);
+        if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+      }
+    }, 250);
+  }
+  window.addEventListener('resize', _reflowOnResize);
+  window.addEventListener('orientationchange', _reflowOnResize);
+})();
+
+// Native status bar: make the system info (clock/battery/Wi-Fi) overlay the top
+// bar and use light (white) glyphs so it's visible on the dark bar. Requires the
+// @capacitor/status-bar plugin (see iOS-native-fixes.md); a no-op in the browser.
+// NOTE: in @capacitor/status-bar, Style.Dark == "light text for dark backgrounds".
+(function() {
+  try {
+    const C = window.Capacitor;
+    const SB = C && C.Plugins && C.Plugins.StatusBar;
+    if (!SB) return;
+    if (SB.setOverlaysWebView) SB.setOverlaysWebView({ overlay: true }).catch(function(){});
+    if (SB.setStyle)           SB.setStyle({ style: 'DARK' }).catch(function(){});
+    if (SB.show)               SB.show().catch(function(){});
+  } catch (e) {}
+})();
+
 // ── TOPBAR COLLAPSE ───────────────────────────────────────────────────────────
 // Using display:none/flex directly — much more reliable than height:0 on sticky
 // flex elements in Firefox. CSS class tricks were silently failing.
@@ -10000,47 +10104,127 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
 });
 
 
+// Emit a print/PDF document. In the native app, window.open + window.print() do
+// nothing in the WKWebView, so route through the @capgo/capacitor-printer plugin
+// (Swift; opens the iOS print sheet, which includes "Save to PDF" / AirPrint).
+// On the desktop web it opens the usual print window, guarding a blocked popup.
+function _emitPrintDoc(html, jobName) {
+  var P = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Printer) || null;
+  if (_isNativeApp() && P && typeof P.printHtml === 'function') {
+    P.printHtml({ name: jobName || 'Magic Scroll', html: html })
+     .catch(function (e) { alert('Print failed: ' + ((e && e.message) || e)); });
+    return;
+  }
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) {
+    alert('Couldn’t open the print view. Please allow pop-ups, or use your browser’s Print / Save as PDF.');
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
+}
+
 document.getElementById('btn-print-go').addEventListener('click', () => {
   if (currentIdx < 0) { alert('No song loaded.'); return; }
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
 
   const song     = songs[currentIdx];
 
-  // ABC songs: capture the rendered SVG and print that directly
+  // ABC sheet music: re-render at a fixed PAGE width (not the on-screen mobile
+  // scale) so it fits paper, one SVG per staff line so the print can paginate
+  // between lines, and re-inject whistle tabs if they're on.
   if (song._source === 'abc') {
-    // Get the selected tune's notation div (or first if only one)
     const tuneIdx  = parseInt(document.getElementById('pp-tune-idx')?.value || '0') || 0;
-    const notDiv   = document.getElementById('abc-notation-' + tuneIdx)
-                   || document.getElementById('abc-notation');
-    const svgEl    = notDiv && notDiv.querySelector('svg');
-    if (!svgEl) { alert('No sheet music rendered yet.'); return; }
-    // Get the tune title for the print heading
     const blocks   = song.abc_text.split(/(?=^X:\s*\d)/m).filter(b=>b.trim());
     const blk      = blocks[tuneIdx] || blocks[0] || '';
     const tm       = blk.match(/^T:\s*(.+)/m);
     const tuneTitle= tm ? tm[1].trim() : song.title;
-    const svgHTML  = svgEl.outerHTML;
-    const win = window.open('', '_blank', 'width=900,height=700');
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+
+    // Off-screen render at print scale. ~680px staff fits a Letter/A4 page once
+    // the print body padding is applied. Kept on-screen-positioned (not display
+    // none) so getBBox works for tab placement.
+    const tmp = document.createElement('div');
+    tmp.id = '_abc-print-tmp';
+    tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:760px;';
+    document.body.appendChild(tmp);
+    let _vo;
+    try {
+      _vo = ABCJS.renderAbc(tmp, blk, {
+        staffwidth: 680, scale: 1.0, oneSvgPerLine: true,
+        paddingtop: 8, paddingbottom: _wtActive ? 88 : 14,
+        visualTranspose: transposeAmount,
+      });
+    } catch (e) { /* fall through; tmp may still hold a render */ }
+
+    const _finishAbcPrint = function() {
+      let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
+      if (_wtActive) { try { _wtInjectTabsPrint(svgs); } catch (e) {} }
+      let body = svgs.length
+        ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
+        : tmp.innerHTML;
+      if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
 <style>
-  @page { margin:0; }
+  @page { margin: 1.2cm 1.4cm; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
-  body { font-family:serif; background:white; color:#1a1208; margin:0; padding:1.4cm 1.6cm; }
+  body { font-family:serif; background:white; color:#1a1208; margin:0; }
   h1   { font-size:16pt; margin:0 0 3pt; line-height:1.2; }
   h2   { font-size:11pt; font-style:italic; font-weight:normal; color:#555;
-         margin:0 0 10pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
+         margin:0 0 12pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
+  /* Each staff line (and its whistle tabs) stays together; a line that would run
+     off the page bottom moves to the next page. */
+  .abc-pline { page-break-inside: avoid; break-inside: avoid; margin: 0 0 4pt; }
   svg  { display:block; max-width:100%; height:auto; overflow:visible; }
   svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#1a1208 !important; }
   svg line { stroke:#1a1208 !important; }
+  .wt-tab { color:#1a1208 !important; }
 </style></head><body>
 <h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
 <h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
-${svgHTML}
-</body></html>`);
-    win.document.close(); win.focus();
-    setTimeout(() => win.print(), 400);
+${body}
+</body></html>`;
+      _emitPrintDoc(html, tuneTitle || song.title);
+    };
+    // Wait two frames so the off-screen SVGs have laid out (getBBox valid).
+    requestAnimationFrame(function(){ requestAnimationFrame(_finishAbcPrint); });
+    return;
+  }
+
+  // Lead sheets (iReal): the chord grid is HTML, not tab_content — capture the
+  // rendered content and print it with a self-contained black-on-white stylesheet.
+  if (song._source === 'ireal') {
+    const content = document.getElementById('ireal-content');
+    if (!content || !content.innerHTML.trim()) { alert('Open the lead sheet first.'); return; }
+    const _lsHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${(song.title||'Lead sheet').replace(/</g,'&lt;')}</title>
+<style>
+  @page { margin: 1.2cm 1.4cm; }
+  html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  * { box-sizing:border-box; }
+  body { font-family:serif; background:#fff; color:#111; margin:0; }
+  .song-header { margin-bottom:14px; border-bottom:1px solid #ccc; padding-bottom:8px; }
+  .song-main-title { font-size:18pt; font-weight:700; margin:0; }
+  .song-artist { font-style:italic; font-size:12pt; color:#444; margin-top:2px; }
+  .song-meta { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:6px; font-size:9pt; color:#555; }
+  .ls-grid { display:grid; grid-template-columns:repeat(4,1fr); border-left:1.5px solid #111; row-gap:10px; }
+  .ls-bar { border-right:1.5px solid #111; padding:14px 4px 6px; min-height:64px; position:relative;
+            display:flex; flex-wrap:wrap; gap:3px 6px; align-items:center; justify-content:center;
+            page-break-inside:avoid; }
+  .ls-chord-nm { font-weight:bold; white-space:nowrap; }
+  .ls-rep-sym, .ls-nc { color:#111; }
+  .ls-section-lbl, .ls-timesig, .ls-ending { font-size:8pt; color:#555; }
+  .ls-notes-wrap { margin-top:14px; }
+  .ls-notes-label { font-size:8pt; font-weight:bold; text-transform:uppercase; letter-spacing:0.06em; color:#555; margin-bottom:4px; }
+  .ls-notes-view, .ls-notes-ta { font-size:10pt; line-height:1.6; white-space:pre-wrap; color:#111; }
+  .ls-kebab-btn { display:none !important; }
+  svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#111 !important; }
+  svg line { stroke:#111 !important; }
+</style></head><body>${content.innerHTML}</body></html>`;
+    _emitPrintDoc(_lsHTML, song.title);
     return;
   }
 
@@ -10184,9 +10368,8 @@ ${svgHTML}
     ? 'html,body{height:100%;} #pd-wrap{height:calc(11in - 1in);overflow:hidden;}'
     : '';
 
-  // ── Build the print window ──
-  const win = window.open('', '_blank', 'width=900,height=700');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+  // ── Build the print document ──
+  const _printHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${escapeHtml(song.title || 'Song')}</title>
 <style>
   ${pageSize}
@@ -10322,10 +10505,8 @@ ${svgHTML}
   <div class="pd-content">${linesHtml}</div>
   ${diagHtml}
 </div>
-</body></html>`);
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); }, 400);
+</body></html>`;
+  _emitPrintDoc(_printHTML, song.title);
 });
 
 // ── SOUNDFONT (SFZ) SUPPORT ──────────────────────────────────────────────────
@@ -11015,16 +11196,23 @@ function renderABCSong(song) {
   const _abcIsMobile = window.innerWidth <= 600;
   const _abcDefaultW = _wtActive ? 580 : 760;
   let _abcStaffW = _abcDefaultW;
-  if (_abcIsMobile) {
-    // Derive the staff width from the viewport (NOT clientWidth, which can read
-    // 0 mid-layout and then differ between tunes — that caused inconsistent
-    // sizing). The card uses ~8px side padding on phones, so this lays the music
-    // out nearly card-wide and renders it ~1.18x natural size, the same for
-    // every tune.
-    const _vw = window.innerWidth || 360;
-    _abcStaffW = Math.max(280, Math.round((_vw - 24) * 0.85));
-  } else if (_abcXS) {
-    _abcStaffW = Math.round(_abcDefaultW * 0.62);                 // enlarge notation in XS view
+  let _abcWrap = null;
+  if (_abcIsMobile || _abcXS) {
+    // Note SIZE follows the top-bar SIZE control so it visibly changes the sheet
+    // music. Bigger size ⇒ smaller staffwidth ⇒ responsive scales the staff up
+    // ⇒ bigger notes and fewer bars per line. The viewport width sets the line
+    // length (so landscape fits more bars). Generous note spacing (not the old
+    // tight 1.5) keeps it from looking crammed; abcjs then decides bars-per-line
+    // by density, so a single bar only fills the line when it's dense (~14+ notes)
+    // — light tunes get 2–4 bars per line, justified to an even width.
+    const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
+    // Sheet-music zoom per SIZE setting. Shifted down so the default M matches what
+    // used to be XS (M was rendering too large on phones); S/XS are smaller still,
+    // and L/XL give the old S/M sizes.
+    const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+    const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
+    _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
+    _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
   }
   const blocks = song.abc_text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
   blocks.forEach(function(block, i) {
@@ -11044,6 +11232,7 @@ function renderABCSong(song) {
     var vo = ABCJS.renderAbc('abc-notation-' + i, block, {
       responsive: 'resize', add_classes: true,
       staffwidth: _abcStaffW,
+      wrap: _abcWrap || undefined,
       paddingbottom: _wtActive ? 110 : 20,
       paddingtop: 15,
       scale: _wtActive ? 1.3 : 1.0,  // 1.3 spreads staves ~1.5x further apart
@@ -11776,6 +11965,48 @@ function _wtInjectTabs(notDiv, visualObj) {
       g.setAttribute('transform', 'translate(' + ni.x + ',' + ni.sys.tabY + ')');
       svgEl.appendChild(g);
     }
+  });
+}
+
+// Inject whistle tabs for PRINT: one staff line per SVG (oneSvgPerLine), so each
+// SVG is a single system. Consumes the tune's MIDI sequence in order across the
+// SVGs and drops a fingering diagram under each note. Synchronous (caller waits a
+// couple of frames so getBBox is valid). Heavily guarded — never breaks the print.
+function _wtInjectTabsPrint(svgs) {
+  var song = currentIdx >= 0 ? songs[currentIdx] : null;
+  if (!song || !song.abc_text || !svgs || !svgs.length) return;
+  var midiSeq = [];
+  try {
+    abcToNotes(song.abc_text, 120, transposeAmount || 0)
+      .filter(function(n){ return n.freq > 0; })
+      .forEach(function(n){ midiSeq.push(Math.round(freqToMidi(n.freq))); });
+  } catch (e) {}
+  if (!midiSeq.length) return;
+  var idx = 0;
+  svgs.forEach(function(svgEl) {
+    var noteEls = Array.prototype.slice.call(svgEl.querySelectorAll('.abcjs-note'))
+      .filter(function(el){ return !el.classList.contains('abcjs-gracenote') && !el.closest('.abcjs-gracenote'); });
+    if (!noteEls.length) return;
+    var maxBot = 0, infos = [];
+    noteEls.forEach(function(el) {
+      try {
+        var bb = el.getBBox();
+        if (bb.width === 0 && bb.height === 0) { infos.push(null); return; }
+        if (bb.y + bb.height > maxBot) maxBot = bb.y + bb.height;
+        infos.push({ x: bb.x + bb.width / 2 });
+      } catch (e) { infos.push(null); }
+    });
+    var svgH = (svgEl.viewBox && svgEl.viewBox.baseVal.height > 0)
+             ? svgEl.viewBox.baseVal.height
+             : parseFloat(svgEl.getAttribute('height') || '120');
+    var tabY = maxBot + Math.max(14, (svgH - maxBot) * 0.45);
+    infos.forEach(function(info) {
+      var midi = midiSeq[idx++];
+      if (!info || midi == null) return;
+      var g = _wtDiagramGroup(midi);
+      g.setAttribute('transform', 'translate(' + info.x + ',' + tabY + ')');
+      svgEl.appendChild(g);
+    });
   });
 }
 
