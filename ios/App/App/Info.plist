@@ -49,5 +49,7 @@
 	<false/>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleLightContent</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Magic Scroll uses the microphone for the instrument tuner.</string>
 </dict>
 </plist>
