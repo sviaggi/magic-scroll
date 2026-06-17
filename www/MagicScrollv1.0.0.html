@@ -1353,6 +1353,11 @@
       transition: transform 0.22s ease;
       border-right: 1px solid var(--c-chrome-border) !important;
       box-shadow: 4px 0 24px rgba(0,0,0,0.35);
+      /* Keep the drawer's header/controls out of the status-bar/notch area and
+         clear of the home indicator at the bottom. */
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     /* Collapsed class does nothing extra on mobile — hidden via transform */
     #sidebar.collapsed {
@@ -10040,6 +10045,26 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
 });
 
 
+// Emit a print/PDF document. In the native app, window.open + window.print() do
+// nothing in the webview, so route through the cordova-plugin-printer bridge when
+// present (gives the iOS print sheet → "Save to PDF" / AirPrint). On the desktop
+// web it opens the usual print window, guarding against a blocked popup.
+function _emitPrintDoc(html, jobName) {
+  if (_isNativeApp() && window.cordova && window.cordova.plugins && window.cordova.plugins.printer) {
+    try { window.cordova.plugins.printer.print(html, { name: jobName || 'Magic Scroll' }); return; }
+    catch (e) { /* fall through to the window path */ }
+  }
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) {
+    alert('Couldn’t open the print view. On iOS, install the printer plugin (see iOS-native-fixes.md) or use the system Share → Print / Save as PDF.');
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
+}
+
 document.getElementById('btn-print-go').addEventListener('click', () => {
   if (currentIdx < 0) { alert('No song loaded.'); return; }
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
@@ -10060,8 +10085,7 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
     const tm       = blk.match(/^T:\s*(.+)/m);
     const tuneTitle= tm ? tm[1].trim() : song.title;
     const svgHTML  = svgEl.outerHTML;
-    const win = window.open('', '_blank', 'width=900,height=700');
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    const _abcPrintHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
 <style>
   @page { margin:0; }
@@ -10078,9 +10102,8 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
 <h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
 <h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
 ${svgHTML}
-</body></html>`);
-    win.document.close(); win.focus();
-    setTimeout(() => win.print(), 400);
+</body></html>`;
+    _emitPrintDoc(_abcPrintHTML, tuneTitle || song.title);
     return;
   }
 
@@ -10224,9 +10247,8 @@ ${svgHTML}
     ? 'html,body{height:100%;} #pd-wrap{height:calc(11in - 1in);overflow:hidden;}'
     : '';
 
-  // ── Build the print window ──
-  const win = window.open('', '_blank', 'width=900,height=700');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+  // ── Build the print document ──
+  const _printHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${escapeHtml(song.title || 'Song')}</title>
 <style>
   ${pageSize}
@@ -10362,10 +10384,8 @@ ${svgHTML}
   <div class="pd-content">${linesHtml}</div>
   ${diagHtml}
 </div>
-</body></html>`);
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); }, 400);
+</body></html>`;
+  _emitPrintDoc(_printHTML, song.title);
 });
 
 // ── SOUNDFONT (SFZ) SUPPORT ──────────────────────────────────────────────────
@@ -11066,6 +11086,12 @@ function renderABCSong(song) {
   } else if (_abcXS) {
     _abcStaffW = Math.round(_abcDefaultW * 0.62);                 // enlarge notation in XS view
   }
+  // On narrow screens, reflow the music to a uniform 2–3 bars per line (ignoring
+  // the source's line breaks) so dense tunes (e.g. Wizard's Walk) don't cram 4–5
+  // bars onto a line and render lopsided. Sparse tunes still look even.
+  const _abcWrap = (_abcIsMobile || _abcXS)
+    ? { minSpacing: 1.4, maxSpacing: 2.7, preferredMeasuresPerLine: 3 }
+    : null;
   const blocks = song.abc_text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
   blocks.forEach(function(block, i) {
     var titleMatch = block.match(/^T:\s*(.+)/m);
@@ -11084,6 +11110,7 @@ function renderABCSong(song) {
     var vo = ABCJS.renderAbc('abc-notation-' + i, block, {
       responsive: 'resize', add_classes: true,
       staffwidth: _abcStaffW,
+      wrap: _abcWrap || undefined,
       paddingbottom: _wtActive ? 110 : 20,
       paddingtop: 15,
       scale: _wtActive ? 1.3 : 1.0,  // 1.3 spreads staves ~1.5x further apart
