@@ -3275,7 +3275,10 @@ function saveFolders() {
 function saveAll() { saveSongs(); saveFolders(); }
 
 // ── THEME — applies body class + tries to load a matching background image ───
-const THEME_IMAGE = { '': 'parchment', 'theme-dark': 'obsidian', 'theme-green': 'mossy', 'theme-session': 'session' };
+// Stems are Title Case to match the (case-sensitive) image filenames in the repo:
+// Parchment.jpg, Obsidian.jpg, Mossy.jpg, Session.jpg. applyTheme() appends the
+// extension (tries .png/.jpg/.jpeg) so the .jpg files are found automatically.
+const THEME_IMAGE = { '': 'Parchment', 'theme-dark': 'Obsidian', 'theme-green': 'Mossy', 'theme-session': 'Session' };
 
 function applyTheme(themeClass) {
   document.body.className = themeClass;
@@ -10263,7 +10266,7 @@ ${body}
   // ── Background ──
   let bgCSS = '';
   if (bgOpt === 'parchment') {
-    bgCSS = 'background-image:url("parchment.jpg");background-size:cover;';
+    bgCSS = 'background-image:url("Parchment.jpg");background-size:cover;';
   } else if (bgOpt === 'custom') {
     const main = document.getElementById('main');
     const bi   = main.style.backgroundImage;
