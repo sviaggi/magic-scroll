@@ -10445,29 +10445,40 @@ ${body}
     var d = (l.startsWith('!') || l.startsWith('~')) ? l.slice(1) : l;
     return '<div class="pl-lyric">' + (_printRich(d) || '&nbsp;') + '</div>';
   }
+  var blockEls = [];
   for (var li = 0; li < pLines.length; li++) {
     var line = pLines[li];
     if (lineIsChordLine(line)) {
       var nextLine = pLines[li + 1];
       var hasLyric = nextLine !== undefined && !lineIsChordLine(nextLine) && nextLine.trim() !== '';
       if (hasLyric) {
-        linesHtml += '<div class="pl-pair">' + renderChordDiv(line) + renderLyricDiv(nextLine) + '</div>';
+        blockEls.push('<div class="pl-pair">' + renderChordDiv(line) + renderLyricDiv(nextLine) + '</div>');
         li++;  // consumed nextLine
       } else {
-        linesHtml += renderChordDiv(line);
+        blockEls.push(renderChordDiv(line));
       }
     } else {
-      linesHtml += renderLyricDiv(line);
+      blockEls.push(renderLyricDiv(line));
     }
+  }
+  // Two-column layout: WebKit ignores CSS `column-count` when printing/PDF-ing
+  // (so iOS came out single-column), so split the blocks into two REAL side-by-side
+  // flex columns, balanced by approximate height (a chord+lyric pair ≈ 2 lines).
+  const _twoCol = multiCol;
+  if (_twoCol) {
+    var _w = blockEls.map(function(h){ return h.indexOf('pl-pair') >= 0 ? 2 : 1; });
+    var _tot = _w.reduce(function(a,b){ return a + b; }, 0), _half = _tot / 2, _acc = 0, _split = blockEls.length;
+    for (var _b = 0; _b < blockEls.length; _b++) { _acc += _w[_b]; if (_acc >= _half) { _split = _b + 1; break; } }
+    linesHtml = '<div class="pd-col">' + blockEls.slice(0, _split).join('') + '</div>' +
+                '<div class="pd-col">' + blockEls.slice(_split).join('') + '</div>';
+  } else {
+    linesHtml = blockEls.join('');
   }
 
   // ── Layout CSS ──
   const pageSize  = onePage
     ? '@page{size:8.5in 11in;margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}'
     : '@page{margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}';
-  const colCSS    = (onePage && multiCol)
-    ? 'column-count:2;column-gap:1.2em;column-rule:1px solid #ccc;'
-    : '';
   const scalingCSS = onePage
     ? 'html,body{height:100%;} #pd-wrap{height:calc(11in - 1in);overflow:hidden;}'
     : '';
@@ -10485,7 +10496,9 @@ ${body}
   #pd-wrap{padding:0.65in 0.75in;}
   h1{font-family:${titleFont};font-size:18pt;font-weight:700;margin-bottom:2pt;}
   h2{font-family:${titleFont};font-size:12pt;font-style:italic;font-weight:normal;margin-bottom:10pt;padding-bottom:6pt;border-bottom:1px solid #aaa;}
-  .pd-content{${colCSS}}
+  .pd-content{${_twoCol ? 'display:flex;gap:1.2em;align-items:flex-start;' : ''}}
+  .pd-col{flex:1 1 0;min-width:0;}
+  ${_twoCol ? '.pd-col:first-child{border-right:1px solid #ccc;padding-right:1.2em;}' : ''}
   .pl-pair{break-inside:avoid;page-break-inside:avoid;-webkit-column-break-inside:avoid;}
   .pl-chord{font-family:${chordFont};font-weight:bold;color:${chordColor};white-space:pre-wrap;line-height:1.4;margin-top:4pt;}
   .pl-ct{font-weight:bold;}
