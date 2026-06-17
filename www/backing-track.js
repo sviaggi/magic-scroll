@@ -843,9 +843,11 @@
     var bar  = document.getElementById('bt-bar');
     var main = document.getElementById('main');
     if (!main) return;
-    if (bar && bar.style.display !== 'none' && bar.offsetParent !== null) {
+    // NOTE: don't test offsetParent — it's always null for position:fixed elements
+    // (which the bar is), which previously made this never reserve any space.
+    if (bar && bar.style.display !== 'none' && bar.offsetHeight > 0) {
       // The bar sits ~38px above the screen bottom; clear its full height + that gap.
-      var reserve = bar.offsetHeight + 48;
+      var reserve = bar.offsetHeight + 56;
       main.style.paddingBottom = reserve + 'px';
     } else {
       main.style.paddingBottom = '';
