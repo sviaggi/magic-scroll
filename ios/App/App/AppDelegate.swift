@@ -1,13 +1,21 @@
 import UIKit
 import Capacitor
+import AVFoundation   // add
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
-
     var window: UIWindow?
 
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Let Web Audio (metronome, backing track, abcjs playback) sound even
+        // when the hardware mute switch is on, and mix politely with other apps.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("[MagicScroll] AVAudioSession error: \(error)")
+        }
         return true
     }
 
