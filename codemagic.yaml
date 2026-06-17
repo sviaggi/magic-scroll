@@ -37,9 +37,15 @@ workflows:
         script: |
           LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo "1")
           NEW_BUILD=$(($LATEST + 1))
-          echo "Setting build number to $NEW_BUILD"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" \
-            "$CM_BUILD_DIR/ios/App/App/Info.plist"
+          echo "APP_STORE_APPLE_ID: $APP_STORE_APPLE_ID"
+          echo "Latest: $LATEST, New: $NEW_BUILD"
+          echo "--- Searching for Info.plist ---"
+          find "$CM_BUILD_DIR/ios" -name "Info.plist"
+          PLIST="$CM_BUILD_DIR/ios/App/App/Info.plist"
+          echo "--- Updating $PLIST ---"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST"
+          echo "--- Result ---"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST"
 
       - name: Build IPA
         script: |
