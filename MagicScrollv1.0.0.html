@@ -10107,6 +10107,35 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
 });
 
 
+// Collect every @font-face rule on the page so the print document can embed the
+// same custom fonts (Valeson, Courier Prime, etc.) — otherwise the print window
+// has no font files and falls back to generic Courier/serif.
+function _printFontFaces() {
+  var css = '';
+  try {
+    for (var i = 0; i < document.styleSheets.length; i++) {
+      var rules; try { rules = document.styleSheets[i].cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      for (var j = 0; j < rules.length; j++) {
+        try { if (rules[j].type === 5 /* CSSRule.FONT_FACE_RULE */) css += rules[j].cssText + '\n'; } catch (e) {}
+      }
+    }
+  } catch (e) {}
+  return css;
+}
+// Directory URL of the app, so relative font/image paths resolve in the print doc.
+function _printBaseHref() {
+  return location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
+}
+// Escape + apply the same inline rich-text markup used on screen (**bold**,
+// *italic*, _underline_) so printed lyrics aren't raw plaintext with asterisks.
+function _printRich(s) {
+  s = escapeHtml(s);
+  return s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*([^*\n]+)\*/g,     '<em>$1</em>')
+          .replace(/_([^_\n]+)_/g,        '<u>$1</u>');
+}
+
 // Emit a print/PDF document. In the native app, window.open + window.print() do
 // nothing in the WKWebView, so route through the @capgo/capacitor-printer plugin
 // (Swift; opens the iOS print sheet, which includes "Save to PDF" / AirPrint).
@@ -10169,12 +10198,16 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
         : tmp.innerHTML;
       if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<base href="${_printBaseHref()}">
 <title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
 <style>
-  @page { margin: 1.2cm 1.4cm; }
+  ${_printFontFaces()}
+  /* margin:0 suppresses the browser's auto page header/footer (title/URL/date/
+     page number); the visual page margin is applied as body padding instead. */
+  @page { margin: 0; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
-  body { font-family:serif; background:white; color:#1a1208; margin:0; }
+  body { font-family:serif; background:white; color:#1a1208; margin:0; padding:1.2cm 1.4cm; }
   h1   { font-size:16pt; margin:0 0 3pt; line-height:1.2; }
   h2   { font-size:11pt; font-style:italic; font-weight:normal; color:#555;
          margin:0 0 12pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
@@ -10203,12 +10236,15 @@ ${body}
     const content = document.getElementById('ireal-content');
     if (!content || !content.innerHTML.trim()) { alert('Open the lead sheet first.'); return; }
     const _lsHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<base href="${_printBaseHref()}">
 <title>${(song.title||'Lead sheet').replace(/</g,'&lt;')}</title>
 <style>
-  @page { margin: 1.2cm 1.4cm; }
+  ${_printFontFaces()}
+  /* margin:0 suppresses the browser's auto header/footer; visual margin via body padding. */
+  @page { margin: 0; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
-  body { font-family:serif; background:#fff; color:#111; margin:0; }
+  body { font-family:serif; background:#fff; color:#111; margin:0; padding:1.2cm 1.4cm; }
   .song-header { margin-bottom:14px; border-bottom:1px solid #ccc; padding-bottom:8px; }
   .song-main-title { font-size:18pt; font-weight:700; margin:0; }
   .song-artist { font-style:italic; font-size:12pt; color:#444; margin-top:2px; }
@@ -10342,7 +10378,7 @@ ${body}
   }
   function renderLyricDiv(l) {
     var d = (l.startsWith('!') || l.startsWith('~')) ? l.slice(1) : l;
-    return '<div class="pl-lyric">' + (escapeHtml(d) || '&nbsp;') + '</div>';
+    return '<div class="pl-lyric">' + (_printRich(d) || '&nbsp;') + '</div>';
   }
   for (var li = 0; li < pLines.length; li++) {
     var line = pLines[li];
@@ -10373,8 +10409,10 @@ ${body}
 
   // ── Build the print document ──
   const _printHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<base href="${_printBaseHref()}">
 <title>${escapeHtml(song.title || 'Song')}</title>
 <style>
+  ${_printFontFaces()}
   ${pageSize}
   ${scalingCSS}
   *{box-sizing:border-box;margin:0;padding:0;}
