@@ -11301,25 +11301,18 @@ function renderABCSong(song) {
   const _abcXS       = document.body.classList.contains('ui-xs');
   const _abcIsMobile = window.innerWidth <= 600;
   const _abcDefaultW = _wtActive ? 580 : 760;
-  let _abcStaffW = _abcDefaultW;
-  let _abcWrap = null;
-  if (_abcIsMobile || _abcXS) {
-    // Note SIZE follows the top-bar SIZE control so it visibly changes the sheet
-    // music. Bigger size ⇒ smaller staffwidth ⇒ responsive scales the staff up
-    // ⇒ bigger notes and fewer bars per line. The viewport width sets the line
-    // length (so landscape fits more bars). Generous note spacing (not the old
-    // tight 1.5) keeps it from looking crammed; abcjs then decides bars-per-line
-    // by density, so a single bar only fills the line when it's dense (~14+ notes)
-    // — light tunes get 2–4 bars per line, justified to an even width.
-    const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
-    // Sheet-music zoom per SIZE setting. Shifted down so the default M matches what
-    // used to be XS (M was rendering too large on phones); S/XS are smaller still,
-    // and L/XL give the old S/M sizes.
-    const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
-    const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
-    _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
-    _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
-  }
+  // Note SIZE follows the top-bar SIZE control on EVERY platform (previously only
+  // mobile/XS scaled, so on desktop S/M/L/XL all looked identical). Bigger size ⇒
+  // smaller staffwidth ⇒ responsive scales the staff up ⇒ bigger notes & fewer
+  // bars per line. Mobile derives the line length from the viewport (landscape
+  // fits more bars); desktop uses a fixed page-ish width. Generous note spacing so
+  // it isn't crammed; abcjs decides bars-per-line by density (a single bar only
+  // fills the line when it's dense, ~14+ notes).
+  const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
+  const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+  const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
+  let _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
+  let _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
   const blocks = song.abc_text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
   blocks.forEach(function(block, i) {
     var titleMatch = block.match(/^T:\s*(.+)/m);
