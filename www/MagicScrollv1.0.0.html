@@ -2015,12 +2015,14 @@
       overflow: visible !important;
       flex-wrap: nowrap !important;
     }
-    /* Each row lays out its own items horizontally */
+    /* Each row lays out its own items horizontally, spread across the full width
+       so the bar doesn't lean to the left. */
     .bt-row {
       display: flex !important;
       flex-direction: row !important;
       flex-wrap: nowrap !important;
       align-items: center !important;
+      justify-content: space-between !important;
       gap: 5px !important;
       width: 100% !important;
     }
@@ -9167,6 +9169,47 @@ if (window.innerWidth <= 520) {
   document.getElementById('sidebar').classList.add('collapsed');
 }
 
+// Re-render sheet music / lead sheet when the viewport changes (e.g. rotating the
+// phone) so the staff width updates — landscape fits more bars per line, portrait
+// fewer. Debounced; ignores pure height changes (e.g. the iOS keyboard).
+(function() {
+  let _lastW = window.innerWidth, _reflowT = null;
+  function _reflowOnResize() {
+    if (window.innerWidth === _lastW) return;   // width unchanged → skip
+    _lastW = window.innerWidth;
+    clearTimeout(_reflowT);
+    _reflowT = setTimeout(function() {
+      if (currentIdx < 0 || !songs[currentIdx]) return;
+      const s = songs[currentIdx];
+      if (s._source === 'abc' && document.getElementById('abc-song-card').style.display !== 'none'
+          && typeof renderABCSong === 'function') {
+        renderABCSong(s);
+      } else if (s._source === 'ireal' && document.getElementById('ireal-song-card').style.display !== 'none'
+          && typeof renderIRealSong === 'function') {
+        renderIRealSong(s);
+        if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+      }
+    }, 250);
+  }
+  window.addEventListener('resize', _reflowOnResize);
+  window.addEventListener('orientationchange', _reflowOnResize);
+})();
+
+// Native status bar: make the system info (clock/battery/Wi-Fi) overlay the top
+// bar and use light (white) glyphs so it's visible on the dark bar. Requires the
+// @capacitor/status-bar plugin (see iOS-native-fixes.md); a no-op in the browser.
+// NOTE: in @capacitor/status-bar, Style.Dark == "light text for dark backgrounds".
+(function() {
+  try {
+    const C = window.Capacitor;
+    const SB = C && C.Plugins && C.Plugins.StatusBar;
+    if (!SB) return;
+    if (SB.setOverlaysWebView) SB.setOverlaysWebView({ overlay: true }).catch(function(){});
+    if (SB.setStyle)           SB.setStyle({ style: 'DARK' }).catch(function(){});
+    if (SB.show)               SB.show().catch(function(){});
+  } catch (e) {}
+})();
+
 // ── TOPBAR COLLAPSE ───────────────────────────────────────────────────────────
 // Using display:none/flex directly — much more reliable than height:0 on sticky
 // flex elements in Firefox. CSS class tricks were silently failing.
@@ -11079,20 +11122,19 @@ function renderABCSong(song) {
   let _abcStaffW = _abcDefaultW;
   if (_abcIsMobile) {
     // Derive the staff width from the viewport (NOT clientWidth, which can read
-    // 0 mid-layout and then differ between tunes — that caused inconsistent
-    // sizing). The card uses ~8px side padding on phones, so this lays the music
-    // out nearly card-wide and renders it ~1.18x natural size, the same for
-    // every tune.
+    // 0 mid-layout and differ between tunes). The card uses ~8px side padding on
+    // phones, so staffwidth ≈ content width ⇒ notes render at natural size, the
+    // same for every tune. A wider viewport (landscape) yields more bars/line.
     const _vw = window.innerWidth || 360;
-    _abcStaffW = Math.max(280, Math.round((_vw - 24) * 0.85));
+    _abcStaffW = Math.max(280, _vw - 24);
   } else if (_abcXS) {
     _abcStaffW = Math.round(_abcDefaultW * 0.62);                 // enlarge notation in XS view
   }
-  // On narrow screens, reflow the music to a uniform 2–3 bars per line (ignoring
-  // the source's line breaks) so dense tunes (e.g. Wizard's Walk) don't cram 4–5
-  // bars onto a line and render lopsided. Sparse tunes still look even.
+  // Reflow to fit the width with tight spacing so a single bar only fills a whole
+  // line when it's genuinely dense (~14+ notes); normal bars pack 2–4 per line.
+  // Low maxSpacing stops abcjs from stretching a short line to full width.
   const _abcWrap = (_abcIsMobile || _abcXS)
-    ? { minSpacing: 1.4, maxSpacing: 2.7, preferredMeasuresPerLine: 3 }
+    ? { minSpacing: 1.0, maxSpacing: 1.5, preferredMeasuresPerLine: 4 }
     : null;
   const blocks = song.abc_text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
   blocks.forEach(function(block, i) {

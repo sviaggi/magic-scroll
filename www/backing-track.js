@@ -57,6 +57,7 @@
   var _displayBar = 0;
   var _totalBars  = 0;
   var _bars_cache = null;
+  var _barMeters  = null;    // effective {num,denom} per cached bar (for mid-song meter changes)
   var _transpose  = 0;       // semitone offset from main app
   var _bt_state   = {};
 
@@ -98,15 +99,71 @@
     var el = document.getElementById('bt-tempo');
     return (el ? parseInt(el.value) : 0) || 120;
   }
-  function _barTimeSig() {
-    var el  = document.getElementById('bt-time-sig');
-    var val = el ? el.value : '4/4';
-    var p   = val.split('/');
+  function _parseSig(val) {
+    var p = String(val || '').split('/');
     return { num: parseInt(p[0]) || 4, denom: parseInt(p[1]) || 4 };
+  }
+  // Value of the Meter control. 'auto' = follow the sheet's per-bar meter changes.
+  function _meterSelVal() {
+    var el = document.getElementById('bt-time-sig');
+    return el ? el.value : '4/4';
+  }
+  function _barTimeSig() {
+    var val = _meterSelVal();
+    if (val === 'auto') return _songInitialSig();
+    return _parseSig(val);
   }
   function _nb()     { return _barTimeSig().num; }
   function _denom()  { return _barTimeSig().denom; }
   function _bs()     { return 60 / _bpm(); }
+
+  // Distinct time signatures appearing in the current song's chart (in order).
+  function _songMeterSet() {
+    var out = [];
+    if (_bt_song && _bt_song.ireal_chart && _bt_song.ireal_chart.bars) {
+      _bt_song.ireal_chart.bars.forEach(function(b) {
+        if (b && b.timeChange && out.indexOf(b.timeChange) === -1) out.push(b.timeChange);
+      });
+    }
+    return out;
+  }
+  // The song's opening meter (first explicit change), else 4/4.
+  function _songInitialSig() {
+    var set = _songMeterSet();
+    return set.length ? _parseSig(set[0]) : { num: 4, denom: 4 };
+  }
+  // Build a per-bar effective meter array, carrying each timeChange forward.
+  function _computeBarMeters(bars) {
+    var out = [], cur = _songInitialSig();
+    for (var i = 0; i < bars.length; i++) {
+      var b = bars[i];
+      if (b && b.timeChange) cur = _parseSig(b.timeChange);
+      out.push(cur);
+    }
+    return out;
+  }
+  // Effective meter for a scheduled bar: a manual selection overrides the sheet;
+  // otherwise ('auto') follow the precomputed per-bar meter.
+  function _meterForBar(bi) {
+    var sel = _meterSelVal();
+    if (sel && sel !== 'auto') return _parseSig(sel);
+    if (_barMeters && _barMeters[bi]) return _barMeters[bi];
+    return _songInitialSig();
+  }
+  // Set the Meter control to match the song: 'N/A' (auto) when it has multiple
+  // meters, the single meter when there's exactly one, else default 4/4.
+  function _initMeterControl() {
+    var sel = document.getElementById('bt-time-sig');
+    if (!sel) return;
+    var set = _songMeterSet();
+    var target;
+    if (set.length > 1) target = 'auto';
+    else if (set.length === 1) {
+      var has = Array.prototype.some.call(sel.options, function(o) { return o.value === set[0]; });
+      target = has ? set[0] : 'auto';
+    } else target = '4/4';
+    sel.value = target;
+  }
 
   // ── IndexedDB font cache ─────────────────────────────────────────────────────
   var _db = null;
@@ -417,7 +474,11 @@
   };
 
   // ── Instrument schedulers ─────────────────────────────────────────────────────
-  function _chords(bar) { return bar ? bar.chords.filter(function(c) { return c.type === 'chord'; }) : []; }
+  function _chords(bar) {
+    if (!bar) return [];
+    if (bar._playChords && bar._playChords.length) return bar._playChords;  // carried-forward % / slash bar
+    return bar.chords.filter(function(c) { return c.type === 'chord'; });
+  }
 
   function scheduleDrums(ctx, dest, bars, bi, t0, barDur, state, nb, denom) {
     var patKey = state.pattern;
@@ -547,7 +608,19 @@
   // Raw bars (no expansion) — used for UI display before playback starts
   function _rawBars() {
     if (!_bt_song || !_bt_song.ireal_chart || !_bt_song.ireal_chart.bars) return [];
-    return _bt_song.ireal_chart.bars.filter(function(b) { return b && b.chords && b.chords.length; });
+    var bars = _bt_song.ireal_chart.bars.filter(function(b) { return b && b.chords && b.chords.length; });
+    // Carry the last real chord forward across % (rep1) and slash bars so the
+    // backing track keeps playing it instead of going silent. Stored on a
+    // transient field that does NOT affect the displayed lead sheet.
+    var lastReal = null;
+    bars.forEach(function(b) {
+      var real = b.chords.filter(function(c) { return c.type === 'chord'; });
+      if (real.length) { lastReal = real; b._playChords = null; }
+      else if (lastReal && b.chords.some(function(c) { return c.type === 'rep1' || c.type === 'slash'; })) {
+        b._playChords = lastReal;
+      } else { b._playChords = null; }
+    });
+    return bars;
   }
 
   // Expand {…} repeat sections into a flat bar sequence for one pass through the form.
@@ -609,14 +682,14 @@
     if (!_running) return;
     var ctx = _ctx(); if (!ctx) return;
     var bars = _bars(); if (!bars.length) return;
-    var nb     = _nb(), denom = _denom(), bs = _bs();
-    var barDur = nb * bs;
+    if (!_barMeters || _barMeters.length !== bars.length) _barMeters = _computeBarMeters(bars);
+    var bs     = _bs();
     var now    = ctx.currentTime;
     // Auto-stop when all bars have been scheduled
     if (_schedBar >= bars.length) {
       _running = false; _paused = false;
       if (_schedID) { clearInterval(_schedID); _schedID = null; }
-      _bars_cache = null; _schedBar = 0; _displayBar = 0;
+      _bars_cache = null; _barMeters = null; _schedBar = 0; _displayBar = 0;
       document.querySelectorAll('.ls-bar.bt-playing').forEach(function(el) { el.classList.remove('bt-playing'); });
       var pb = document.getElementById('bt-play-btn');
       if (pb) { pb.textContent = '▶'; pb.classList.remove('bt-running'); }
@@ -628,6 +701,9 @@
     }
     while (_schedNext < now + LOOKAHEAD && _schedBar < bars.length) {
       var bi = _schedBar, t0 = _schedNext;
+      var sig = _meterForBar(bi);            // per-bar meter (follows mid-song changes)
+      var nb = sig.num, denom = sig.denom;
+      var barDur = nb * bs;
       (function(idx, when, chartIdx) {
         setTimeout(function() {
           if (!_running) return;
@@ -680,6 +756,7 @@
     _bars_cache = [];
     for (var p = 0; p < plays; p++) _bars_cache = _bars_cache.concat(onePass);
     _totalBars = _bars_cache.length;
+    _barMeters = _computeBarMeters(_bars_cache);   // per-bar meters for the whole pass
 
     // Clamp startBar to the expanded length
     _schedBar   = Math.max(0, Math.min(typeof startBar === 'number' ? startBar : 0, _bars_cache.length - 1));
@@ -758,10 +835,33 @@
   function btStart() { _btStartFromBar(0); }
 
   // ── Bar open/close ────────────────────────────────────────────────────────────
+  // Reserve blank space at the bottom of the scroll area equal to the playbar's
+  // height (it's fixed-position and can be 2–3 rows tall on phones) so it never
+  // covers the last lines of a lead sheet / song.
+  var _btPadObserver = null;
+  function _btAdjustBottomPad() {
+    var bar  = document.getElementById('bt-bar');
+    var main = document.getElementById('main');
+    if (!main) return;
+    if (bar && bar.style.display !== 'none' && bar.offsetParent !== null) {
+      // The bar sits ~38px above the screen bottom; clear its full height + that gap.
+      var reserve = bar.offsetHeight + 48;
+      main.style.paddingBottom = reserve + 'px';
+    } else {
+      main.style.paddingBottom = '';
+    }
+  }
+
   function btOpenBar(song) {
     // Show the bar immediately — before any stop/reset that might throw
     var bar = document.getElementById('bt-bar');
     if (bar) bar.style.display = '';
+    // Keep the bottom padding in sync with the bar's (variable) height.
+    if (bar && typeof ResizeObserver !== 'undefined' && !_btPadObserver) {
+      _btPadObserver = new ResizeObserver(function() { _btAdjustBottomPad(); });
+      _btPadObserver.observe(bar);
+    }
+    setTimeout(_btAdjustBottomPad, 0);
     if (song && song !== _bt_song && _running) { try { btStop(); } catch(e) { console.error('[BT] btStop error:', e); } }
     if (song) _bt_song = song;
     // Annotate each bar with its chart index so the tick highlights the right cell during repeats
@@ -772,7 +872,8 @@
     // Refresh plays control to match the new song's default
     var playsEl = document.getElementById('bt-plays');
     if (playsEl && _bt_song) playsEl.value = String(_bt_song.plays || 3);
-    _bars_cache = null;  // clear any stale expansion
+    _initMeterControl();  // N/A for multi-meter songs, else the song's meter
+    _bars_cache = null; _barMeters = null;  // clear any stale expansion
     var rawB = _rawBars(); _totalBars = rawB.length;
     var prog = document.getElementById('bt-progress');
     if (prog) { prog.max = String(Math.max(0, rawB.length - 1)); prog.value = '0'; }
@@ -784,6 +885,7 @@
     btStop();
     var bar = document.getElementById('bt-bar');
     if (bar) bar.style.display = 'none';
+    _btAdjustBottomPad();   // release the reserved space
   }
 
   // ── UI builder ────────────────────────────────────────────────────────────────
@@ -918,11 +1020,14 @@
 
     var timeSigSel = document.createElement('select');
     timeSigSel.id = 'bt-time-sig'; timeSigSel.className = 'bt-ctrl-btn';
-    ['4/4','3/4','2/4','6/8','5/4','7/8'].forEach(function(v) {
+    // 'auto' (shown as N/A) = follow the sheet's per-bar meter, including
+    // mid-song time-signature changes. Any explicit choice overrides the sheet.
+    [['auto','N/A'],['4/4','4/4'],['3/4','3/4'],['2/4','2/4'],['6/8','6/8'],['5/4','5/4'],['7/8','7/8']].forEach(function(v) {
       var opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
+      opt.value = v[0]; opt.textContent = v[1];
       timeSigSel.appendChild(opt);
     });
+    timeSigSel.title = 'Meter — N/A follows the sheet (and any meter changes within it); pick a value to force a fixed meter';
     row2.appendChild(timeSigSel);
 
     controls.appendChild(row2);
