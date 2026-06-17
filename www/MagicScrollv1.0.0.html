@@ -10123,6 +10123,38 @@ function _printFontFaces() {
   } catch (e) {}
   return css;
 }
+function _abufToB64(buf) {
+  var bytes = new Uint8Array(buf), bin = '', CH = 0x8000;
+  for (var i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  return btoa(bin);
+}
+// Like _printFontFaces() but with the local font files inlined as data: URIs, so
+// the fonts work in a print/PDF context that can't resolve capacitor:// or
+// relative URLs (the native PDF renderer + the iOS print formatter). Cached.
+var _printFontCSSCache = null;
+async function _printFontFacesEmbedded() {
+  if (_printFontCSSCache != null) return _printFontCSSCache;
+  var css = _printFontFaces();
+  var seen = {};
+  var matches = css.match(/url\((['"]?)[^'")]+\1\)/g) || [];
+  for (var k = 0; k < matches.length; k++) {
+    var um = matches[k].match(/url\((['"]?)([^'")]+)\1\)/);
+    if (!um) continue;
+    var u = um[2];
+    if (/^data:/.test(u) || seen[u]) continue;
+    seen[u] = true;
+    if (/^https?:\/\//.test(u) && !/\/localhost/.test(u)) continue;  // leave CDN fonts as network URLs
+    try {
+      var r = await fetch(u); if (!r.ok) continue;
+      var b = await r.arrayBuffer();
+      var ext = ((u.split('?')[0].match(/\.(\w+)$/) || [])[1] || 'otf').toLowerCase();
+      var mime = ext === 'woff2' ? 'font/woff2' : ext === 'woff' ? 'font/woff' : ext === 'ttf' ? 'font/ttf' : 'font/otf';
+      css = css.split(u).join('data:' + mime + ';base64,' + _abufToB64(b));
+    } catch (e) {}
+  }
+  _printFontCSSCache = css;
+  return css;
+}
 // Directory URL of the app, so relative font/image paths resolve in the print doc.
 function _printBaseHref() {
   return location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
@@ -10152,14 +10184,27 @@ function _printRich(s) {
           .replace(/_([^_\n]+)_/g,        '<u>$1</u>');
 }
 
-// Emit a print/PDF document. In the native app, window.open + window.print() do
-// nothing in the WKWebView, so route through the @capgo/capacitor-printer plugin
-// (Swift; opens the iOS print sheet, which includes "Save to PDF" / AirPrint).
-// On the desktop web it opens the usual print window, guarding a blocked popup.
-function _emitPrintDoc(html, jobName) {
-  var P = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Printer) || null;
-  if (_isNativeApp() && P && typeof P.printHtml === 'function') {
-    P.printHtml({ name: jobName || 'Magic Scroll', html: html })
+// Emit a print/PDF document.
+// Native: iOS's printHtml uses UIMarkupTextPrintFormatter, which ignores
+// @font-face (custom fonts) and CSS columns. So we render the HTML to a PDF in a
+// real WebKit context (@capgo/capacitor-pdf-generator → WKWebView, full fidelity)
+// and print THAT — fonts, columns and SVG all survive. Falls back to printHtml if
+// the PDF generator isn't installed, and to a print window on desktop.
+async function _emitPrintDoc(html, jobName) {
+  var P = (window.Capacitor && window.Capacitor.Plugins) || {};
+  if (_isNativeApp() && P.PdfGenerator && P.Printer) {
+    try {
+      var res = await P.PdfGenerator.fromData({
+        data: html, type: 'base64', documentSize: 'Letter', orientation: 'portrait'
+      });
+      if (res && res.base64) {
+        await P.Printer.printBase64({ data: res.base64, mimeType: 'application/pdf', name: jobName || 'Magic Scroll' });
+        return;
+      }
+    } catch (e) { /* fall through to printHtml */ }
+  }
+  if (_isNativeApp() && P.Printer && typeof P.Printer.printHtml === 'function') {
+    P.Printer.printHtml({ name: jobName || 'Magic Scroll', html: html })
      .catch(function (e) { alert('Print failed: ' + ((e && e.message) || e)); });
     return;
   }
@@ -10174,11 +10219,13 @@ function _emitPrintDoc(html, jobName) {
   setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
 }
 
-document.getElementById('btn-print-go').addEventListener('click', () => {
+document.getElementById('btn-print-go').addEventListener('click', async () => {
   if (currentIdx < 0) { alert('No song loaded.'); return; }
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
 
   const song     = songs[currentIdx];
+  // Fonts inlined as data: URIs so they survive the native PDF/print renderer.
+  const _fontCSS = await _printFontFacesEmbedded();
 
   // ABC sheet music: re-render at a fixed PAGE width (not the on-screen mobile
   // scale) so it fits paper, one SVG per staff line so the print can paginate
@@ -10218,7 +10265,7 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
 <base href="${_printBaseHref()}">
 <title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
 <style>
-  ${_printFontFaces()}
+  ${_fontCSS}
   /* margin:0 suppresses the browser's auto page header/footer (title/URL/date/
      page number); the visual page margin is applied as body padding instead. */
   @page { margin: 0; }
@@ -10257,7 +10304,7 @@ ${body}
 <base href="${_printBaseHref()}">
 <title>${(song.title||'Lead sheet').replace(/</g,'&lt;')}</title>
 <style>
-  ${_printFontFaces()}
+  ${_fontCSS}
   /* margin:0 suppresses the browser's auto header/footer; visual margin via body padding. */
   @page { margin: 0; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
@@ -10430,7 +10477,7 @@ ${body}
 <base href="${_printBaseHref()}">
 <title>${escapeHtml(song.title || 'Song')}</title>
 <style>
-  ${_printFontFaces()}
+  ${_fontCSS}
   ${pageSize}
   ${scalingCSS}
   *{box-sizing:border-box;margin:0;padding:0;}
