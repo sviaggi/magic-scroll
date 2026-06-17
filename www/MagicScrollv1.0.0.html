@@ -3155,7 +3155,7 @@ Magic Scroll is compatible with song/chord charts (see Worth the Weight), lead s
 Chord sheets are usually formatted like this:
       C                        F                         G                    Am
 Here are some examples of lyrics I could type
-Am9                      Dm11sus4                            Gmaj7add9
+Am9                      Dm11                                          G7
 Here are some needlessly overwrought chords
 
 You can transpose these chords with the buttons available in the top bar, as well as simplify more difficult chords depending on your skill level. These options work across all types of music, so your sheet music and lead sheets can be transposed and simplified as well. If you're not interested in playing guitar, you can select chord diagrams for plenty of other instruments and tuning systems!
@@ -10046,17 +10046,19 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
 
 
 // Emit a print/PDF document. In the native app, window.open + window.print() do
-// nothing in the webview, so route through the cordova-plugin-printer bridge when
-// present (gives the iOS print sheet → "Save to PDF" / AirPrint). On the desktop
-// web it opens the usual print window, guarding against a blocked popup.
+// nothing in the WKWebView, so route through the @capgo/capacitor-printer plugin
+// (Swift; opens the iOS print sheet, which includes "Save to PDF" / AirPrint).
+// On the desktop web it opens the usual print window, guarding a blocked popup.
 function _emitPrintDoc(html, jobName) {
-  if (_isNativeApp() && window.cordova && window.cordova.plugins && window.cordova.plugins.printer) {
-    try { window.cordova.plugins.printer.print(html, { name: jobName || 'Magic Scroll' }); return; }
-    catch (e) { /* fall through to the window path */ }
+  var P = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Printer) || null;
+  if (_isNativeApp() && P && typeof P.printHtml === 'function') {
+    P.printHtml({ name: jobName || 'Magic Scroll', html: html })
+     .catch(function (e) { alert('Print failed: ' + ((e && e.message) || e)); });
+    return;
   }
   const win = window.open('', '_blank', 'width=900,height=700');
   if (!win) {
-    alert('Couldn’t open the print view. On iOS, install the printer plugin (see iOS-native-fixes.md) or use the system Share → Print / Save as PDF.');
+    alert('Couldn’t open the print view. Please allow pop-ups, or use your browser’s Print / Save as PDF.');
     return;
   }
   win.document.write(html);
