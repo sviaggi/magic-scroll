@@ -10127,6 +10127,22 @@ function _printFontFaces() {
 function _printBaseHref() {
   return location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
 }
+// Resolve the fonts to use in a print document, honouring the Print panel's font
+// dropdown; 'default' uses the app's current --font-* values (e.g. Valeson) so
+// printed lead sheets / sheet music match what the user selected on screen.
+function _resolvePrintFonts() {
+  var STACKS = { georgia:'"Georgia", serif', arial:'"Arial", sans-serif',
+                 times:'"Times New Roman", serif', palatino:'"Palatino Linotype","Book Antiqua",serif' };
+  var sel = document.getElementById('pp-font');
+  var opt = sel ? sel.value : 'default';
+  if (opt !== 'default' && STACKS[opt]) return { body: STACKS[opt], title: STACKS[opt], chord: STACKS[opt] };
+  var cs = window.getComputedStyle(document.documentElement);
+  var body  = cs.getPropertyValue('--font-mono').trim()    || "'Courier Prime','Courier New',monospace";
+  var title = cs.getPropertyValue('--font-display').trim() || 'serif';
+  var chord = cs.getPropertyValue('--font-chord').trim()   || body;
+  return { body: body, title: title, chord: chord };
+}
+
 // Escape + apply the same inline rich-text markup used on screen (**bold**,
 // *italic*, _underline_) so printed lyrics aren't raw plaintext with asterisks.
 function _printRich(s) {
@@ -10173,6 +10189,7 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
     const blk      = blocks[tuneIdx] || blocks[0] || '';
     const tm       = blk.match(/^T:\s*(.+)/m);
     const tuneTitle= tm ? tm[1].trim() : song.title;
+    const _pf      = _resolvePrintFonts();
 
     // Off-screen render at print scale. ~680px staff fits a Letter/A4 page once
     // the print body padding is applied. Kept on-screen-positioned (not display
@@ -10207,9 +10224,9 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
   @page { margin: 0; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
-  body { font-family:serif; background:white; color:#1a1208; margin:0; padding:1.2cm 1.4cm; }
-  h1   { font-size:16pt; margin:0 0 3pt; line-height:1.2; }
-  h2   { font-size:11pt; font-style:italic; font-weight:normal; color:#555;
+  body { font-family:${_pf.body}; background:white; color:#1a1208; margin:0; padding:1.2cm 1.4cm; }
+  h1   { font-family:${_pf.title}; font-size:16pt; margin:0 0 3pt; line-height:1.2; }
+  h2   { font-family:${_pf.title}; font-size:11pt; font-style:italic; font-weight:normal; color:#555;
          margin:0 0 12pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
   /* Each staff line (and its whistle tabs) stays together; a line that would run
      off the page bottom moves to the next page. */
@@ -10235,6 +10252,7 @@ ${body}
   if (song._source === 'ireal') {
     const content = document.getElementById('ireal-content');
     if (!content || !content.innerHTML.trim()) { alert('Open the lead sheet first.'); return; }
+    const _pf = _resolvePrintFonts();
     const _lsHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <base href="${_printBaseHref()}">
 <title>${(song.title||'Lead sheet').replace(/</g,'&lt;')}</title>
@@ -10244,16 +10262,16 @@ ${body}
   @page { margin: 0; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
-  body { font-family:serif; background:#fff; color:#111; margin:0; padding:1.2cm 1.4cm; }
+  body { font-family:${_pf.body}; background:#fff; color:#111; margin:0; padding:1.2cm 1.4cm; }
   .song-header { margin-bottom:14px; border-bottom:1px solid #ccc; padding-bottom:8px; }
-  .song-main-title { font-size:18pt; font-weight:700; margin:0; }
-  .song-artist { font-style:italic; font-size:12pt; color:#444; margin-top:2px; }
+  .song-main-title { font-family:${_pf.title}; font-size:18pt; font-weight:700; margin:0; }
+  .song-artist { font-family:${_pf.title}; font-style:italic; font-size:12pt; color:#444; margin-top:2px; }
   .song-meta { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:6px; font-size:9pt; color:#555; }
   .ls-grid { display:grid; grid-template-columns:repeat(4,1fr); border-left:1.5px solid #111; row-gap:10px; }
   .ls-bar { border-right:1.5px solid #111; padding:14px 4px 6px; min-height:64px; position:relative;
             display:flex; flex-wrap:wrap; gap:3px 6px; align-items:center; justify-content:center;
             page-break-inside:avoid; }
-  .ls-chord-nm { font-weight:bold; white-space:nowrap; }
+  .ls-chord-nm { font-family:${_pf.chord}; font-weight:bold; white-space:nowrap; }
   .ls-rep-sym, .ls-nc { color:#111; }
   .ls-section-lbl, .ls-timesig, .ls-ending { font-size:8pt; color:#555; }
   .ls-notes-wrap { margin-top:14px; }
