@@ -2133,7 +2133,14 @@
      stay compact and don't run too tall. */
   @media (max-width: 520px) {
     body #ireal-song-card { padding: 16px 2px 20px !important; }
+    /* Keep the grid full-width, but indent the title/meta + notes so they line up
+       with the headers on songs and sheet music instead of hugging the far edge. */
+    #ireal-song-card .song-header,
+    #ireal-song-card .ls-notes-wrap { padding-left: 10px; padding-right: 10px; }
   }
+  /* Long titles/meta wrap onto new lines rather than overflowing. */
+  #ireal-song-card .song-main-title { overflow-wrap: anywhere; }
+  #ireal-song-card .song-meta { flex-wrap: wrap; }
   /* ── Repeat bars — thick line + thin line + two dots ──────────────────── */
   .ls-bar.ls-rep-open{border-left:2px solid var(--c-accent);padding-left:14px;}
   .ls-bar.ls-rep-open::before{content:'';position:absolute;left:4px;top:8%;height:84%;
@@ -3165,7 +3172,7 @@ Magic Scroll is compatible with song/chord charts (see Worth the Weight), lead s
 Chord sheets are usually formatted like this:
       C                        F                         G                    Am
 Here are some examples of lyrics I could type
-Am9                      Dm11                                          G7
+Am9                      Dm11sus4                            Gmaj7add9
 Here are some needlessly overwrought chords
 
 You can transpose these chords with the buttons available in the top bar, as well as simplify more difficult chords depending on your skill level. These options work across all types of music, so your sheet music and lead sheets can be transposed and simplified as well. If you're not interested in playing guitar, you can select chord diagrams for plenty of other instruments and tuning systems!
@@ -3268,7 +3275,10 @@ function saveFolders() {
 function saveAll() { saveSongs(); saveFolders(); }
 
 // ── THEME — applies body class + tries to load a matching background image ───
-const THEME_IMAGE = { '': 'parchment', 'theme-dark': 'obsidian', 'theme-green': 'mossy', 'theme-session': 'session' };
+// Stems are Title Case to match the (case-sensitive) image filenames in the repo:
+// Parchment.jpg, Obsidian.jpg, Mossy.jpg, Session.jpg. applyTheme() appends the
+// extension (tries .png/.jpg/.jpeg) so the .jpg files are found automatically.
+const THEME_IMAGE = { '': 'Parchment', 'theme-dark': 'Obsidian', 'theme-green': 'Mossy', 'theme-session': 'Session' };
 
 function applyTheme(themeClass) {
   document.body.className = themeClass;
@@ -10097,6 +10107,51 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
 });
 
 
+// Collect every @font-face rule on the page so the print document can embed the
+// same custom fonts (Valeson, Courier Prime, etc.) — otherwise the print window
+// has no font files and falls back to generic Courier/serif.
+function _printFontFaces() {
+  var css = '';
+  try {
+    for (var i = 0; i < document.styleSheets.length; i++) {
+      var rules; try { rules = document.styleSheets[i].cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      for (var j = 0; j < rules.length; j++) {
+        try { if (rules[j].type === 5 /* CSSRule.FONT_FACE_RULE */) css += rules[j].cssText + '\n'; } catch (e) {}
+      }
+    }
+  } catch (e) {}
+  return css;
+}
+// Directory URL of the app, so relative font/image paths resolve in the print doc.
+function _printBaseHref() {
+  return location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
+}
+// Resolve the fonts to use in a print document, honouring the Print panel's font
+// dropdown; 'default' uses the app's current --font-* values (e.g. Valeson) so
+// printed lead sheets / sheet music match what the user selected on screen.
+function _resolvePrintFonts() {
+  var STACKS = { georgia:'"Georgia", serif', arial:'"Arial", sans-serif',
+                 times:'"Times New Roman", serif', palatino:'"Palatino Linotype","Book Antiqua",serif' };
+  var sel = document.getElementById('pp-font');
+  var opt = sel ? sel.value : 'default';
+  if (opt !== 'default' && STACKS[opt]) return { body: STACKS[opt], title: STACKS[opt], chord: STACKS[opt] };
+  var cs = window.getComputedStyle(document.documentElement);
+  var body  = cs.getPropertyValue('--font-mono').trim()    || "'Courier Prime','Courier New',monospace";
+  var title = cs.getPropertyValue('--font-display').trim() || 'serif';
+  var chord = cs.getPropertyValue('--font-chord').trim()   || body;
+  return { body: body, title: title, chord: chord };
+}
+
+// Escape + apply the same inline rich-text markup used on screen (**bold**,
+// *italic*, _underline_) so printed lyrics aren't raw plaintext with asterisks.
+function _printRich(s) {
+  s = escapeHtml(s);
+  return s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*([^*\n]+)\*/g,     '<em>$1</em>')
+          .replace(/_([^_\n]+)_/g,        '<u>$1</u>');
+}
+
 // Emit a print/PDF document. In the native app, window.open + window.print() do
 // nothing in the WKWebView, so route through the @capgo/capacitor-printer plugin
 // (Swift; opens the iOS print sheet, which includes "Save to PDF" / AirPrint).
@@ -10125,39 +10180,108 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
 
   const song     = songs[currentIdx];
 
-  // ABC songs: capture the rendered SVG and print that directly
+  // ABC sheet music: re-render at a fixed PAGE width (not the on-screen mobile
+  // scale) so it fits paper, one SVG per staff line so the print can paginate
+  // between lines, and re-inject whistle tabs if they're on.
   if (song._source === 'abc') {
-    // Get the selected tune's notation div (or first if only one)
     const tuneIdx  = parseInt(document.getElementById('pp-tune-idx')?.value || '0') || 0;
-    const notDiv   = document.getElementById('abc-notation-' + tuneIdx)
-                   || document.getElementById('abc-notation');
-    const svgEl    = notDiv && notDiv.querySelector('svg');
-    if (!svgEl) { alert('No sheet music rendered yet.'); return; }
-    // Get the tune title for the print heading
     const blocks   = song.abc_text.split(/(?=^X:\s*\d)/m).filter(b=>b.trim());
     const blk      = blocks[tuneIdx] || blocks[0] || '';
     const tm       = blk.match(/^T:\s*(.+)/m);
     const tuneTitle= tm ? tm[1].trim() : song.title;
-    const svgHTML  = svgEl.outerHTML;
-    const _abcPrintHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    const _pf      = _resolvePrintFonts();
+
+    // Off-screen render at print scale. ~680px staff fits a Letter/A4 page once
+    // the print body padding is applied. Kept on-screen-positioned (not display
+    // none) so getBBox works for tab placement.
+    const tmp = document.createElement('div');
+    tmp.id = '_abc-print-tmp';
+    tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:760px;';
+    document.body.appendChild(tmp);
+    let _vo;
+    try {
+      _vo = ABCJS.renderAbc(tmp, blk, {
+        staffwidth: 680, scale: 1.0, oneSvgPerLine: true,
+        paddingtop: 8, paddingbottom: _wtActive ? 88 : 14,
+        visualTranspose: transposeAmount,
+      });
+    } catch (e) { /* fall through; tmp may still hold a render */ }
+
+    const _finishAbcPrint = function() {
+      let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
+      if (_wtActive) { try { _wtInjectTabsPrint(svgs); } catch (e) {} }
+      let body = svgs.length
+        ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
+        : tmp.innerHTML;
+      if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<base href="${_printBaseHref()}">
 <title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
 <style>
-  @page { margin:0; }
+  ${_printFontFaces()}
+  /* margin:0 suppresses the browser's auto page header/footer (title/URL/date/
+     page number); the visual page margin is applied as body padding instead. */
+  @page { margin: 0; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
-  body { font-family:serif; background:white; color:#1a1208; margin:0; padding:1.4cm 1.6cm; }
-  h1   { font-size:16pt; margin:0 0 3pt; line-height:1.2; }
-  h2   { font-size:11pt; font-style:italic; font-weight:normal; color:#555;
-         margin:0 0 10pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
+  body { font-family:${_pf.body}; background:white; color:#1a1208; margin:0; padding:1.2cm 1.4cm; }
+  h1   { font-family:${_pf.title}; font-size:16pt; margin:0 0 3pt; line-height:1.2; }
+  h2   { font-family:${_pf.title}; font-size:11pt; font-style:italic; font-weight:normal; color:#555;
+         margin:0 0 12pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
+  /* Each staff line (and its whistle tabs) stays together; a line that would run
+     off the page bottom moves to the next page. */
+  .abc-pline { page-break-inside: avoid; break-inside: avoid; margin: 0 0 4pt; }
   svg  { display:block; max-width:100%; height:auto; overflow:visible; }
   svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#1a1208 !important; }
   svg line { stroke:#1a1208 !important; }
+  .wt-tab { color:#1a1208 !important; }
 </style></head><body>
 <h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
 <h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
-${svgHTML}
+${body}
 </body></html>`;
-    _emitPrintDoc(_abcPrintHTML, tuneTitle || song.title);
+      _emitPrintDoc(html, tuneTitle || song.title);
+    };
+    // Wait two frames so the off-screen SVGs have laid out (getBBox valid).
+    requestAnimationFrame(function(){ requestAnimationFrame(_finishAbcPrint); });
+    return;
+  }
+
+  // Lead sheets (iReal): the chord grid is HTML, not tab_content — capture the
+  // rendered content and print it with a self-contained black-on-white stylesheet.
+  if (song._source === 'ireal') {
+    const content = document.getElementById('ireal-content');
+    if (!content || !content.innerHTML.trim()) { alert('Open the lead sheet first.'); return; }
+    const _pf = _resolvePrintFonts();
+    const _lsHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<base href="${_printBaseHref()}">
+<title>${(song.title||'Lead sheet').replace(/</g,'&lt;')}</title>
+<style>
+  ${_printFontFaces()}
+  /* margin:0 suppresses the browser's auto header/footer; visual margin via body padding. */
+  @page { margin: 0; }
+  html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  * { box-sizing:border-box; }
+  body { font-family:${_pf.body}; background:#fff; color:#111; margin:0; padding:1.2cm 1.4cm; }
+  .song-header { margin-bottom:14px; border-bottom:1px solid #ccc; padding-bottom:8px; }
+  .song-main-title { font-family:${_pf.title}; font-size:18pt; font-weight:700; margin:0; }
+  .song-artist { font-family:${_pf.title}; font-style:italic; font-size:12pt; color:#444; margin-top:2px; }
+  .song-meta { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:6px; font-size:9pt; color:#555; }
+  .ls-grid { display:grid; grid-template-columns:repeat(4,1fr); border-left:1.5px solid #111; row-gap:10px; }
+  .ls-bar { border-right:1.5px solid #111; padding:14px 4px 6px; min-height:64px; position:relative;
+            display:flex; flex-wrap:wrap; gap:3px 6px; align-items:center; justify-content:center;
+            page-break-inside:avoid; }
+  .ls-chord-nm { font-family:${_pf.chord}; font-weight:bold; white-space:nowrap; }
+  .ls-rep-sym, .ls-nc { color:#111; }
+  .ls-section-lbl, .ls-timesig, .ls-ending { font-size:8pt; color:#555; }
+  .ls-notes-wrap { margin-top:14px; }
+  .ls-notes-label { font-size:8pt; font-weight:bold; text-transform:uppercase; letter-spacing:0.06em; color:#555; margin-bottom:4px; }
+  .ls-notes-view, .ls-notes-ta { font-size:10pt; line-height:1.6; white-space:pre-wrap; color:#111; }
+  .ls-kebab-btn { display:none !important; }
+  svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#111 !important; }
+  svg line { stroke:#111 !important; }
+</style></head><body>${content.innerHTML}</body></html>`;
+    _emitPrintDoc(_lsHTML, song.title);
     return;
   }
 
@@ -10196,7 +10320,7 @@ ${svgHTML}
   // ── Background ──
   let bgCSS = '';
   if (bgOpt === 'parchment') {
-    bgCSS = 'background-image:url("parchment.jpg");background-size:cover;';
+    bgCSS = 'background-image:url("Parchment.jpg");background-size:cover;';
   } else if (bgOpt === 'custom') {
     const main = document.getElementById('main');
     const bi   = main.style.backgroundImage;
@@ -10272,7 +10396,7 @@ ${svgHTML}
   }
   function renderLyricDiv(l) {
     var d = (l.startsWith('!') || l.startsWith('~')) ? l.slice(1) : l;
-    return '<div class="pl-lyric">' + (escapeHtml(d) || '&nbsp;') + '</div>';
+    return '<div class="pl-lyric">' + (_printRich(d) || '&nbsp;') + '</div>';
   }
   for (var li = 0; li < pLines.length; li++) {
     var line = pLines[li];
@@ -10303,8 +10427,10 @@ ${svgHTML}
 
   // ── Build the print document ──
   const _printHTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<base href="${_printBaseHref()}">
 <title>${escapeHtml(song.title || 'Song')}</title>
 <style>
+  ${_printFontFaces()}
   ${pageSize}
   ${scalingCSS}
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -11139,7 +11265,10 @@ function renderABCSong(song) {
     // by density, so a single bar only fills the line when it's dense (~14+ notes)
     // — light tunes get 2–4 bars per line, justified to an even width.
     const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
-    const _abcZoom = ({ 'fs-xs': 1.0, 'fs-sm': 1.15, 'fs-md': 1.3, 'fs-lg': 1.55, 'fs-xl': 1.85 })[_abcSz] || 1.3;
+    // Sheet-music zoom per SIZE setting. Shifted down so the default M matches what
+    // used to be XS (M was rendering too large on phones); S/XS are smaller still,
+    // and L/XL give the old S/M sizes.
+    const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
     const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
     _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
     _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
@@ -11895,6 +12024,48 @@ function _wtInjectTabs(notDiv, visualObj) {
       g.setAttribute('transform', 'translate(' + ni.x + ',' + ni.sys.tabY + ')');
       svgEl.appendChild(g);
     }
+  });
+}
+
+// Inject whistle tabs for PRINT: one staff line per SVG (oneSvgPerLine), so each
+// SVG is a single system. Consumes the tune's MIDI sequence in order across the
+// SVGs and drops a fingering diagram under each note. Synchronous (caller waits a
+// couple of frames so getBBox is valid). Heavily guarded — never breaks the print.
+function _wtInjectTabsPrint(svgs) {
+  var song = currentIdx >= 0 ? songs[currentIdx] : null;
+  if (!song || !song.abc_text || !svgs || !svgs.length) return;
+  var midiSeq = [];
+  try {
+    abcToNotes(song.abc_text, 120, transposeAmount || 0)
+      .filter(function(n){ return n.freq > 0; })
+      .forEach(function(n){ midiSeq.push(Math.round(freqToMidi(n.freq))); });
+  } catch (e) {}
+  if (!midiSeq.length) return;
+  var idx = 0;
+  svgs.forEach(function(svgEl) {
+    var noteEls = Array.prototype.slice.call(svgEl.querySelectorAll('.abcjs-note'))
+      .filter(function(el){ return !el.classList.contains('abcjs-gracenote') && !el.closest('.abcjs-gracenote'); });
+    if (!noteEls.length) return;
+    var maxBot = 0, infos = [];
+    noteEls.forEach(function(el) {
+      try {
+        var bb = el.getBBox();
+        if (bb.width === 0 && bb.height === 0) { infos.push(null); return; }
+        if (bb.y + bb.height > maxBot) maxBot = bb.y + bb.height;
+        infos.push({ x: bb.x + bb.width / 2 });
+      } catch (e) { infos.push(null); }
+    });
+    var svgH = (svgEl.viewBox && svgEl.viewBox.baseVal.height > 0)
+             ? svgEl.viewBox.baseVal.height
+             : parseFloat(svgEl.getAttribute('height') || '120');
+    var tabY = maxBot + Math.max(14, (svgH - maxBot) * 0.45);
+    infos.forEach(function(info) {
+      var midi = midiSeq[idx++];
+      if (!info || midi == null) return;
+      var g = _wtDiagramGroup(midi);
+      g.setAttribute('transform', 'translate(' + info.x + ',' + tabY + ')');
+      svgEl.appendChild(g);
+    });
   });
 }
 
