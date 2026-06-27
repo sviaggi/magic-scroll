@@ -1589,9 +1589,14 @@
   /* ── CHORD HOVER TOOLTIP ─────────────────────────────────────────────────────
      Small floating diagram that appears when hovering a chord token.
      pointer-events:none so it never interferes with mouse events. */
-  /* ABC chord symbols wired for diagram hover/tap */
-  .abc-chord-sym { cursor: pointer; }
-  .abc-chord-sym:hover { fill: var(--c-accent); }
+  /* ABC chord symbols: match the app's chord styling — chord font + chord colour
+     (e.g. Valeson, dark red) — overriding abcjs's default serif/ink. */
+  .abc-chord-sym {
+    cursor: pointer;
+    fill: var(--c-chord-text) !important;
+    font-family: var(--font-chord) !important;
+  }
+  .abc-chord-sym:hover { fill: var(--c-accent) !important; }
   #chord-hover-tooltip {
     position: fixed;
     z-index: 600;
