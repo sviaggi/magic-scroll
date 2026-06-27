@@ -1589,6 +1589,9 @@
   /* ── CHORD HOVER TOOLTIP ─────────────────────────────────────────────────────
      Small floating diagram that appears when hovering a chord token.
      pointer-events:none so it never interferes with mouse events. */
+  /* ABC chord symbols wired for diagram hover/tap */
+  .abc-chord-sym { cursor: pointer; }
+  .abc-chord-sym:hover { fill: var(--c-accent); }
   #chord-hover-tooltip {
     position: fixed;
     z-index: 600;
@@ -8757,9 +8760,14 @@ function syncDiagramsToSong(){
 // Uses whichever instrument tab is currently active in the Diagrams panel.
 const chordHoverEl = document.getElementById('chord-hover-tooltip');
 
+// abcjs renders chord-symbol accidentals as ♭/♯ glyphs; normalise to ASCII b/#.
+function _normChordText(s) { return (s || '').replace(/♭/g, 'b').replace(/♯/g, '#'); }
+
 function showChordTooltip(span, x, y) {
-  const name = cleanToken(span.textContent.trim());
-  // span text is already the transposed name — don't transpose again
+  // span text is already the transposed name (abcjs/transposeText) — don't transpose
+  // again; just normalise ♭/♯ and, if Simplify is on, reduce to root form.
+  let name = _normChordText(cleanToken(span.textContent.trim()));
+  if (isSimplifiedView && typeof simplifyChord === 'function') name = simplifyChord(name);
   const svg = renderChordDiagram(name, resolveInst(currentInstrument));
   if (!svg) { chordHoverEl.style.display = 'none'; return; }
   chordHoverEl.innerHTML = '<div class="cht-name">' + name + '</div>' + svg;
@@ -8791,6 +8799,45 @@ document.getElementById('tab-content').addEventListener('mousemove', e => {
 document.getElementById('tab-content').addEventListener('mouseleave', () => {
   chordHoverEl.style.display = 'none';
 });
+
+// ── ABC sheet-music chord symbols → chord diagrams ────────────────────────────
+// Mark the "G"-style chord symbols rendered above the staff (already transposed
+// by abcjs via visualTranspose) so they show a diagram on hover/tap, like song
+// chord tokens. Called after each tune renders.
+function _wireAbcChordDiagrams(notDiv) {
+  if (!notDiv) return;
+  var els = notDiv.querySelectorAll('text.abcjs-chord, .abcjs-annotation, text[class*="chord"]');
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    var txt = _normChordText((el.textContent || '').trim());
+    if (!txt || !isChordToken(txt)) continue;   // skip non-chord annotations/fingerings
+    el.classList.add('abc-chord-sym');
+    el.style.cursor = 'pointer';
+  }
+}
+let _abcChordTapT = null;
+(function() {
+  const host = document.getElementById('abc-notation');
+  if (!host) return;
+  host.addEventListener('mouseover', e => {
+    const t = e.target.closest && e.target.closest('.abc-chord-sym');
+    if (t) showChordTooltip(t, e.clientX, e.clientY);
+    else chordHoverEl.style.display = 'none';
+  });
+  host.addEventListener('mousemove', e => {
+    if (chordHoverEl.style.display === 'block' && e.target.closest && e.target.closest('.abc-chord-sym'))
+      positionTooltip(e.clientX, e.clientY);
+  });
+  host.addEventListener('mouseleave', () => { chordHoverEl.style.display = 'none'; });
+  // Tap on touch devices: show the diagram, auto-dismiss shortly after.
+  host.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('.abc-chord-sym');
+    if (!t) { chordHoverEl.style.display = 'none'; return; }
+    showChordTooltip(t, e.clientX, e.clientY);
+    clearTimeout(_abcChordTapT);
+    _abcChordTapT = setTimeout(() => { chordHoverEl.style.display = 'none'; }, 3500);
+  });
+})();
 
 // Chord-inaccuracy notice: shown only the first time the diagrams panel is
 // opened. It is removed when the user changes instrument or closes/reopens.
@@ -10123,6 +10170,38 @@ function _printFontFaces() {
   } catch (e) {}
   return css;
 }
+function _abufToB64(buf) {
+  var bytes = new Uint8Array(buf), bin = '', CH = 0x8000;
+  for (var i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  return btoa(bin);
+}
+// Like _printFontFaces() but with the local font files inlined as data: URIs, so
+// the fonts work in a print/PDF context that can't resolve capacitor:// or
+// relative URLs (the native PDF renderer + the iOS print formatter). Cached.
+var _printFontCSSCache = null;
+async function _printFontFacesEmbedded() {
+  if (_printFontCSSCache != null) return _printFontCSSCache;
+  var css = _printFontFaces();
+  var seen = {};
+  var matches = css.match(/url\((['"]?)[^'")]+\1\)/g) || [];
+  for (var k = 0; k < matches.length; k++) {
+    var um = matches[k].match(/url\((['"]?)([^'")]+)\1\)/);
+    if (!um) continue;
+    var u = um[2];
+    if (/^data:/.test(u) || seen[u]) continue;
+    seen[u] = true;
+    if (/^https?:\/\//.test(u) && !/\/localhost/.test(u)) continue;  // leave CDN fonts as network URLs
+    try {
+      var r = await fetch(u); if (!r.ok) continue;
+      var b = await r.arrayBuffer();
+      var ext = ((u.split('?')[0].match(/\.(\w+)$/) || [])[1] || 'otf').toLowerCase();
+      var mime = ext === 'woff2' ? 'font/woff2' : ext === 'woff' ? 'font/woff' : ext === 'ttf' ? 'font/ttf' : 'font/otf';
+      css = css.split(u).join('data:' + mime + ';base64,' + _abufToB64(b));
+    } catch (e) {}
+  }
+  _printFontCSSCache = css;
+  return css;
+}
 // Directory URL of the app, so relative font/image paths resolve in the print doc.
 function _printBaseHref() {
   return location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
@@ -10152,14 +10231,27 @@ function _printRich(s) {
           .replace(/_([^_\n]+)_/g,        '<u>$1</u>');
 }
 
-// Emit a print/PDF document. In the native app, window.open + window.print() do
-// nothing in the WKWebView, so route through the @capgo/capacitor-printer plugin
-// (Swift; opens the iOS print sheet, which includes "Save to PDF" / AirPrint).
-// On the desktop web it opens the usual print window, guarding a blocked popup.
-function _emitPrintDoc(html, jobName) {
-  var P = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Printer) || null;
-  if (_isNativeApp() && P && typeof P.printHtml === 'function') {
-    P.printHtml({ name: jobName || 'Magic Scroll', html: html })
+// Emit a print/PDF document.
+// Native: iOS's printHtml uses UIMarkupTextPrintFormatter, which ignores
+// @font-face (custom fonts) and CSS columns. So we render the HTML to a PDF in a
+// real WebKit context (@capgo/capacitor-pdf-generator → WKWebView, full fidelity)
+// and print THAT — fonts, columns and SVG all survive. Falls back to printHtml if
+// the PDF generator isn't installed, and to a print window on desktop.
+async function _emitPrintDoc(html, jobName) {
+  var P = (window.Capacitor && window.Capacitor.Plugins) || {};
+  if (_isNativeApp() && P.PdfGenerator && P.Printer) {
+    try {
+      var res = await P.PdfGenerator.fromData({
+        data: html, type: 'base64', documentSize: 'Letter', orientation: 'portrait'
+      });
+      if (res && res.base64) {
+        await P.Printer.printBase64({ data: res.base64, mimeType: 'application/pdf', name: jobName || 'Magic Scroll' });
+        return;
+      }
+    } catch (e) { /* fall through to printHtml */ }
+  }
+  if (_isNativeApp() && P.Printer && typeof P.Printer.printHtml === 'function') {
+    P.Printer.printHtml({ name: jobName || 'Magic Scroll', html: html })
      .catch(function (e) { alert('Print failed: ' + ((e && e.message) || e)); });
     return;
   }
@@ -10174,11 +10266,13 @@ function _emitPrintDoc(html, jobName) {
   setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
 }
 
-document.getElementById('btn-print-go').addEventListener('click', () => {
+document.getElementById('btn-print-go').addEventListener('click', async () => {
   if (currentIdx < 0) { alert('No song loaded.'); return; }
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
 
   const song     = songs[currentIdx];
+  // Fonts inlined as data: URIs so they survive the native PDF/print renderer.
+  const _fontCSS = await _printFontFacesEmbedded();
 
   // ABC sheet music: re-render at a fixed PAGE width (not the on-screen mobile
   // scale) so it fits paper, one SVG per staff line so the print can paginate
@@ -10218,7 +10312,7 @@ document.getElementById('btn-print-go').addEventListener('click', () => {
 <base href="${_printBaseHref()}">
 <title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
 <style>
-  ${_printFontFaces()}
+  ${_fontCSS}
   /* margin:0 suppresses the browser's auto page header/footer (title/URL/date/
      page number); the visual page margin is applied as body padding instead. */
   @page { margin: 0; }
@@ -10257,7 +10351,7 @@ ${body}
 <base href="${_printBaseHref()}">
 <title>${(song.title||'Lead sheet').replace(/</g,'&lt;')}</title>
 <style>
-  ${_printFontFaces()}
+  ${_fontCSS}
   /* margin:0 suppresses the browser's auto header/footer; visual margin via body padding. */
   @page { margin: 0; }
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
@@ -10398,29 +10492,40 @@ ${body}
     var d = (l.startsWith('!') || l.startsWith('~')) ? l.slice(1) : l;
     return '<div class="pl-lyric">' + (_printRich(d) || '&nbsp;') + '</div>';
   }
+  var blockEls = [];
   for (var li = 0; li < pLines.length; li++) {
     var line = pLines[li];
     if (lineIsChordLine(line)) {
       var nextLine = pLines[li + 1];
       var hasLyric = nextLine !== undefined && !lineIsChordLine(nextLine) && nextLine.trim() !== '';
       if (hasLyric) {
-        linesHtml += '<div class="pl-pair">' + renderChordDiv(line) + renderLyricDiv(nextLine) + '</div>';
+        blockEls.push('<div class="pl-pair">' + renderChordDiv(line) + renderLyricDiv(nextLine) + '</div>');
         li++;  // consumed nextLine
       } else {
-        linesHtml += renderChordDiv(line);
+        blockEls.push(renderChordDiv(line));
       }
     } else {
-      linesHtml += renderLyricDiv(line);
+      blockEls.push(renderLyricDiv(line));
     }
+  }
+  // Two-column layout: WebKit ignores CSS `column-count` when printing/PDF-ing
+  // (so iOS came out single-column), so split the blocks into two REAL side-by-side
+  // flex columns, balanced by approximate height (a chord+lyric pair ≈ 2 lines).
+  const _twoCol = multiCol;
+  if (_twoCol) {
+    var _w = blockEls.map(function(h){ return h.indexOf('pl-pair') >= 0 ? 2 : 1; });
+    var _tot = _w.reduce(function(a,b){ return a + b; }, 0), _half = _tot / 2, _acc = 0, _split = blockEls.length;
+    for (var _b = 0; _b < blockEls.length; _b++) { _acc += _w[_b]; if (_acc >= _half) { _split = _b + 1; break; } }
+    linesHtml = '<div class="pd-col">' + blockEls.slice(0, _split).join('') + '</div>' +
+                '<div class="pd-col">' + blockEls.slice(_split).join('') + '</div>';
+  } else {
+    linesHtml = blockEls.join('');
   }
 
   // ── Layout CSS ──
   const pageSize  = onePage
     ? '@page{size:8.5in 11in;margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}'
     : '@page{margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}';
-  const colCSS    = (onePage && multiCol)
-    ? 'column-count:2;column-gap:1.2em;column-rule:1px solid #ccc;'
-    : '';
   const scalingCSS = onePage
     ? 'html,body{height:100%;} #pd-wrap{height:calc(11in - 1in);overflow:hidden;}'
     : '';
@@ -10430,7 +10535,7 @@ ${body}
 <base href="${_printBaseHref()}">
 <title>${escapeHtml(song.title || 'Song')}</title>
 <style>
-  ${_printFontFaces()}
+  ${_fontCSS}
   ${pageSize}
   ${scalingCSS}
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -10438,7 +10543,9 @@ ${body}
   #pd-wrap{padding:0.65in 0.75in;}
   h1{font-family:${titleFont};font-size:18pt;font-weight:700;margin-bottom:2pt;}
   h2{font-family:${titleFont};font-size:12pt;font-style:italic;font-weight:normal;margin-bottom:10pt;padding-bottom:6pt;border-bottom:1px solid #aaa;}
-  .pd-content{${colCSS}}
+  .pd-content{${_twoCol ? 'display:flex;gap:1.2em;align-items:flex-start;' : ''}}
+  .pd-col{flex:1 1 0;min-width:0;}
+  ${_twoCol ? '.pd-col:first-child{border-right:1px solid #ccc;padding-right:1.2em;}' : ''}
   .pl-pair{break-inside:avoid;page-break-inside:avoid;-webkit-column-break-inside:avoid;}
   .pl-chord{font-family:${chordFont};font-weight:bold;color:${chordColor};white-space:pre-wrap;line-height:1.4;margin-top:4pt;}
   .pl-ct{font-weight:bold;}
@@ -11254,25 +11361,18 @@ function renderABCSong(song) {
   const _abcXS       = document.body.classList.contains('ui-xs');
   const _abcIsMobile = window.innerWidth <= 600;
   const _abcDefaultW = _wtActive ? 580 : 760;
-  let _abcStaffW = _abcDefaultW;
-  let _abcWrap = null;
-  if (_abcIsMobile || _abcXS) {
-    // Note SIZE follows the top-bar SIZE control so it visibly changes the sheet
-    // music. Bigger size ⇒ smaller staffwidth ⇒ responsive scales the staff up
-    // ⇒ bigger notes and fewer bars per line. The viewport width sets the line
-    // length (so landscape fits more bars). Generous note spacing (not the old
-    // tight 1.5) keeps it from looking crammed; abcjs then decides bars-per-line
-    // by density, so a single bar only fills the line when it's dense (~14+ notes)
-    // — light tunes get 2–4 bars per line, justified to an even width.
-    const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
-    // Sheet-music zoom per SIZE setting. Shifted down so the default M matches what
-    // used to be XS (M was rendering too large on phones); S/XS are smaller still,
-    // and L/XL give the old S/M sizes.
-    const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
-    const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
-    _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
-    _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
-  }
+  // Note SIZE follows the top-bar SIZE control on EVERY platform (previously only
+  // mobile/XS scaled, so on desktop S/M/L/XL all looked identical). Bigger size ⇒
+  // smaller staffwidth ⇒ responsive scales the staff up ⇒ bigger notes & fewer
+  // bars per line. Mobile derives the line length from the viewport (landscape
+  // fits more bars); desktop uses a fixed page-ish width. Generous note spacing so
+  // it isn't crammed; abcjs decides bars-per-line by density (a single bar only
+  // fills the line when it's dense, ~14+ notes).
+  const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
+  const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+  const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
+  let _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
+  let _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
   const blocks = song.abc_text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
   blocks.forEach(function(block, i) {
     var titleMatch = block.match(/^T:\s*(.+)/m);
@@ -11312,6 +11412,7 @@ function renderABCSong(song) {
     });
     abcVisualObj.push(vo && vo[0] ? vo[0] : null);
     if (_wtActive && vo && vo[0]) _wtInjectTabs(notDiv, vo[0]);
+    _wireAbcChordDiagrams(notDiv);   // chord symbols ("G" above the staff) → tappable diagrams
     (function(capturedIdx) {
       hdr.querySelector('button').addEventListener('click', function() {
         stopABCSynth();
