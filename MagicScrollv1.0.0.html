@@ -2247,6 +2247,34 @@
   .ls-toolbar-btn.ls-btn-secondary:hover{border-color:var(--c-accent);color:var(--c-card-text);filter:none;}
 
   /* ── PUBLISH MODAL ───────────────────────────────────────────────────────── */
+  /* ── Custom instrument modal ───────────────────────────────────────────── */
+  #custom-inst-modal {
+    display: none; position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 20px;
+  }
+  #custom-inst-modal.open { display: flex; }
+  .ci-box {
+    background: var(--c-chrome-bg2); border: 1px solid var(--c-chrome-border); border-radius: 6px;
+    padding: 20px 22px; max-width: 420px; width: 100%; max-height: calc(100vh - 40px); overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4); color: var(--c-chrome-text); font-family: var(--font-mono);
+  }
+  .ci-box h3 { margin: 0 0 10px; font-size: 1rem; color: var(--c-chrome-text); }
+  .ci-hint { font-size: 0.72rem; color: var(--c-chrome-muted); line-height: 1.5; margin-bottom: 12px; }
+  .ci-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .ci-row label { font-size: 0.78rem; min-width: 60px; }
+  #ci-strings { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .ci-string { display: flex; align-items: center; gap: 8px; }
+  .ci-string .ci-lbl { font-size: 0.7rem; color: var(--c-chrome-muted); min-width: 62px; }
+  #custom-inst-modal select {
+    background: var(--c-chrome-bg3); color: var(--c-chrome-text); border: 1px solid var(--c-chrome-border);
+    border-radius: 3px; padding: 3px 6px; font-family: var(--font-mono); font-size: 0.75rem;
+  }
+  .ci-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .ci-actions button {
+    font-family: var(--font-mono); font-size: 0.78rem; padding: 5px 12px; border-radius: 4px;
+    border: 1px solid var(--c-chrome-border); background: var(--c-chrome-bg3); color: var(--c-chrome-text); cursor: pointer;
+  }
+  #ci-apply { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); font-weight: bold; }
   #publish-modal, #online-preview-modal {
     display: none;
     position: fixed; inset: 0; z-index: 900;
@@ -2933,6 +2961,7 @@ Another lyric line
       <option value="mel_bbeb">Melodeon: B♭/E♭</option>
       <option value="mel_bc">Melodeon: B/C (chromatic)</option>
     </select>
+    <button class="inst-btn" data-inst="custom" id="btn-inst-custom" title="Define your own instrument &amp; tuning">⚙ Custom…</button>
     <button class="inst-btn" data-inst="none" title="Hide chord diagrams">None</button>
   </div>
   <div id="diag-disclaimer" style="display:none;">
@@ -2940,6 +2969,26 @@ Another lyric line
     <button id="diag-disclaimer-dismiss" aria-label="Dismiss">Got it</button>
   </div>
   <div class="chord-diagram-grid" id="diagram-grid"></div>
+</div>
+
+<!-- ── CUSTOM INSTRUMENT MODAL ──────────────────────────────────────────────── -->
+<div id="custom-inst-modal">
+  <div class="ci-box">
+    <h3>⚙ Custom instrument</h3>
+    <p class="ci-hint">Pick the number of strings (1–8) and each string's tuning, lowest string first. Chord diagrams are computed for this tuning.</p>
+    <div class="ci-row">
+      <label for="ci-count">Strings</label>
+      <select id="ci-count">
+        <option>1</option><option>2</option><option>3</option><option>4</option>
+        <option>5</option><option selected>6</option><option>7</option><option>8</option>
+      </select>
+    </div>
+    <div id="ci-strings"></div>
+    <div class="ci-actions">
+      <button id="ci-cancel" type="button">Cancel</button>
+      <button id="ci-apply" type="button">Use instrument</button>
+    </div>
+  </div>
 </div>
 
 <div id="chord-popup">
@@ -4099,6 +4148,22 @@ function extractChords(text) {
       if (isChordToken(tok)) found.add(cleanToken(tok));
     });
   });
+  return [...found].sort();
+}
+
+// Chord symbols embedded in ABC sheet music are "..." annotations (e.g. "G"c).
+// Pull out the ones that are real chords (skip ^_<>@ position annotations) and
+// transpose them so the Diagrams panel works for tunes too.
+function extractAbcChords(abcText, semis) {
+  if (!abcText) return [];
+  const found = new Set();
+  const re = /"([^"]*)"/g; let m;
+  while ((m = re.exec(abcText)) !== null) {
+    const t = m[1].trim();
+    if (!t || /^[\^_<>@]/.test(t)) continue;   // annotation, not a chord symbol
+    if (!isChordToken(t)) continue;
+    found.add(semis ? transposeChordToken(t, semis) : t);
+  }
   return [...found].sort();
 }
 
@@ -8708,6 +8773,8 @@ function renderDiagrams() {
   let chords;
   if(song._source==='ireal'){
     chords = extractIRealChordNames(song.ireal_chart);
+  } else if(song._source==='abc'){
+    chords = extractAbcChords(song.abc_text, transposeAmount);
   } else {
     const raw=song.tab_content||song.content||song.tab||'';
     chords=extractChords(transposeText(raw,transposeAmount));
@@ -8902,8 +8969,62 @@ function setActiveInstrument(inst) {
 }
 
 document.querySelectorAll('.inst-btn').forEach(btn => {
+  if (btn.id === 'btn-inst-custom') return;   // custom opens a config dialog (handled below)
   btn.addEventListener('click', () => setActiveInstrument(btn.dataset.inst));
 });
+
+// ── CUSTOM INSTRUMENT ─────────────────────────────────────────────────────────
+const CI_NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+// Sensible defaults (low→high), extending a 6-string guitar for 7th/8th strings.
+const CI_DEFAULTS = [{n:'E',o:2},{n:'A',o:2},{n:'D',o:3},{n:'G',o:3},{n:'B',o:3},{n:'E',o:4},{n:'A',o:4},{n:'D',o:5}];
+function _ciNoteToMidi(n, o) { return (o + 1) * 12 + CI_NOTES.indexOf(n); }
+function _ciReadRows() {
+  return Array.prototype.map.call(document.querySelectorAll('#ci-strings .ci-string'), function(row) {
+    return { n: row.querySelector('.ci-note').value, o: parseInt(row.querySelector('.ci-oct').value) || 3 };
+  });
+}
+function _ciBuildRows(count, vals) {
+  const host = document.getElementById('ci-strings'); host.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const v = (vals && vals[i]) ? vals[i] : (CI_DEFAULTS[i] || { n:'E', o:3 });
+    const row = document.createElement('div'); row.className = 'ci-string';
+    const noteOpts = CI_NOTES.map(nn => '<option' + (nn === v.n ? ' selected' : '') + '>' + nn + '</option>').join('');
+    const octOpts  = [1,2,3,4,5,6,7].map(oo => '<option' + (oo === v.o ? ' selected' : '') + '>' + oo + '</option>').join('');
+    row.innerHTML = '<span class="ci-lbl">String ' + (i + 1) + '</span>' +
+      '<select class="ci-note">' + noteOpts + '</select>' +
+      '<select class="ci-oct">'  + octOpts  + '</select>';
+    host.appendChild(row);
+  }
+}
+function _ciSaved() { try { return JSON.parse(localStorage.getItem('ms_custom_inst') || 'null'); } catch (e) { return null; } }
+function _ciOpen() {
+  const saved = _ciSaved();
+  const count = (saved && saved.strings && saved.strings.length) ? saved.strings.length : 6;
+  document.getElementById('ci-count').value = String(count);
+  _ciBuildRows(count, saved && saved.strings);
+  document.getElementById('custom-inst-modal').classList.add('open');
+}
+function _ciApply() {
+  const rows = _ciReadRows();
+  const midi = rows.map(r => _ciNoteToMidi(r.n, r.o));
+  if (typeof window.setCustomTuning === 'function' && window.setCustomTuning(midi)) {
+    try { localStorage.setItem('ms_custom_inst', JSON.stringify({ strings: rows })); } catch (e) {}
+    document.getElementById('custom-inst-modal').classList.remove('open');
+    setActiveInstrument('custom');
+  }
+}
+// Re-register a saved custom tuning on load so 'custom' works without reconfiguring.
+(function() {
+  const s = _ciSaved();
+  if (s && s.strings && s.strings.length && typeof window.setCustomTuning === 'function')
+    window.setCustomTuning(s.strings.map(r => _ciNoteToMidi(r.n, r.o)));
+})();
+document.getElementById('btn-inst-custom').addEventListener('click', _ciOpen);
+document.getElementById('ci-count').addEventListener('change', function() { _ciBuildRows(parseInt(this.value) || 6, _ciReadRows()); });
+document.getElementById('ci-apply').addEventListener('click', _ciApply);
+document.getElementById('ci-cancel').addEventListener('click', function() { document.getElementById('custom-inst-modal').classList.remove('open'); });
+document.getElementById('custom-inst-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+
 document.querySelectorAll('.inst-select').forEach(sel => {
   // Activating the family on mousedown (before the dropdown opens) gives immediate feedback
   sel.addEventListener('mousedown', () => {

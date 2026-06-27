@@ -433,4 +433,14 @@
     return (a && a.length) ? a[0] : null;
   };
 
+  // Register a user-defined instrument under the id 'custom'. midiArray is an
+  // array of 1–8 MIDI pitches (lowest visual string first). Clears any cached
+  // 'custom' voicings so a re-tuning takes effect immediately.
+  window.setCustomTuning = function (midiArray) {
+    if (!Array.isArray(midiArray) || midiArray.length < 1 || midiArray.length > 8) return false;
+    TUNINGS.custom = midiArray.map(function (n) { return n | 0; });
+    for (var k in _cache) { if (k.indexOf('\x00custom') !== -1) delete _cache[k]; }
+    return true;
+  };
+
 })();
