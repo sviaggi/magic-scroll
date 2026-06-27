@@ -42,7 +42,26 @@
     balalaika:           [57, 64, 64],              // A3 E4 E4
     cavaquinho:          [62, 67, 71, 74],          // D4 G4 B4 D5
     vihuela:             [45, 50, 55, 59, 64],      // A2 D3 G3 B3 E4
+    // Appalachian (mountain) dulcimer — 3 strings, bass→melody. DIATONICALLY
+    // fretted (see DIATONIC_INSTR below), so fret numbers ≠ semitones.
+    dulcimer_dad:        [50, 57, 62],              // D3 A3 D4  (DAD — most common)
+    dulcimer_daa:        [50, 57, 57],              // D3 A3 A3  (DAA — Ionian)
+    dulcimer_dac:        [50, 57, 60],              // D3 A3 C4  (DAC — Aeolian)
+    dulcimer_dgd:        [50, 55, 62],              // D3 G3 D4  (DGD)
   };
+
+  // -- Diatonic fretting -------------------------------------------------------
+  // On a mountain dulcimer the frets follow a major (Ionian) scale, so fret N is
+  // NOT N semitones above the open string. This maps a fret index → semitone
+  // offset; other (chromatic) instruments use the identity (offset === fret).
+  const DIATONIC_STEPS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24, 26, 28, 29];
+  const DIATONIC_INSTR = { dulcimer_dad: 1, dulcimer_daa: 1, dulcimer_dac: 1, dulcimer_dgd: 1 };
+  function _fretSemi(inst, f) {
+    if (!DIATONIC_INSTR[inst] || f <= 0) return f <= 0 ? 0 : f;
+    return f < DIATONIC_STEPS.length
+      ? DIATONIC_STEPS[f]
+      : DIATONIC_STEPS[DIATONIC_STEPS.length - 1] + (f - DIATONIC_STEPS.length + 1) * 2;
+  }
 
   // -- Chord interval definitions ----------------------------------------------
   // ivl: semitones above root
@@ -144,14 +163,14 @@
   }
 
   // -- Scoring -----------------------------------------------------------------
-  function _score(frets, N, tuning, rootPC, tones) {
+  function _score(frets, N, tuning, rootPC, tones, inst) {
     var score = 0;
     var covered = {};
     var playedCount = 0, firstPlayed = -1, lastPlayed = -1, maxFret = 0, sumFrets = 0;
     for (var s = 0; s < N; s++) {
       var f = frets[s];
       if (f >= 0) {
-        covered[(tuning[s] + f) % 12] = true;
+        covered[(tuning[s] + _fretSemi(inst, f)) % 12] = true;
         if (firstPlayed === -1) firstPlayed = s;
         lastPlayed = s;
         playedCount++;
@@ -180,7 +199,7 @@
     var firstPlayedPC = -1, lowestPitch = Infinity, lowestPC = -1;
     for (var s2 = 0; s2 < N; s2++) {
       if (frets[s2] >= 0) {
-        var p2 = tuning[s2] + frets[s2];
+        var p2 = tuning[s2] + _fretSemi(inst, frets[s2]);
         if (firstPlayedPC === -1) firstPlayedPC = p2 % 12;
         if (p2 < lowestPitch) { lowestPitch = p2; lowestPC = p2 % 12; }
       }
@@ -340,7 +359,7 @@
         var opts = [-1];
         if (allPCs[openPC]) opts.push(0);
         for (var f = fRangeStart; f <= fmax; f++) {
-          if (allPCs[(tuning[s] + f) % 12]) opts.push(f);
+          if (allPCs[(tuning[s] + _fretSemi(instrument, f)) % 12]) opts.push(f);
         }
         strOpts.push(opts);
       }
@@ -351,7 +370,7 @@
         var opcs = [];
         for (var oi = 0; oi < strOpts[s2].length; oi++) {
           var fo = strOpts[s2][oi];
-          opcs.push(fo >= 0 ? (tuning[s2] + fo) % 12 : -1);
+          opcs.push(fo >= 0 ? (tuning[s2] + _fretSemi(instrument, fo)) % 12 : -1);
         }
         strOptPCs.push(opcs);
       }
@@ -363,7 +382,7 @@
       function dfs(s) {
         if (s === N) {
           for (var pc in mustPCs) { if (!covered[pc]) return; }
-          var sc = _score(assign, N, tuning, rootPC, tones);
+          var sc = _score(assign, N, tuning, rootPC, tones, instrument);
           _consider(assign, sc);
           return;
         }

@@ -1590,13 +1590,14 @@
      Small floating diagram that appears when hovering a chord token.
      pointer-events:none so it never interferes with mouse events. */
   /* ABC chord symbols: match the app's chord styling — chord font + chord colour
-     (e.g. Valeson, dark red) — overriding abcjs's default serif/ink. */
-  .abc-chord-sym {
-    cursor: pointer;
-    fill: var(--c-chord-text) !important;
-    font-family: var(--font-chord) !important;
-  }
-  .abc-chord-sym:hover { fill: var(--c-accent) !important; }
+     (e.g. Valeson, dark red) — overriding abcjs's default serif/ink. The fill rule
+     must out-specify `#abc-notation svg text` (below), hence the id-qualified
+     selector + the tspan target (abcjs may colour the glyph spans directly). */
+  .abc-chord-sym { cursor: pointer; font-family: var(--font-chord) !important; }
+  #abc-notation svg text.abc-chord-sym,
+  #abc-notation svg text.abc-chord-sym tspan { fill: var(--c-chord-text) !important; }
+  #abc-notation svg text.abc-chord-sym:hover,
+  #abc-notation svg text.abc-chord-sym:hover tspan { fill: var(--c-accent) !important; }
   #chord-hover-tooltip {
     position: fixed;
     z-index: 600;
@@ -2913,6 +2914,10 @@ Another lyric line
       <option value="balalaika">Folk: Balalaika (AEE)</option>
       <option value="cavaquinho">Folk: Cavaquinho (DGBD)</option>
       <option value="vihuela">Folk: Vihuela (ADGBE)</option>
+      <option value="dulcimer_dad">Folk: Dulcimer (DAD)</option>
+      <option value="dulcimer_daa">Folk: Dulcimer (DAA)</option>
+      <option value="dulcimer_dac">Folk: Dulcimer (DAC)</option>
+      <option value="dulcimer_dgd">Folk: Dulcimer (DGD)</option>
     </select>
     <select class="inst-select" data-family="concertina">
       <option value="ang_gc">Concertina: G/C (Anglo)</option>
@@ -10309,6 +10314,7 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
     const _finishAbcPrint = function() {
       let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
       if (_wtActive) { try { _wtInjectTabsPrint(svgs); } catch (e) {} }
+      try { _wireAbcChordDiagrams(tmp); } catch (e) {}  // tag chord symbols so the chord font applies
       let body = svgs.length
         ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
         : tmp.innerHTML;
@@ -10334,6 +10340,8 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#1a1208 !important; }
   svg line { stroke:#1a1208 !important; }
   .wt-tab { color:#1a1208 !important; }
+  /* Chord symbols in the chord font (colour stays print ink, per spec). */
+  text.abc-chord-sym, text.abc-chord-sym tspan { font-family:${_pf.chord} !important; }
 </style></head><body>
 <h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
 <h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
