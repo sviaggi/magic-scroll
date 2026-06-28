@@ -680,6 +680,7 @@
   }
   .abc-key-sel option { background: var(--c-card-fallback); color: var(--c-card-text); }
   .meta-pill {
+    font-family: var(--font-chord);
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1599,6 +1600,26 @@
   }
   #tab-content.mono-spacing .chord-token {
     letter-spacing: 0.06em;
+  }
+  /* ── TAB MODE ─────────────────────────────────────────────────────────────
+     Tablature staff lines must stay character-aligned, so force a TRUE
+     monospace font (overriding the Valeson-led --font-mono) and disable
+     wrapping. The font-size is set inline by _fitTabFontSize() so the widest
+     line fits the screen regardless of the app's view-size (XS–XL). */
+  #tab-content.tab-mode {
+    font-family: 'Courier Prime', 'Courier New', ui-monospace, monospace !important;
+    line-height: 1.45;
+    white-space: pre;
+    overflow-x: auto;
+    letter-spacing: 0;
+    font-kerning: none;
+    font-variant-ligatures: none;
+    font-feature-settings: "kern" 0, "liga" 0, "calt" 0;
+  }
+  #tab-content.tab-mode > div { white-space: pre; min-height: 0; }
+  #tab-content.tab-mode .chord-token {
+    font-family: 'Courier Prime', 'Courier New', ui-monospace, monospace !important;
+    letter-spacing: 0;
   }
   /* ── CHORD HOVER TOOLTIP ─────────────────────────────────────────────────────
      Small floating diagram that appears when hovering a chord token.
@@ -4330,6 +4351,47 @@ function applyMarkup(line, lineEl) {
   return false;
 }
 
+// ── TAB DETECTION & CLASSIFICATION ───────────────────────────────────────────
+// A tablature staff line looks like  e|----4---4h6p4----|  : an optional string
+// label (any note name, for alt tunings / bass / uke) then a pipe, then a run
+// of dashes/digits/technique characters. We also accept unlabelled lines that
+// are clearly fret runs (pipe + many dashes).
+function _isTabLine(line){
+  if (!line) return false;
+  return (/^[ \t]*[A-Ga-g][#b]?\s*\|[-0-9hpb\/\\~xX().\s|]*$/.test(line) && /-{2,}/.test(line))
+      || (/\|[-0-9hpb\/\\~xX]{4,}/.test(line) && /-{3,}/.test(line));
+}
+// Returns the human display type for a plaintext song based on its content.
+function _songContentType(song){
+  const t = (song && (song.tab_content || song.content || song.tab)) || '';
+  const lines = t.split('\n');
+  let tabLines = 0, chordLines = 0;
+  for (const ln of lines){
+    if (_isTabLine(ln)) { tabLines++; continue; }
+    if (typeof lineIsChordLine === 'function' && lineIsChordLine(ln)) chordLines++;
+  }
+  if (tabLines >= 3) return 'Tab';
+  if (chordLines >= 1) return 'Chords';
+  return 'Lyrics';
+}
+// Scale the tab font-size so the widest line fits the container width,
+// independent of the fs-* view-size class. Linear: width ∝ font-size for a
+// monospace block, so measure once at a base size then scale by the ratio.
+function _fitTabFontSize(){
+  const tc = document.getElementById('tab-content');
+  if (!tc || !tc.classList.contains('tab-mode')) return;
+  const BASE = 16;
+  tc.style.fontSize = BASE + 'px';
+  const avail = tc.clientWidth;            // content box (incl. padding)
+  const need  = tc.scrollWidth;            // widest line at BASE px
+  if (avail > 0 && need > avail){
+    const fs = Math.max(5, Math.floor(BASE * (avail / need) * 0.97));
+    tc.style.fontSize = fs + 'px';
+  } else {
+    tc.style.fontSize = '';                // fits at base; keep CSS default
+  }
+}
+
 function renderTabContent() {
   if (currentIdx < 0) return;
   const song = songs[currentIdx];
@@ -4396,6 +4458,17 @@ function renderTabContent() {
 
   tc.innerHTML = '';
   tc.appendChild(frag);
+
+  // Tablature: force true monospace and auto-scale to fit width (independent of
+  // the fs-* view size). Other songs keep pre-wrap + the chosen view size.
+  if (_songContentType(song) === 'Tab') {
+    tc.classList.add('tab-mode');
+    tc.style.fontSize = '';
+    requestAnimationFrame(_fitTabFontSize);
+  } else {
+    tc.classList.remove('tab-mode');
+    tc.style.fontSize = '';
+  }
 }
 
 // ── HTML PARSING — for files exported with 'ug export' ─────────────────────
@@ -4685,7 +4758,8 @@ function renderSong(idx) {
   document.getElementById('display-title').textContent=song.title||'Untitled';
   document.getElementById('display-artist').textContent=song.artist||'';
   const meta=document.getElementById('display-meta'); meta.innerHTML='';
-  [['Type',song.type],['Key',song.key],['Tuning',song.tuning],['Capo',song.capo?'Fret '+song.capo:null]].forEach(([l,v])=>{
+  const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
+  [['Type',_dispType],['Key',song.key],['Tuning',song.tuning],['Capo',song.capo?'Fret '+song.capo:null]].forEach(([l,v])=>{
     if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
     p.innerHTML=l+': <span>'+v+'</span>'; meta.appendChild(p);
   });
@@ -9438,6 +9512,9 @@ if (window.innerWidth <= 520) {
           && typeof renderIRealSong === 'function') {
         renderIRealSong(s);
         if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+      } else if (typeof _fitTabFontSize === 'function'
+          && document.getElementById('tab-content').classList.contains('tab-mode')) {
+        _fitTabFontSize();   // re-scale tab to the new width
       }
     }, 250);
   }
@@ -11213,6 +11290,26 @@ function stopABCSynth(keepPause) {
   document.querySelectorAll('.abc-now-playing').forEach(function(el){ el.style.display='none'; });
 }
 
+// Initial pick-up (anacrusis) length, in seconds, from a tune's ABCJS timing
+// events. Returns 0 when the first measure is already a full bar. Robust to 0-
+// or 1-indexed measure numbering: it measures the length of the very first
+// measure (time until the measure number first increments) and treats it as a
+// pickup only when shorter than a full bar (2% tolerance for float noise).
+function _abcPickupSec(events, fullMeasMs) {
+  if (!events || !events.length || !(fullMeasMs > 0)) return 0;
+  var m0 = (typeof events[0].measureNumber === 'number') ? events[0].measureNumber : null;
+  if (m0 === null) return 0;
+  var secondStartMs = null;
+  for (var i = 0; i < events.length; i++) {
+    if (typeof events[i].measureNumber === 'number' && events[i].measureNumber > m0) {
+      secondStartMs = events[i].milliseconds; break;
+    }
+  }
+  if (secondStartMs === null) return 0;
+  if (secondStartMs > 1 && secondStartMs < fullMeasMs * 0.98) return secondStartMs / 1000;
+  return 0;
+}
+
 function startABCSynth(tuneIdx, seekFrac) {
   window._abcLastTuneIdx = tuneIdx || 0;
   seekFrac = seekFrac || 0;
@@ -11233,12 +11330,9 @@ function startABCSynth(tuneIdx, seekFrac) {
   gain.gain.setValueAtTime(0.3, ctx.currentTime);
   gain.connect(ctx.destination);
 
-  // Sync with metronome
+  // Sync with metronome — finalised below, AFTER the note timing is known, so a
+  // pick-up (anacrusis) can be placed BEFORE the downbeat (see pickup block).
   let startOffset = 0.25;
-  if (metroRunning && typeof metroNextDownbeat === 'function') {
-    const db = metroNextDownbeat(ctx.currentTime);
-    startOffset = Math.max(0.25, db - ctx.currentTime);
-  }
 
   // ── Build note sequence ──────────────────────────────────────────────────────
   // Prefer ABCJS setTiming() — it expands repeats correctly and provides MIDI
@@ -11279,6 +11373,22 @@ function startABCSynth(tuneIdx, seekFrac) {
       document.getElementById('abc-status').textContent = '⚠ No notes found'; return;
     }
     notesTotalDur = notes.reduce(function(s,n){return s+n.dur;}, 0);
+  }
+
+  // ── Pick-up (anacrusis) sync ──────────────────────────────────────────────
+  // If the tune opens with a measure shorter than a full bar, that opening is an
+  // upbeat belonging to an invisible previous measure. The FIRST FULL measure —
+  // not the pickup — must land on the metronome's accented downbeat, so we shift
+  // the metronome reference (and, when the metronome is already running, the
+  // audio start) by the pickup's length so the lead-in plays before beat 1.
+  const _puSig = (document.getElementById('abc-time-sig').value || '4/4').split('/');
+  const _fullMeasMs = (60 / bpm) * (4 / (parseInt(_puSig[1]) || 4)) * (parseInt(_puSig[0]) || 4) * 1000;
+  const _pickupSec  = _abcPickupSec(timingEvents, _fullMeasMs);
+
+  if (metroRunning && typeof metroNextDownbeat === 'function') {
+    // Place the first full measure on the next downbeat; the pickup precedes it.
+    const db = metroNextDownbeat(ctx.currentTime + _pickupSec + 0.25);
+    startOffset = Math.max(0.25, db - ctx.currentTime - _pickupSec);
   }
 
   // ── Incremental scheduler ─────────────────────────────────────────────────
@@ -11431,7 +11541,9 @@ function startABCSynth(tuneIdx, seekFrac) {
   const bpm4sync = parseInt(document.getElementById('abc-tempo').value) || 120;
   const sig4sync = (document.getElementById('abc-time-sig').value || '4/4').split('/');
   window.abcMeasureDur   = (60 / bpm4sync) * (4 / parseInt(sig4sync[1] || 4)) * parseInt(sig4sync[0] || 4);
-  window.abcMeasureStart = ctx.currentTime + startOffset;
+  // Anchor the metronome grid to the first FULL measure (after any pick-up), so
+  // the accented downbeat lands there and the upbeat plays as a lead-in.
+  window.abcMeasureStart = ctx.currentTime + startOffset + _pickupSec;
 
   let rafId;
   function tick() {
@@ -13156,7 +13268,7 @@ function renderIRealSong(song){
   const _artistEl=document.createElement('div');_artistEl.className='song-artist';
   _artistEl.textContent=song.artist||'';
   const _metaEl=document.createElement('div');_metaEl.className='song-meta';
-  [['Style',song.style],['Key',_dispKey||null],['BPM',song.bpm?String(song.bpm):null],
+  [['Type','Lead'],['Style',song.style],['Key',_dispKey||null],['BPM',song.bpm?String(song.bpm):null],
    ['Transpose',transposeAmount?(transposeAmount>0?'+':'')+transposeAmount:null]
   ].forEach(([l,v])=>{
     if(!v)return;
