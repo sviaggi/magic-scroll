@@ -6211,6 +6211,9 @@ function loadFile(file) {
         // .mslead / single lead-sheet export
         if (!Array.isArray(json) && json._ms_format === 'lead-sheet') {
           const {_ms_format, _ms_version, ...song} = json;
+          // Older .mslead files (or any without a stored tempo) fall back to the
+          // style's default BPM so playback opens at a sensible speed.
+          if (!(parseInt(song.bpm) > 0)) song.bpm = _styleDefaultBPM(song.style);
           loadFileSongs([song]);
           return;
         }
@@ -13009,16 +13012,113 @@ document.getElementById('collections-modal').addEventListener('click', function(
 // ══════════════════════════════════════════════════════════════════════════
 // iREAL PRO — Lead Sheet  Steps 1-2: parse + render
 // ══════════════════════════════════════════════════════════════════════════
+// ── LEAD-SHEET STYLE → DEFAULT TEMPO ──────────────────────────────────────────
+// iReal Pro stores a tempo field in shared charts, but most community charts
+// leave it at 0 ("use the style's default"). This table mirrors iReal Pro's
+// per-style default tempos so an imported lead sheet with no explicit BPM still
+// opens at a musically sensible speed. Keys are lower-cased style names; the
+// resolver also tries the text after a "Category: " prefix, and falls back to
+// 120 when the style is unknown. (Values are approximations of iReal defaults.)
+const _LEAD_STYLE_BPM = {
+  // Jazz
+  'afro 12/8':100,'ballad double time feel':70,'ballad even':65,'ballad melodic':65,
+  'ballad swing':65,'ballad':60,'blue note':140,'bossa nova':140,'bossa/swing':140,
+  'doo doo cats':140,'even 8ths':140,'even 8ths open':140,'even 16ths':120,'guitar trio':140,
+  'gypsy jazz':220,'latin':150,'latin/swing':150,'long notes':120,'medium swing':140,
+  'medium up swing':180,'medium up swing 2':190,'new orleans swing':160,'second line':150,
+  'slow swing':90,'swing 2/4':160,'trad jazz':200,'up tempo swing':240,'up tempo swing 2':240,
+  // Latin
+  'argentina: tango':120,'tango':120,'brazil: bossa acoustic':140,'bossa acoustic':140,
+  'brazil: samba':200,'cuba: bolero':120,'bolero':120,'cuba: cha cha cha':120,'cha cha cha':120,
+  'cuba: son montuno 2-3':180,'cuba: son montuno 3-2':180,'son montuno 2-3':180,'son montuno 3-2':180,
+  // Pop
+  'bluegrass':140,'country':120,'disco':120,'funk':100,'glam funk':110,'house':125,
+  'reggae':90,'rock':120,'rock 12/8':70,'rnb':90,'shuffle':120,'slow rock':70,
+  'smooth':100,'soul':100,'virtual funk':105,
+  // Blues
+  'chicago shuffle':120,'flat tire':110,'funky':100,'gospel':100,'lucille':120,
+  'mo-slo':60,'muddy':80,'nola':110,'shout':130,'slo-mo':60,'stax':110,'texas rock':120,
+  // Brazilian
+  'afoxe':110,'baiao':100,'bossa ballad':100,'bossa cha':130,'maracatu':120,
+  'partido alto':120,'samba':200,'samba brush':200,'samba fast':240,'samba percussion':200,
+  // Salsa
+  'cuba: afro 6/8':100,'afro 6/8':100,'cuba: comparsa':120,'comparsa':120,'cuba: danzon':120,
+  'danzon':120,'cuba: guajira':120,'guajira':120,'cuba: guaracha':180,'guaracha':180,
+  'cuba: mambo':190,'mambo':190,'cuba: mozambique':120,'mozambique':120,
+  'cuba: rumba guaguanco':120,'rumba guaguanco':120,'cuba: songo':180,'songo':180,
+  'cuba: timba':180,'timba':180,'dominican republic: merengue':160,'merengue':160,
+  'puerto rico: bomba':120,'bomba':120,'puerto rico: plena':120,'plena':120
+};
+// Resolve a style name to its default BPM (120 when unknown / unset).
+function _styleDefaultBPM(style){
+  if(!style) return 120;
+  var s=String(style).trim().toLowerCase().replace(/\|+$/,'').trim();
+  if(_LEAD_STYLE_BPM[s]) return _LEAD_STYLE_BPM[s];
+  var ci=s.indexOf(':');
+  if(ci>=0){ var sub=s.slice(ci+1).trim(); if(_LEAD_STYLE_BPM[sub]) return _LEAD_STYLE_BPM[sub]; }
+  return 120;
+}
+window._styleDefaultBPM = _styleDefaultBPM;   // expose for backing-track.js
+
 function parseIRealURL(raw){
   const data=decodeURIComponent(raw.replace(/^irealb:\/\/+/i,''));
-  const segs=data.split('===');const strs=segs.length>1?segs.slice(1):segs;
-  return strs.map(parseIRealSong).filter(Boolean);
+  // Songs are separated by '==='. A leading marker or a trailing playlist-name
+  // segment isn't a valid song and is dropped by parseIRealSong's field check,
+  // so parsing every non-empty segment handles single songs and playlists alike.
+  const segs=data.split('===').map(s=>s.trim()).filter(Boolean);
+  return segs.map(parseIRealSong).filter(Boolean);
+}
+// ── iReal Pro ENCODER (inverse of the decoder above) ──────────────────────────
+// Serialise an ireal_chart back into iReal Pro's plain music string. The grammar
+// mirrors irealTokenise(): prefixes ({ [n *Sec Tnd) precede a bar's chords; the
+// terminator is | (bar), } (close-repeat), or Z (final), optionally preceded by
+// ] (double-bar section end).
+function _irealChartToMusic(chart){
+  if(!chart||!chart.bars||!chart.bars.length) return '';
+  var parts=[];
+  chart.bars.forEach(function(bar){
+    if(!bar) return;
+    var pre='';
+    if(bar.openRepeat) pre+='{';
+    if(bar.endingNum)      pre+='['+bar.endingNum;
+    else if(bar.sectionStart) pre+='[';
+    if(bar.section){ var m={intro:'i',verse:'v'}; pre+='*'+(m[bar.section]||String(bar.section).charAt(0)); }
+    if(bar.timeChange){ var ts=String(bar.timeChange).split('/'); pre+='T'+ts[0]+ts[1]; }
+    var body=(bar.chords||[]).map(function(ch){
+      if(ch.type==='slash')return 'p';
+      if(ch.type==='rep1') return 'x';
+      if(ch.type==='nc')   return 'n';
+      if(ch.type==='chord'){
+        var r=(ch.root||'').replace('♭','b').replace('♯','#');
+        return r+(ch.qual||'')+(ch.bass?'/'+ch.bass:'');
+      }
+      return '';
+    }).filter(Boolean).join(' ');
+    var end = bar.sectionEnd ? ']' : '';
+    var term = bar.final ? (end+'Z') : bar.closeRepeat ? (end+'}') : (end+'|');
+    parts.push(pre+body+term);
+  });
+  return parts.join('');
+}
+// Build a full irealb:// URL for one lead sheet. obfusc50 is an involution, so
+// re-running irealDecode obfuscates the plain music string for encoding.
+function exportIRealURL(song){
+  if(!song) return '';
+  var music = _irealChartToMusic(song.ireal_chart);
+  var f6 = '1r34LbKcu7' + irealDecode(music);
+  var bpm = parseInt((document.getElementById('bt-tempo')||{}).value) || parseInt(song.bpm) || 120;
+  var fields = [ song.title||'Untitled', song.artist||'', '', song.style||'',
+                 song.key||'', '', f6, '', String(bpm), '0' ];
+  return 'irealb://' + encodeURIComponent(fields.join('='));
 }
 function parseIRealSong(str){
   str=str.trim();if(!str)return null;
   const f=str.split('=');if(f.length<7)return null;
   const title=f[0].trim(),composer=f[1].trim(),style=f[3].trim(),key=f[4].trim();
-  const rawC=f[6].trim(),bpm=parseInt(f[8])||0;
+  const rawC=f[6].trim();
+  // Explicit tempo from the link (f[8]) wins; otherwise fall back to the style's
+  // default tempo (or 120 if the style is unknown).
+  let bpm=parseInt(f[8])||0; if(!bpm) bpm=_styleDefaultBPM(style);
   if(!title||!rawC)return null;
   const _mp='1r34LbKcu7',_pi=rawC.indexOf(_mp);
   const enc=_pi!==-1?rawC.slice(_pi+_mp.length):(rawC.length>10?rawC.slice(10):rawC);
@@ -13571,14 +13671,28 @@ function renderIRealSong(song){
   const saveBtn=document.createElement('button');saveBtn.textContent='⬇ Save As…';
   saveBtn.title='Download this lead sheet as a .mslead file';
   saveBtn.addEventListener('click',()=>{
-    const out=Object.assign({},song,{_ms_format:'lead-sheet',_ms_version:1});
+    // Persist the tempo the user currently has set on the player (falls back to
+    // the song's stored BPM, then 120).
+    const _curBpm=parseInt((document.getElementById('bt-tempo')||{}).value)||parseInt(song.bpm)||120;
+    song.bpm=_curBpm; if(typeof saveSongs==='function'){try{saveSongs();}catch(e){}}
+    const out=Object.assign({},song,{bpm:_curBpm,_ms_format:'lead-sheet',_ms_version:1});
     const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download=(song.title||'lead-sheet').replace(/[^a-z0-9 _-]/gi,'_')+'.mslead';
     a.click();URL.revokeObjectURL(a.href);
   });
 
-  
+  const urlBtn=document.createElement('button');urlBtn.textContent='🔗 iReal URL';
+  urlBtn.title='Copy this lead sheet as an irealb:// URL (re-importable here or in iReal Pro)';
+  urlBtn.addEventListener('click',()=>{
+    let url;
+    try { url=exportIRealURL(song); } catch(e){ alert('Could not build iReal URL: '+e.message); return; }
+    const done=()=>{ const t=urlBtn.textContent; urlBtn.textContent='✓ Copied'; setTimeout(()=>urlBtn.textContent=t,1500); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(done).catch(()=>window.prompt('Copy this irealb:// URL:',url));
+    } else { window.prompt('Copy this irealb:// URL:',url); }
+  });
+
   const pubLsBtn=document.createElement('button');pubLsBtn.textContent='☁ Publish';
   pubLsBtn.title='Publish this lead sheet to the online library';
   pubLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) showPublishModal([currentIdx]); });
@@ -13586,6 +13700,7 @@ function renderIRealSong(song){
   irealTb.appendChild(newBtn);
   irealTb.appendChild(editLsBtn);
   irealTb.appendChild(saveBtn);
+  irealTb.appendChild(urlBtn);
   irealTb.appendChild(pubLsBtn);
 
 
