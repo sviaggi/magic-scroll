@@ -430,6 +430,29 @@
     display: none;   /* shown only when search has content */
     flex-shrink: 0;
   }
+  #btn-filter { font-size: 0.72rem; padding: 3px 6px; flex-shrink: 0; display: inline-flex; align-items: center; }
+  #btn-filter.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
+  .filter-panel {
+    position: fixed; z-index: 960; display: none;
+    background: var(--c-chrome-bg2); border: 1px solid var(--c-chrome-border);
+    border-radius: 4px; padding: 6px 0; min-width: 180px; max-height: 60vh; overflow-y: auto;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35); font-size: 0.78rem;
+  }
+  .filter-panel.open { display: block; }
+  .filter-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 12px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--c-chrome-border);
+    color: var(--c-chrome-muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .filter-reset { font-size: 0.62rem; padding: 2px 6px; }
+  .filter-row {
+    display: flex; align-items: center; gap: 7px; padding: 4px 12px;
+    cursor: pointer; color: var(--c-chrome-text); white-space: nowrap;
+  }
+  .filter-row:hover { background: var(--c-chrome-bg3); }
+  .filter-row.sub { color: var(--c-chrome-muted); }
+  .filter-row input { accent-color: var(--c-accent); }
+  .filter-empty { padding: 8px 12px; color: var(--c-chrome-muted); }
   #btn-online-toggle {
     font-size: 0.72rem;
     padding: 3px 6px;
@@ -2798,6 +2821,7 @@
     <div id="sidebar-search">
       <input type="search" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
       <button id="btn-search-clear" title="Clear search">✕</button>
+      <button id="btn-filter" title="Filter library by type"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 2h14l-5.5 6.5V14l-3 1V8.5z"/></svg></button>
       <button id="btn-online-toggle" title="Online search is on — click to disable">☁</button>
     </div>
     <div id="song-list"></div>
@@ -5108,6 +5132,111 @@ function removeSong(i) {
 }
 
 // ── buildSongList — folder-aware ──────────────────────────────────────────────
+// ── LIBRARY TYPE FILTER ───────────────────────────────────────────────────────
+// _libFilterOff holds the DISABLED keys ('cat:<Category>' / 'sub:<Rhythm>').
+// Empty set ⇒ nothing filtered (everything shown).
+let _libFilterOff = new Set();
+
+// Broad category for a song: 'Chords' | 'Tabs' | 'Sheet Music' | 'Lead Sheets'.
+function _songCategory(song) {
+  if (!song) return 'Chords';
+  if (song._source === 'ireal') return 'Lead Sheets';
+  if (song._source === 'abc')   return 'Sheet Music';
+  if (song._source === 'plaintext' && _songContentType(song) === 'Tab') return 'Tabs';
+  return 'Chords';   // plaintext chords/lyrics + html exports
+}
+// Sheet-music rhythm subcategories from the ABC R: field(s), Title-cased & de-duped.
+function _songRhythms(song) {
+  if (!song || song._source !== 'abc') return [];
+  var src = song.abc_text || '', out = [], seen = {}, re = /^R:\s*(.+)$/gm, m;
+  while ((m = re.exec(src))) {
+    var r = m[1].trim().replace(/\s+/g, ' ');
+    if (!r) continue;
+    var tc = r.replace(/\w\S*/g, function(w){ return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
+    var k = tc.toLowerCase();
+    if (!seen[k]) { seen[k] = 1; out.push(tc); }
+  }
+  return out;
+}
+// Does a song survive the current filter?
+function _songPassesFilter(song) {
+  if (!_libFilterOff.size) return true;
+  var cat = _songCategory(song);
+  if (_libFilterOff.has('cat:' + cat)) return false;
+  if (cat === 'Sheet Music') {
+    var rs = _songRhythms(song);
+    if (rs.length) {
+      if (!rs.some(function(r){ return !_libFilterOff.has('sub:' + r); })) return false;
+    } else if (_libFilterOff.has('sub:(Unspecified)')) return false;
+  }
+  return true;
+}
+// Does a folder (recursively) contain any visible song under the current filter?
+function _folderHasVisible(f) {
+  if ((f.songIndices || []).some(function(i){ return i < songs.length && _songPassesFilter(songs[i]); }))
+    return true;
+  return (f.subfolderIds || []).some(function(id){
+    var sf = folders.find(function(x){ return x.id === id; });
+    return sf && _folderHasVisible(sf);
+  });
+}
+function _refreshFilterBtn() {
+  var b = document.getElementById('btn-filter');
+  if (b) b.classList.toggle('active', _libFilterOff.size > 0);
+}
+// Build the filter dropdown from the categories/rhythms actually present.
+function _buildFilterPanel() {
+  var panel = document.getElementById('filter-panel');
+  if (!panel) return;
+  var catsPresent = {}, rhythmsPresent = {}, sheetNoR = false;
+  songs.forEach(function(s){
+    var c = _songCategory(s); catsPresent[c] = 1;
+    if (c === 'Sheet Music') {
+      var rs = _songRhythms(s);
+      if (rs.length) rs.forEach(function(r){ rhythmsPresent[r] = 1; });
+      else sheetNoR = true;
+    }
+  });
+  panel.innerHTML = '';
+  var head = document.createElement('div'); head.className = 'filter-head';
+  var lbl = document.createElement('span'); lbl.textContent = 'Filter by type'; head.appendChild(lbl);
+  var reset = document.createElement('button'); reset.className = 'filter-reset'; reset.textContent = 'Reset';
+  reset.addEventListener('click', function(){
+    _libFilterOff.clear(); _buildFilterPanel(); _refreshFilterBtn();
+    buildSongList(document.getElementById('search-input').value);
+  });
+  head.appendChild(reset); panel.appendChild(head);
+
+  function row(label, key, isSub) {
+    var lab = document.createElement('label'); lab.className = 'filter-row' + (isSub ? ' sub' : '');
+    if (isSub) lab.style.paddingLeft = '24px';
+    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !_libFilterOff.has(key);
+    cb.addEventListener('change', function(){
+      if (cb.checked) _libFilterOff.delete(key); else _libFilterOff.add(key);
+      _refreshFilterBtn();
+      buildSongList(document.getElementById('search-input').value);
+    });
+    var sp = document.createElement('span'); sp.textContent = label;
+    lab.appendChild(cb); lab.appendChild(sp); panel.appendChild(lab);
+  }
+
+  var CAT_ORDER = ['Chords', 'Tabs', 'Sheet Music', 'Lead Sheets'];
+  var any = false;
+  CAT_ORDER.forEach(function(c){
+    if (!catsPresent[c]) return;
+    any = true;
+    row(c, 'cat:' + c, false);
+    if (c === 'Sheet Music') {
+      Object.keys(rhythmsPresent).sort().forEach(function(r){ row(r, 'sub:' + r, true); });
+      if (sheetNoR) row('(Unspecified)', 'sub:(Unspecified)', true);
+    }
+  });
+  if (!any) {
+    var e = document.createElement('div'); e.className = 'filter-empty';
+    e.textContent = 'Library is empty'; panel.appendChild(e);
+  }
+}
+
 function buildSongList(query) {
   // Remove any folder menus previously moved to body
   document.querySelectorAll('body > .folder-menu').forEach(function(m){ m.remove(); });
@@ -5125,6 +5254,7 @@ function buildSongList(query) {
     let count = 0;
     // sort matching results alphabetically
     const matchedIndices = songs.map((_,i)=>i).filter(i => {
+      if (!_songPassesFilter(songs[i])) return false;
       const item = makeSongItem(i, q);
       return !!item;
     }).sort(byTitle);
@@ -5236,28 +5366,30 @@ function buildSongList(query) {
     contents.className = 'folder-contents' + (f.collapsed ? ' collapsed' : '');
 
     // songs in this folder
-    [...(f.songIndices || [])].filter(i => i < songs.length)
+    [...(f.songIndices || [])].filter(i => i < songs.length && _songPassesFilter(songs[i]))
       .sort(byTitle)
       .forEach(i => {
         const item = makeSongItem(i, '');
         if (item) { item.style.paddingLeft = (20 + indent) + 'px'; contents.appendChild(item); }
       });
 
-    // subfolders (recursive)
+    // subfolders (recursive) — hide ones with no visible songs under the filter
     const subs = (f.subfolderIds || [])
       .map(id => folders.find(x => x.id === id)).filter(Boolean)
+      .filter(sub => !_libFilterOff.size || _folderHasVisible(sub))
       .sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     subs.forEach(sub => renderFolder(sub, depth + 1));
 
     list.appendChild(contents);
   }
 
-  topFolders.forEach(f => renderFolder(f, 0));
+  topFolders
+    .filter(f => !_libFilterOff.size || _folderHasVisible(f))
+    .forEach(f => renderFolder(f, 0));
 
   // unfoldered songs — sorted alphabetically
-// unfoldered songs — sorted alphabetically
   songs.map((_,i)=>i)
-    .filter(i => !inFolder.has(i))
+    .filter(i => !inFolder.has(i) && _songPassesFilter(songs[i]))
     .sort(byTitle)
     .forEach(i => {
       const item = makeSongItem(i, '');
@@ -5268,6 +5400,11 @@ function buildSongList(query) {
     const empty = document.createElement('div');
     empty.style.cssText = 'padding:12px;font-size:0.75rem;color:var(--c-chrome-muted);text-align:center;';
     empty.textContent = 'No songs yet';
+    list.appendChild(empty);
+  } else if (!list.children.length && _libFilterOff.size) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:12px;font-size:0.75rem;color:var(--c-chrome-muted);text-align:center;';
+    empty.textContent = 'No songs match this filter';
     list.appendChild(empty);
   }
 }
@@ -5281,6 +5418,35 @@ document.getElementById('btn-search-clear').addEventListener('click', () => {
   clearOnlineResults();
   buildSongList('');
 });
+
+// ── Filter button: open/close the type-filter dropdown ────────────────────────
+(function() {
+  var btn = document.getElementById('btn-filter');
+  if (!btn) return;
+  var panel = document.createElement('div');
+  panel.id = 'filter-panel'; panel.className = 'filter-panel';
+  document.body.appendChild(panel);   // body-level so the sidebar's transform can't clip it
+  function closePanel() { panel.classList.remove('open'); }
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (panel.classList.contains('open')) { closePanel(); return; }
+    _buildFilterPanel();
+    panel.classList.add('open');
+    var r = btn.getBoundingClientRect();
+    if (window.innerWidth <= 520) {
+      panel.style.top = (r.bottom + 4) + 'px';
+      panel.style.left = '8px'; panel.style.right = '8px'; panel.style.width = 'auto';
+    } else {
+      var pw = panel.offsetWidth || 190;
+      panel.style.top = (r.bottom + 4) + 'px';
+      panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + 'px';
+      panel.style.right = 'auto'; panel.style.width = '';
+    }
+  });
+  document.addEventListener('click', function(e) {
+    if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) closePanel();
+  });
+})();
 
 // ── ONLINE SEARCH ENABLE/DISABLE TOGGLE ───────────────────────────────────────
 (function() {
