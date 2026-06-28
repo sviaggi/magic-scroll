@@ -674,8 +674,11 @@
   .abc-item-header .song-meta { gap: 10px 16px; margin-top: 8px; align-items: center; }
   .abc-key-sel {
     font-family: var(--font-chord); font-size: 0.72rem; padding: 1px 4px; border-radius: 3px;
-    background: var(--c-chrome-bg2); color: var(--c-card-text); border: 1px solid var(--c-card-border);
+    /* Use the card's own colours so the text stays readable on the parchment/dark
+       card background (chrome colours rendered dark-on-dark before). */
+    background: var(--c-card-fallback); color: var(--c-card-text); border: 1px solid var(--c-card-border);
   }
+  .abc-key-sel option { background: var(--c-card-fallback); color: var(--c-card-text); }
   .meta-pill {
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -1258,7 +1261,8 @@
     display: none;
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.72);
-    z-index: 400;
+    /* Above the mobile sidebar drawer (z-index 500) so it isn't hidden behind it. */
+    z-index: 950;
     align-items: center;
     justify-content: center;
     padding: 24px;
@@ -11593,10 +11597,13 @@ function renderABCSong(song) {
     const Rt = _abcField(block, 'R');                 // type / rhythm
     const K0 = (_abcField(block, 'K') || song.key || 'C').trim();   // original key
     const perTr = _abcTuneTr[i] || 0;
+    // The dropdown shows the tune's CURRENT key — its individual offset plus the
+    // global (top-bar) transpose — so it updates whenever the page is transposed.
+    const effOff = (((perTr + transposeAmount) % 12) + 12) % 12;
     let keyOpts = '';
     for (let ko = 0; ko < 12; ko++) {
       const lab = transposeKey(K0, ko) || K0;
-      keyOpts += '<option value="' + ko + '"' + ((((perTr % 12) + 12) % 12) === ko ? ' selected' : '') + '>' + escapeHtml(lab) + '</option>';
+      keyOpts += '<option value="' + ko + '"' + (ko === effOff ? ' selected' : '') + '>' + escapeHtml(lab) + '</option>';
     }
     var item = document.createElement('div'); item.className = 'abc-item';
     var hdr  = document.createElement('div'); hdr.className = 'song-header abc-item-header';
@@ -11649,9 +11656,11 @@ function renderABCSong(song) {
         if (ind) ind.style.display = 'inline';
         startABCSynth(capturedIdx);
       });
-      // Per-tune Key dropdown: set this tune's individual transpose, then re-render.
+      // Per-tune Key dropdown: the chosen value is the desired CURRENT key offset
+      // (individual + global). Store the individual part so effective = chosen.
       hdr.querySelector('.abc-key-sel').addEventListener('change', function() {
-        _abcTuneTr[capturedIdx] = parseInt(this.value) || 0;
+        const chosen = parseInt(this.value) || 0;
+        _abcTuneTr[capturedIdx] = chosen - transposeAmount;
         renderABCSong(song);
       });
     })(i);
