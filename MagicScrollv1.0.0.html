@@ -983,6 +983,50 @@
     font-size: 0.9em;   /* em = scales with panel font-size set by setDiagramScale */
     color: #1a1208;
   }
+  /* Collapsible Primary / Secondary instrument sections + dual-diagram layout */
+  .inst-section { margin: 2px 0; }
+  .inst-section-bar { display: flex; align-items: stretch; gap: 4px; }
+  .inst-section-bar .inst-section-head { flex: 1; }
+  .capo-ctrl {
+    display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--c-chrome-muted); padding: 0 4px;
+    background: var(--c-chrome-bg3); border: 1px solid var(--c-chrome-border); border-radius: 3px;
+  }
+  .capo-btn {
+    width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center; border-radius: 3px;
+  }
+  .capo-val { min-width: 1.6em; text-align: center; font-size: 0.74rem;
+    font-variant-numeric: tabular-nums; color: var(--c-chrome-text); font-weight: bold; }
+  .inst-section-head {
+    width: 100%; text-align: left; display: flex; align-items: center; gap: 6px;
+    font-size: 0.72rem; padding: 4px 7px; cursor: pointer;
+    background: var(--c-chrome-bg3); color: var(--c-chrome-text);
+    border: 1px solid var(--c-chrome-border); border-radius: 3px;
+  }
+  .inst-section-head:hover { background: var(--c-chrome-bg2); color: var(--c-accent); }
+  .inst-section-head .caret { font-size: 0.6rem; width: 0.7em; }
+  .inst-section-head .inst-section-cur { margin-left: auto; color: var(--c-chrome-muted); font-style: italic; }
+  .inst-section-body { margin-top: 4px; }
+  .inst-section-body[hidden] { display: none; }
+  /* When a secondary instrument is active, one chord per row so both diagrams fit */
+  .chord-diagram-grid.cd-has-secondary { grid-template-columns: 1fr; }
+  .cd-inst-row { display: flex; gap: 12px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  .cd-inst-block { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .cd-inst-block.cd-wide { width: 100%; }
+  .cd-inst-block.cd-wide .cd-svg-wrap { width: 100%; }
+  .cd-inst-block.cd-wide svg { max-width: 100%; height: auto; }
+  .cd-inst-label {
+    font-size: 0.6rem; color: #7a5a30; opacity: 0.85; text-align: center;
+    font-family: var(--font-chord); letter-spacing: 0.02em;
+  }
+  .cd-fingered {
+    font-size: 0.7em; font-family: var(--font-chord); font-weight: bold;
+    color: #5a3a10; text-align: center;
+  }
+  #chord-hover-tooltip .cht-dual { display: flex; gap: 8px; align-items: flex-start; }
+  #chord-hover-tooltip .cht-one { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 
 
   /* ── EMPTY STATE ─────────────────────────────────────────────────────────── */
@@ -2987,7 +3031,16 @@ Another lyric line
       <button id="btn-close-diagrams" aria-label="Close chord diagrams">✕</button>
     </div>
   </h4>
-  <div class="diagram-instrument-tabs">
+  <div class="inst-section">
+    <div class="inst-section-bar">
+      <button type="button" class="inst-section-head" data-target="primary" aria-expanded="true"><span class="caret">▾</span> Primary instrument</button>
+      <span class="capo-ctrl" title="Capo / pre-transpose this instrument (−11 to 11): shows the shape to finger so it sounds like the page chord">Capo
+        <button type="button" class="capo-btn" data-capo="primary" data-capo-dir="-1" aria-label="Lower primary capo">−</button>
+        <span class="capo-val" data-capo-val="primary">0</span>
+        <button type="button" class="capo-btn" data-capo="primary" data-capo-dir="1" aria-label="Raise primary capo">+</button>
+      </span>
+    </div>
+  <div class="diagram-instrument-tabs inst-section-body" data-role="primary">
     <select class="inst-select active" data-family="guitar">
       <option value="guitar">Guitar: E Standard</option>
       <option value="drop_d">Guitar: Drop D</option>
@@ -3046,6 +3099,17 @@ Another lyric line
     </select>
     <button class="inst-btn" data-inst="custom" id="btn-inst-custom" title="Define your own instrument &amp; tuning">⚙ Custom…</button>
     <button class="inst-btn" data-inst="none" title="Hide chord diagrams">None</button>
+  </div></div>
+  <div class="inst-section">
+    <div class="inst-section-bar">
+      <button type="button" class="inst-section-head" data-target="secondary" aria-expanded="false"><span class="caret">▸</span> Secondary instrument <span class="inst-section-cur" data-role-cur="secondary">None</span></button>
+      <span class="capo-ctrl" title="Capo / pre-transpose this instrument (−11 to 11): shows the shape to finger so it sounds like the page chord">Capo
+        <button type="button" class="capo-btn" data-capo="secondary" data-capo-dir="-1" aria-label="Lower secondary capo">−</button>
+        <span class="capo-val" data-capo-val="secondary">0</span>
+        <button type="button" class="capo-btn" data-capo="secondary" data-capo-dir="1" aria-label="Raise secondary capo">+</button>
+      </span>
+    </div>
+    <div class="diagram-instrument-tabs inst-section-body" data-role="secondary" hidden></div>
   </div>
   <div id="diag-disclaimer" style="display:none;">
     <p>Due to the number of instruments and alternate tunings supported, it's possible some fingerings are off or not the most common/easiest way to play that chord. Please report any inaccuracies for me to fix!</p>
@@ -3411,6 +3475,11 @@ window.getTransposeAmount = function() { return transposeAmount; };
 let scrollInterval  = null;
 let isScrolling     = false;
 let currentInstrument = 'guitar';
+let secondaryInstrument = 'none';   // optional 2nd instrument shown alongside the main one
+let primaryCapo = 0, secondaryCapo = 0;   // per-instrument capo / pre-transpose (−11..11)
+// Chord the player FINGERS so that, with a capo on fret `capo`, it sounds like
+// `chord` (the page chord): finger = chord transposed DOWN by the capo amount.
+function _capoChord(chord, capo){ return capo ? transposeChordToken(chord, -capo) : chord; }
 
 // Instruments that share a tuning with an existing chord-engine key
 const INSTRUMENT_ALIASES = {
@@ -9076,48 +9145,88 @@ function renderDiagrams() {
     chords=extractChords(transposeText(raw,transposeAmount));
   }
   if(chords.length===0){grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No chords detected</p>';return;}
-  const inst=resolveInst(currentInstrument);
-  const nonFretted = inst==='piano' || (typeof isSqueezebox==='function' && isSqueezebox(inst));
+  // Instruments to draw per chord: the main one, plus the secondary if set and
+  // genuinely different from the main.
+  const insts=[currentInstrument];
+  if(secondaryInstrument && secondaryInstrument!=='none'
+     && resolveInst(secondaryInstrument)!==resolveInst(currentInstrument)) insts.push(secondaryInstrument);
+  const dual=insts.length>1;
+  grid.classList.toggle('cd-has-secondary', dual);
+  const anyWide=insts.some(id=>typeof isSqueezebox==='function' && isSqueezebox(resolveInst(id)));
+  const capos=[primaryCapo, secondaryCapo];
   chords.forEach(chord=>{
-    if(nonFretted){
-      const svg=renderChordDiagram(chord,inst);
-      if(!svg) return;
-      const item=document.createElement('div');
-      item.className='chord-diagram-item'+(isSqueezebox(inst)?' cd-wide':'');
-      item.innerHTML='<div class="chord-name">'+escapeHtml(chord)+'</div><div class="cd-svg-wrap">'+svg+'</div>';
-      grid.appendChild(item);
-      return;
-    }
-    const opts=getVoicingOptions(chord,inst);
-    if(!opts.length) return;
-    const item=document.createElement('div'); item.className='chord-diagram-item';
-    const hasAlts=opts.length>1;
-    const draw=()=>{
-      const idx=getSelectedVoicingIdx(chord,inst,opts.length);
-      const svg=renderChordDiagram(chord,inst);
-      item.innerHTML='<div class="chord-name">'+escapeHtml(chord)+'</div>'+
-        '<div class="cd-svg-wrap">'+
-          (hasAlts?'<button class="cd-arrow cd-prev" type="button" aria-label="Previous voicing">‹</button>':'')+
-          svg+
-          (hasAlts?'<button class="cd-arrow cd-next" type="button" aria-label="Next voicing">›</button>':'')+
-        '</div>'+
-        (hasAlts?'<div class="cd-count">'+(idx+1)+' / '+opts.length+'</div>':'');
-      if(hasAlts){
-        const cyc=(d)=>{
-          let i=getSelectedVoicingIdx(chord,inst,opts.length)+d;
-          if(i<0)i=opts.length-1; if(i>=opts.length)i=0;
-          setSelectedVoicingIdx(chord,inst,i);
-          draw();
-          syncDiagramsToSong();
-        };
-        item.querySelector('.cd-prev').addEventListener('click',e=>{e.stopPropagation();cyc(-1);});
-        item.querySelector('.cd-next').addEventListener('click',e=>{e.stopPropagation();cyc(1);});
-      }
-    };
-    draw();
-    grid.appendChild(item);
+    const item=document.createElement('div'); item.className='chord-diagram-item'+(anyWide?' cd-wide':'');
+    item.innerHTML='<div class="chord-name">'+escapeHtml(chord)+'</div>';
+    const row=document.createElement('div'); row.className='cd-inst-row';
+    let any=false;
+    insts.forEach((instId,k)=>{ const block=_buildInstDiagram(chord,instId,dual,capos[k]||0); if(block){ row.appendChild(block); any=true; } });
+    if(any){ item.appendChild(row); grid.appendChild(item); }
   });
-  if(grid.children.length===0) grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No diagrams for these chords on '+inst+'</p>';
+  if(grid.children.length===0) grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No diagrams for these chords on '+resolveInst(currentInstrument)+'</p>';
+}
+
+// Build one instrument's diagram block for a chord (with voicing cycler for
+// fretted instruments). Returns null when the instrument has no diagram for it.
+// showLabel adds the instrument name beneath (used when two instruments show).
+function _buildInstDiagram(chord, instId, showLabel, capo){
+  capo = capo || 0;
+  const inst=resolveInst(instId);
+  // With a capo, the player fingers the chord transposed DOWN by the capo amount.
+  const shape = _capoChord(chord, capo);
+  let lblParts=[];
+  if(showLabel) lblParts.push(instLabel(instId));
+  if(capo) lblParts.push('capo '+capo);
+  const labelHtml=lblParts.length ? '<div class="cd-inst-label">'+escapeHtml(lblParts.join(' · '))+'</div>' : '';
+  // When capo'd, name the actual shape so the player knows what to finger.
+  const fingeredHtml=capo ? '<div class="cd-fingered">'+escapeHtml(shape)+'</div>' : '';
+  const block=document.createElement('div'); block.className='cd-inst-block';
+  const nonFretted = inst==='piano' || (typeof isSqueezebox==='function' && isSqueezebox(inst));
+  if(nonFretted){
+    const svg=renderChordDiagram(shape,inst);
+    if(!svg) return null;
+    if(typeof isSqueezebox==='function' && isSqueezebox(inst)) block.classList.add('cd-wide');
+    block.innerHTML=fingeredHtml+'<div class="cd-svg-wrap">'+svg+'</div>'+labelHtml;
+    return block;
+  }
+  const opts=getVoicingOptions(shape,inst);
+  if(!opts.length) return null;
+  const hasAlts=opts.length>1;
+  const draw=()=>{
+    const idx=getSelectedVoicingIdx(shape,inst,opts.length);
+    const svg=renderChordDiagram(shape,inst);
+    block.innerHTML=fingeredHtml+'<div class="cd-svg-wrap">'+
+        (hasAlts?'<button class="cd-arrow cd-prev" type="button" aria-label="Previous voicing">‹</button>':'')+
+        svg+
+        (hasAlts?'<button class="cd-arrow cd-next" type="button" aria-label="Next voicing">›</button>':'')+
+      '</div>'+
+      (hasAlts?'<div class="cd-count">'+(idx+1)+' / '+opts.length+'</div>':'')+
+      labelHtml;
+    if(hasAlts){
+      const cyc=(d)=>{
+        let i=getSelectedVoicingIdx(shape,inst,opts.length)+d;
+        if(i<0)i=opts.length-1; if(i>=opts.length)i=0;
+        setSelectedVoicingIdx(shape,inst,i);
+        draw();
+        syncDiagramsToSong();
+      };
+      block.querySelector('.cd-prev').addEventListener('click',e=>{e.stopPropagation();cyc(-1);});
+      block.querySelector('.cd-next').addEventListener('click',e=>{e.stopPropagation();cyc(1);});
+    }
+  };
+  draw();
+  return block;
+}
+
+// Short, human label for an instrument id (e.g. 'mando_gdad' → 'Mandolin GDAD').
+function instLabel(instId){
+  if(instId==='none') return 'None';
+  if(instId==='piano') return 'Piano';
+  if(instId==='custom') return 'Custom';
+  const opt=document.querySelector('.inst-select option[value="'+instId+'"]')
+          ||document.querySelector('#secondary-inst-select option[value="'+instId+'"]');
+  let t=opt?opt.textContent:instId;
+  t=t.replace(/^[^:]*:\s*/,'').replace(/\s*\([^)]*\)\s*$/,'').trim();
+  return t||instId;
 }
 
 // After a voicing pick changes, refresh the inline diagrams on the song/lead sheet
@@ -9141,9 +9250,33 @@ function showChordTooltip(span, x, y) {
   // again; just normalise ♭/♯ and, if Simplify is on, reduce to root form.
   let name = _normChordText(cleanToken(span.textContent.trim()));
   if (isSimplifiedView && typeof simplifyChord === 'function') name = simplifyChord(name);
-  const svg = renderChordDiagram(name, resolveInst(currentInstrument));
+  const pShape = _capoChord(name, primaryCapo);
+  const svg = renderChordDiagram(pShape, resolveInst(currentInstrument));
   if (!svg) { chordHoverEl.style.display = 'none'; return; }
-  chordHoverEl.innerHTML = '<div class="cht-name">' + name + '</div>' + svg;
+  const capLbl = (instId, capo) => {
+    let p = [instLabel(instId)];
+    if (capo) p.push('capo ' + capo);
+    return p.join(' · ');
+  };
+  const oneCol = (sh, isvg, instId, capo) =>
+    '<div class="cht-one">' + (capo ? '<div class="cd-fingered">' + escapeHtml(sh) + '</div>' : '')
+    + isvg + '<div class="cd-inst-label">' + escapeHtml(capLbl(instId, capo)) + '</div></div>';
+  let body;
+  const showSec = secondaryInstrument && secondaryInstrument !== 'none'
+               && (resolveInst(secondaryInstrument) !== resolveInst(currentInstrument) || secondaryCapo !== primaryCapo);
+  const sShape = _capoChord(name, secondaryCapo);
+  const secSvg = showSec ? renderChordDiagram(sShape, resolveInst(secondaryInstrument)) : null;
+  if (secSvg) {
+    body = '<div class="cht-dual">'
+         + oneCol(pShape, svg, currentInstrument, primaryCapo)
+         + oneCol(sShape, secSvg, secondaryInstrument, secondaryCapo)
+         + '</div>';
+  } else if (primaryCapo) {
+    body = oneCol(pShape, svg, currentInstrument, primaryCapo);
+  } else {
+    body = svg;
+  }
+  chordHoverEl.innerHTML = '<div class="cht-name">' + name + '</div>' + body;
   chordHoverEl.style.display = 'block';
   positionTooltip(x, y);
 }
@@ -9230,7 +9363,7 @@ document.getElementById('btn-diagrams').addEventListener('click',()=>{
     if(!_diagDisclaimerShown){ const d=document.getElementById('diag-disclaimer'); if(d) d.style.display='block'; _diagDisclaimerShown=true; }
     else { hideDiagDisclaimer(); }
     renderDiagrams();
-    const activeInstEl = panel.querySelector('.inst-btn.active, .inst-select.active');
+    const activeInstEl = panel.querySelector('.diagram-instrument-tabs[data-role="primary"] .inst-btn.active, .diagram-instrument-tabs[data-role="primary"] .inst-select.active');
     if(activeInstEl) activeInstEl.focus();
   } else {
     hideDiagDisclaimer();
@@ -9243,15 +9376,7 @@ document.getElementById('btn-close-diagrams').addEventListener('click',()=>{
 function setActiveInstrument(inst) {
   hideDiagDisclaimer();
   currentInstrument = inst;
-  document.querySelectorAll('.inst-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.inst-select').forEach(s => s.classList.remove('active'));
-  const btn = document.querySelector(`.inst-btn[data-inst="${inst}"]`);
-  if (btn) {
-    btn.classList.add('active');
-  } else {
-    const opt = document.querySelector(`.inst-select option[value="${inst}"]`);
-    if (opt) { opt.closest('select').classList.add('active'); opt.closest('select').value = inst; }
-  }
+  _setSectionActive('primary', inst);
   if (inst === 'none') {
     document.body.classList.add('chords-hidden');
     document.getElementById('diagram-grid').innerHTML = '';
@@ -9264,13 +9389,11 @@ function setActiveInstrument(inst) {
   if (_irc && _irc.style.display !== 'none' && _ics && _ics._source === 'ireal') renderIRealSong(_ics);
 }
 
-document.querySelectorAll('.inst-btn').forEach(btn => {
-  if (btn.id === 'btn-inst-custom') return;   // custom opens a config dialog (handled below)
-  btn.addEventListener('click', () => setActiveInstrument(btn.dataset.inst));
-});
+// Instrument-button/select wiring is handled by wireInstSection() below (both sections).
 
 // ── CUSTOM INSTRUMENT ─────────────────────────────────────────────────────────
 const CI_NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+let _ciTarget = 'primary';   // which section opened the custom dialog
 // Sensible defaults (low→high), extending a 6-string guitar for 7th/8th strings.
 const CI_DEFAULTS = [{n:'E',o:2},{n:'A',o:2},{n:'D',o:3},{n:'G',o:3},{n:'B',o:3},{n:'E',o:4},{n:'A',o:4},{n:'D',o:5}];
 function _ciNoteToMidi(n, o) { return (o + 1) * 12 + CI_NOTES.indexOf(n); }
@@ -9306,7 +9429,7 @@ function _ciApply() {
   if (typeof window.setCustomTuning === 'function' && window.setCustomTuning(midi)) {
     try { localStorage.setItem('ms_custom_inst', JSON.stringify({ strings: rows })); } catch (e) {}
     document.getElementById('custom-inst-modal').classList.remove('open');
-    setActiveInstrument('custom');
+    chooseInstrument('custom', _ciTarget);
   }
 }
 // Re-register a saved custom tuning on load so 'custom' works without reconfiguring.
@@ -9315,19 +9438,103 @@ function _ciApply() {
   if (s && s.strings && s.strings.length && typeof window.setCustomTuning === 'function')
     window.setCustomTuning(s.strings.map(r => _ciNoteToMidi(r.n, r.o)));
 })();
-document.getElementById('btn-inst-custom').addEventListener('click', _ciOpen);
 document.getElementById('ci-count').addEventListener('change', function() { _ciBuildRows(parseInt(this.value) || 6, _ciReadRows()); });
 document.getElementById('ci-apply').addEventListener('click', _ciApply);
 document.getElementById('ci-cancel').addEventListener('click', function() { document.getElementById('custom-inst-modal').classList.remove('open'); });
 document.getElementById('custom-inst-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
 
-document.querySelectorAll('.inst-select').forEach(sel => {
-  // Activating the family on mousedown (before the dropdown opens) gives immediate feedback
-  sel.addEventListener('mousedown', () => {
-    if (!sel.classList.contains('active')) setActiveInstrument(sel.value);
+// ── PRIMARY / SECONDARY INSTRUMENT SECTIONS ──────────────────────────────────
+// Highlight the chosen instrument within one section (scoped so primary and
+// secondary don't interfere), and update the secondary header's current label.
+function _setSectionActive(which, inst){
+  const c=document.querySelector('.diagram-instrument-tabs[data-role="'+which+'"]');
+  if(!c) return;
+  c.querySelectorAll('.inst-btn').forEach(b=>b.classList.remove('active'));
+  c.querySelectorAll('.inst-select').forEach(s=>s.classList.remove('active'));
+  const btn=c.querySelector('.inst-btn[data-inst="'+inst+'"]');
+  if(btn){ btn.classList.add('active'); }
+  else {
+    const opt=c.querySelector('.inst-select option[value="'+inst+'"]');
+    if(opt){ opt.closest('select').classList.add('active'); opt.closest('select').value=inst; }
+  }
+  if(which==='secondary'){ const cur=document.querySelector('[data-role-cur="secondary"]'); if(cur) cur.textContent=instLabel(inst); }
+}
+function setSecondaryInstrument(inst){
+  secondaryInstrument=inst;
+  try{ localStorage.setItem('ms_secondary_inst',inst); }catch(e){}
+  _setSectionActive('secondary', inst);
+  if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+  const _irc=document.getElementById('ireal-song-card');
+  const _ics=currentIdx>=0?songs[currentIdx]:null;
+  if(_irc && _irc.style.display!=='none' && _ics && _ics._source==='ireal' && typeof renderIRealSong==='function') renderIRealSong(_ics);
+}
+function chooseInstrument(inst, which){ if(which==='secondary') setSecondaryInstrument(inst); else setActiveInstrument(inst); }
+function wireInstSection(container, which){
+  if(!container) return;
+  container.querySelectorAll('.inst-select').forEach(sel=>{
+    sel.addEventListener('mousedown', ()=>{ if(!sel.classList.contains('active')) chooseInstrument(sel.value, which); });
+    sel.addEventListener('change',    ()=> chooseInstrument(sel.value, which));
   });
-  sel.addEventListener('change', () => setActiveInstrument(sel.value));
-});
+  container.querySelectorAll('.inst-btn').forEach(btn=>{
+    if(btn.dataset.inst==='custom'){ btn.addEventListener('click',()=>{ _ciTarget=which; _ciOpen(); }); return; }
+    btn.addEventListener('click', ()=> chooseInstrument(btn.dataset.inst, which));
+  });
+}
+(function setupInstrumentSections(){
+  const primary=document.querySelector('.diagram-instrument-tabs[data-role="primary"]');
+  const secBody=document.querySelector('.diagram-instrument-tabs[data-role="secondary"]');
+  // Build the secondary UI by cloning the primary's controls — guarantees an
+  // identical selection UI and keeps the option list in one place (DRY).
+  if(primary && secBody && !secBody.children.length){
+    Array.prototype.forEach.call(primary.children, node=>{
+      const cl=node.cloneNode(true);
+      if(cl.removeAttribute) cl.removeAttribute('id');                 // no duplicate ids
+      if(cl.querySelectorAll) cl.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+      if(cl.classList) cl.classList.remove('active');                  // clear cloned active state
+      secBody.appendChild(cl);
+    });
+  }
+  wireInstSection(primary,'primary');
+  wireInstSection(secBody,'secondary');
+  _setSectionActive('primary', currentInstrument);
+  // Restore saved secondary choice (default 'none').
+  let saved=null; try{ saved=localStorage.getItem('ms_secondary_inst'); }catch(e){}
+  if(saved && secBody && secBody.querySelector('[data-inst="'+saved+'"], option[value="'+saved+'"]')) secondaryInstrument=saved;
+  _setSectionActive('secondary', secondaryInstrument);
+  // Collapsible headers — primary open, secondary collapsed by default.
+  document.querySelectorAll('.inst-section-head').forEach(head=>{
+    head.addEventListener('click', ()=>{
+      const body=document.querySelector('.diagram-instrument-tabs[data-role="'+head.dataset.target+'"]');
+      if(!body) return;
+      const opening=body.hasAttribute('hidden');
+      if(opening) body.removeAttribute('hidden'); else body.setAttribute('hidden','');
+      head.setAttribute('aria-expanded', opening?'true':'false');
+      const car=head.querySelector('.caret'); if(car) car.textContent = opening?'▾':'▸';
+    });
+  });
+  // Capo controls (−11..11), restored from storage.
+  try{ primaryCapo  =Math.max(-11,Math.min(11,parseInt(localStorage.getItem('ms_capo_primary'))||0)); }catch(e){}
+  try{ secondaryCapo=Math.max(-11,Math.min(11,parseInt(localStorage.getItem('ms_capo_secondary'))||0)); }catch(e){}
+  _updateCapoDisplay();
+  document.querySelectorAll('.capo-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> setCapo(btn.dataset.capo, parseInt(btn.dataset.capoDir)||0));
+  });
+})();
+function _updateCapoDisplay(){
+  const p=document.querySelector('[data-capo-val="primary"]');   if(p) p.textContent=String(primaryCapo);
+  const s=document.querySelector('[data-capo-val="secondary"]'); if(s) s.textContent=String(secondaryCapo);
+}
+function setCapo(which, delta){
+  if(which==='secondary'){ secondaryCapo=Math.max(-11,Math.min(11,secondaryCapo+delta));
+    try{ localStorage.setItem('ms_capo_secondary',String(secondaryCapo)); }catch(e){} }
+  else { primaryCapo=Math.max(-11,Math.min(11,primaryCapo+delta));
+    try{ localStorage.setItem('ms_capo_primary',String(primaryCapo)); }catch(e){} }
+  _updateCapoDisplay();
+  if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+  const _irc=document.getElementById('ireal-song-card');
+  const _ics=currentIdx>=0?songs[currentIdx]:null;
+  if(_irc && _irc.style.display!=='none' && _ics && _ics._source==='ireal' && typeof renderIRealSong==='function') renderIRealSong(_ics);
+}
 
 // ── CHORD SIMPLIFICATION ─────────────────────────────────────────────────────
 // Strips everything after the root note + optional accidental.
@@ -10863,9 +11070,11 @@ ${body}
     );
     diagHtml = '<div class="pd-diagrams">';
     chords.forEach(name => {
-      const svg = renderChordDiagram(name, diagInst, 0.9);
+      const shape = _capoChord(name, primaryCapo);   // honour the primary capo
+      const svg = renderChordDiagram(shape, diagInst, 0.9);
       if (svg) diagHtml += '<div class="pd-diag"><div class="pd-name">' +
-        escapeHtml(name) + '</div>' + svg + '</div>';
+        escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+': '+escapeHtml(shape)+')</small>' : '') +
+        '</div>' + svg + '</div>';
     });
     diagHtml += '</div>';
   }
@@ -13588,7 +13797,8 @@ function renderIRealSong(song){
         nm.innerHTML=irealChordHTML(tr,_dispQual,isSimplifiedView?'':tb);
         unit.appendChild(nm);
         if(currentInstrument&&currentInstrument!=='none'){
-          const key=irealChordKey(tr,_dispQual);
+          // Apply the primary instrument's capo: show the shape to finger.
+          const key=_capoChord(irealChordKey(tr,_dispQual), primaryCapo);
           let svg;
           if(typeof isSqueezebox==='function' && isSqueezebox(currentInstrument)){
             const probe=makeSqueezeboxSVG(key,currentInstrument,1,true);

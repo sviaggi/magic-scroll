@@ -2,7 +2,7 @@
 // Fixes offline support: shell files now cached dynamically from the
 // installing page's URL, so renaming the HTML file never breaks caching.
 
-const CACHE_VERSION = 'magic-scroll-v1.0.6';
+const CACHE_VERSION = 'magic-scroll-v1.0.9';
 
 // ── Install ───────────────────────────────────────────────────────────────────
 // Strategy: cache-on-navigate for the HTML shell (so renaming never breaks it),
