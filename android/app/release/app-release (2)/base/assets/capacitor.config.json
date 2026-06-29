@@ -1,0 +1,8 @@
+{
+	"appId": "com.magicscroll.app",
+	"appName": "Magic Scroll",
+	"webDir": "www",
+	"server": {
+		"appStartPath": "/MagicScrollv1.0.0.html"
+	}
+}

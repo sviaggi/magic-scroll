@@ -874,6 +874,20 @@
     // Refresh plays control to match the new song's default
     var playsEl = document.getElementById('bt-plays');
     if (playsEl && _bt_song) playsEl.value = String(_bt_song.plays || 3);
+    // Tempo: follow the song's BPM (resolved from its style on import, else 120),
+    // clamped to the slider's range.
+    var _tEl = document.getElementById('bt-tempo');
+    var _tLbl = document.getElementById('bt-tempo-lbl');
+    if (_tEl && _bt_song) {
+      var _b = parseInt(_bt_song.bpm) || 0;
+      // No stored tempo (e.g. older lead sheets) → fall back to the style default.
+      if (!_b) _b = (typeof window._styleDefaultBPM === 'function')
+                      ? window._styleDefaultBPM(_bt_song.style) : 120;
+      var _mn = parseInt(_tEl.min) || 40, _mx = parseInt(_tEl.max) || 240;
+      _b = Math.max(_mn, Math.min(_mx, _b));
+      _tEl.value = String(_b);
+      if (_tLbl) _tLbl.textContent = String(_b);
+    }
     _initMeterControl();  // N/A for multi-meter songs, else the song's meter
     _bars_cache = null; _barMeters = null;  // clear any stale expansion
     var rawB = _rawBars(); _totalBars = rawB.length;
@@ -1013,7 +1027,17 @@
     var tempoLbl = document.createElement('span');
     tempoLbl.id = 'bt-tempo-lbl'; tempoLbl.className = 'bt-tempo-lbl';
     tempoLbl.textContent = '120';
-    tempoSlider.addEventListener('input', function() { tempoLbl.textContent = tempoSlider.value; });
+    tempoSlider.addEventListener('input', function() {
+      tempoLbl.textContent = tempoSlider.value;
+      // Keep the song's BPM in sync so it persists and exports at the chosen tempo.
+      if (_bt_song) _bt_song.bpm = parseInt(tempoSlider.value) || 120;
+    });
+    tempoSlider.addEventListener('change', function() {
+      if (_bt_song) {
+        _bt_song.bpm = parseInt(tempoSlider.value) || 120;
+        if (typeof window.saveSongs === 'function') { try { window.saveSongs(); } catch(e) {} }
+      }
+    });
     row2.appendChild(tempoLbl);
 
     var meterLbl = document.createElement('label');
