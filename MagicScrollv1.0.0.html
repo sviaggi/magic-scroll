@@ -764,6 +764,9 @@
     cursor: default;
   }
   body.chords-hidden #tab-content .chord-token { color: var(--c-card-bg) !important; }
+  /* Secondary instrument's fingered chord (when capos differ) — distinct colour */
+  .chord-capo-sec { color: var(--c-accent); font-weight: bold; }
+  body.chords-hidden #tab-content .chord-capo-sec { color: var(--c-card-bg) !important; }
 
   /* ── CONTEXT MENU (right-click on tab content) ───────────────────────────── */
   #ctx-menu, #rt-ctx-menu {
@@ -2912,9 +2915,9 @@
     </div>
     <label id="drop-zone" style="cursor:pointer;">
       <div>Open files here</div>
-      <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl · .mslead</div>
+      <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl · .mscz · .mslead</div>
     </label>
-    <input type="file" id="file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,.mslead,text/plain,text/html" multiple>
+    <input type="file" id="file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,.mscz,.mslead,text/plain,text/html" multiple>
     <input type="file" id="refresh-file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" style="display:none">
     <input type="file" id="import-config-input" accept=".json" style="display:none">
     <div id="sidebar-footer">
@@ -3513,6 +3516,12 @@ let primaryCapo = 0, secondaryCapo = 0;   // per-instrument capo / pre-transpose
 // Chord the player FINGERS so that, with a capo on fret `capo`, it sounds like
 // `chord` (the page chord): finger = chord transposed DOWN by the capo amount.
 function _capoChord(chord, capo){ return capo ? transposeChordToken(chord, -capo) : chord; }
+// The page chord IS the primary instrument's fingered chord (the Key label,
+// which adds the primary capo, shows the sounding pitch). An instrument's
+// fingered chord is therefore relative to the PRIMARY capo: the primary plays
+// the page chord as-is; a secondary at a different capo is shifted so it sounds
+// the same pitch.
+function _fingering(chord, instCapo){ return _capoChord(chord, (instCapo||0) - (primaryCapo||0)); }
 
 // Instruments that share a tuning with an existing chord-engine key
 const INSTRUMENT_ALIASES = {
@@ -4530,6 +4539,27 @@ function _fitTabBlocks(){
   blocks.forEach(b => { b.style.fontSize = fs + 'px'; });
 }
 
+// Build a chord-token span. When a secondary instrument is active at a DIFFERENT
+// capo than the primary, show the primary's fingered chord followed by the
+// secondary's fingered chord in parentheses (distinct colour) — e.g. "C (F)".
+// The original page chord is kept in data-chord for the hover diagram.
+function _chordTokenSpan(chordText) {
+  const span = document.createElement('span');
+  span.className = 'chord-token';
+  span.dataset.chord = chordText;
+  const secOn = typeof secondaryInstrument !== 'undefined' && secondaryInstrument && secondaryInstrument !== 'none';
+  if (secOn && primaryCapo !== secondaryCapo) {
+    span.textContent = _fingering(chordText, primaryCapo) + ' ';
+    const sec = document.createElement('span');
+    sec.className = 'chord-capo-sec';
+    sec.textContent = '(' + _fingering(chordText, secondaryCapo) + ')';
+    span.appendChild(sec);
+  } else {
+    span.textContent = chordText;
+  }
+  return span;
+}
+
 function renderTabContent() {
   if (currentIdx < 0) return;
   const song = songs[currentIdx];
@@ -4567,15 +4597,11 @@ function renderTabContent() {
       if (/^\s+$/.test(part)) {
         el.appendChild(document.createTextNode(part));
       } else if (isChordToken(part)) {
-        const span = document.createElement('span');
-        span.className = 'chord-token'; span.textContent = part;
-        el.appendChild(span);
+        el.appendChild(_chordTokenSpan(part));
       } else if (isForced) {
         const m = part.match(CPFX);
         if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
-          const s2 = document.createElement('span');
-          s2.className = 'chord-token'; s2.textContent = m[1];
-          el.appendChild(s2);
+          el.appendChild(_chordTokenSpan(m[1]));
           el.appendChild(document.createTextNode(part.slice(m[1].length)));
         } else { el.appendChild(document.createTextNode(part)); }
       } else {
@@ -4859,7 +4885,10 @@ function updateKeyDisplay() {
   let base  = song ? (song.key || null) : null;
   // Normalise the key at display time so "Emin" → "Em" always works
   if (base && typeof normaliseKeyStr === 'function') base = normaliseKeyStr(base);
-  const label = base ? transposeKey(base, transposeAmount) : (transposeAmount !== 0 ? (transposeAmount > 0 ? '+'+transposeAmount : String(transposeAmount)) : '?');
+  // The Key shows the SOUNDING key = page transpose + the primary instrument's
+  // capo, so raising the capo raises the key while the page chords stay put.
+  const _keyShift = transposeAmount + (primaryCapo || 0);
+  const label = base ? transposeKey(base, _keyShift) : (_keyShift !== 0 ? (_keyShift > 0 ? '+'+_keyShift : String(_keyShift)) : '?');
   document.getElementById('key-display').textContent = label;
 }
 
@@ -5925,14 +5954,14 @@ document.getElementById('import-config-input').addEventListener('change', e => {
 // ── MUSICXML / MXL IMPORTER ──────────────────────────────────────────────────
 // Converts MusicXML 3.x / 4.x (both .xml and zipped .mxl) to ABC notation.
 
-async function unzipMXL(arrayBuffer) {
-  // Minimal ZIP parser using the browser's built-in DecompressionStream API.
+// Minimal ZIP reader (built-in DecompressionStream) → { filename: text } for the
+// text entries we care about (.xml for MusicXML, .mscx for MuseScore).
+async function _unzipMusicEntries(arrayBuffer) {
   const bytes = new Uint8Array(arrayBuffer);
   const view  = new DataView(arrayBuffer);
   const dec   = new TextDecoder('utf-8');
   const entries = {};
   let pos = 0;
-
   while (pos < bytes.length - 30) {
     if (view.getUint32(pos, true) !== 0x04034b50) { pos++; continue; }
     const method   = view.getUint16(pos + 8,  true);
@@ -5943,8 +5972,7 @@ async function unzipMXL(arrayBuffer) {
     const dataOff  = pos + 30 + nameLen + extraLen;
     const comp     = bytes.slice(dataOff, dataOff + compSize);
     pos = dataOff + compSize;
-    if (!/\.xml$/i.test(name)) continue;
-
+    if (!/\.(xml|mscx)$/i.test(name)) continue;
     if (method === 0) {
       entries[name] = dec.decode(comp);
     } else if (method === 8 && typeof DecompressionStream !== 'undefined') {
@@ -5956,17 +5984,150 @@ async function unzipMXL(arrayBuffer) {
         const out = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
         let off = 0; for (const c of chunks) { out.set(c, off); off += c.length; }
         entries[name] = dec.decode(out);
-      } catch(e) { console.warn('[MXL] inflate failed:', name, e); }
+      } catch(e) { console.warn('[unzip] inflate failed:', name, e); }
     }
   }
-
+  return entries;
+}
+async function unzipMXL(arrayBuffer) {
+  const entries = await _unzipMusicEntries(arrayBuffer);
   // Resolve root file from META-INF/container.xml, or pick first non-META xml
   const container = entries['META-INF/container.xml'];
   if (container) {
     const m = container.match(/full-path="([^"]+\.xml)"/i);
     if (m && entries[m[1]]) return entries[m[1]];
   }
-  return Object.entries(entries).find(([k]) => !k.startsWith('META'))?.[1] || null;
+  return Object.entries(entries).find(([k]) => /\.xml$/i.test(k) && !k.startsWith('META'))?.[1] || null;
+}
+// Extract the .mscx (MuseScore XML) from a .mscz archive.
+async function unzipMSCZ(arrayBuffer) {
+  const entries = await _unzipMusicEntries(arrayBuffer);
+  const container = entries['META-INF/container.xml'];
+  if (container) {
+    const m = container.match(/full-path="([^"]+\.mscx)"/i);
+    if (m && entries[m[1]]) return entries[m[1]];
+  }
+  return Object.entries(entries).find(([k]) => /\.mscx$/i.test(k))?.[1] || null;
+}
+
+// ── MuseScore (.mscx XML) → ABC ───────────────────────────────────────────────
+// Converts a MuseScore 4 score's first (melody) staff to ABC: notes with
+// tpc-correct spelling, durations (incl. dots), tuplets, ties, real chords,
+// time/key signatures, chord symbols and simple repeats. Best-effort — a first
+// voice/staff melody importer, not a full engraver.
+function parseMuseScore(mscx, filename) {
+  let doc;
+  try {
+    doc = new DOMParser().parseFromString(mscx, 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('bad XML');
+  } catch (e) { console.error('[MuseScore]', e); return null; }
+
+  const meta = n => { const m = [...doc.querySelectorAll('metaTag')].find(t => t.getAttribute('name') === n); return m ? m.textContent.trim() : ''; };
+  let title = meta('workTitle'); if (!title || /^title$/i.test(title)) title = filename.replace(/\.[^.]+$/, '');
+  let composer = meta('composer'); if (/^composer$/i.test(composer)) composer = '';
+
+  const staff = [...doc.querySelectorAll('Staff')].find(s => s.querySelector('Measure'));
+  if (!staff) return null;
+
+  const LETTERS = ['F','C','G','D','A','E','B'];
+  const NATPC = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+  const tpcSpell = tpc => ({ letter: LETTERS[((tpc + 1) % 7 + 7) % 7], acc: Math.floor((tpc + 1) / 7) - 2 });
+  function abcNote(pitch, tpc) {
+    const { letter, acc } = tpcSpell(tpc);
+    const octave = Math.round((pitch - NATPC[letter] - acc) / 12) - 1;
+    const base = octave >= 5 ? letter.toLowerCase() + "'".repeat(octave - 5) : letter + ",".repeat(4 - octave);
+    return { letter, acc, octave, base };
+  }
+  const DUR64 = { 'whole':64,'half':32,'quarter':16,'eighth':8,'16th':4,'32nd':2,'64th':1,'breve':128 };
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  function lenTok(n64) {                       // length in L=1/16 units, as ABC token
+    let num = Math.round(n64), den = 4; const g = gcd(num, den) || 1; num /= g; den /= g;
+    if (num === 1 && den === 1) return '';
+    if (den === 1) return String(num);
+    if (num === 1) return '/' + den;
+    return num + '/' + den;
+  }
+  const KEYMAP = {'0':'C','1':'G','2':'D','3':'A','4':'E','5':'B','6':'F#','7':'C#','-1':'F','-2':'Bb','-3':'Eb','-4':'Ab','-5':'Db','-6':'Gb','-7':'Cb'};
+  const SHARPS = ['F','C','G','D','A','E','B'], FLATS = ['B','E','A','D','G','C','F'];
+  function harmonyText(h) {
+    const rootEl = h.querySelector('root'); if (!rootEl) return null;
+    const r = tpcSpell(parseInt(rootEl.textContent));
+    let s = r.letter + (r.acc > 0 ? '#'.repeat(r.acc) : r.acc < 0 ? 'b'.repeat(-r.acc) : '');
+    const nameEl = h.querySelector('name');
+    if (nameEl && nameEl.textContent.trim() && nameEl.textContent.trim() !== 'stdNormal') s += nameEl.textContent.trim();
+    const baseEl = h.querySelector('base');
+    if (baseEl) { const b = tpcSpell(parseInt(baseEl.textContent)); s += '/' + b.letter + (b.acc > 0 ? '#' : b.acc < 0 ? 'b' : ''); }
+    return s;
+  }
+
+  let meterN = 4, meterD = 4, keySharps = 0, headerKey = null, headerMeter = null, pendingHarmony = null;
+  const measures = [...staff.querySelectorAll('Measure')];
+  const outBars = [];
+  measures.forEach((meas, mi) => {
+    let bar = '';
+    const keyAcc = {};
+    if (keySharps > 0) SHARPS.slice(0, keySharps).forEach(L => keyAcc[L] = 1);
+    else if (keySharps < 0) FLATS.slice(0, -keySharps).forEach(L => keyAcc[L] = -1);
+    const measureAcc = {};
+    if (meas.querySelector('startRepeat')) bar += '|:';
+    const voice = meas.querySelector('voice') || meas;
+    for (const el of voice.children) {
+      const tag = el.tagName;
+      if (tag === 'KeySig') {
+        const ck = el.querySelector('concertKey'); if (!ck) continue;
+        keySharps = parseInt(ck.textContent);
+        if (headerKey === null) headerKey = KEYMAP[keySharps] || 'C'; else bar += '[K:' + (KEYMAP[keySharps] || 'C') + ']';
+        for (const k in keyAcc) delete keyAcc[k];
+        if (keySharps > 0) SHARPS.slice(0, keySharps).forEach(L => keyAcc[L] = 1);
+        else if (keySharps < 0) FLATS.slice(0, -keySharps).forEach(L => keyAcc[L] = -1);
+        continue;
+      }
+      if (tag === 'TimeSig') {
+        const n = el.querySelector('sigN'), d = el.querySelector('sigD'); if (!n || !d) continue;
+        meterN = parseInt(n.textContent); meterD = parseInt(d.textContent);
+        if (headerMeter === null) headerMeter = meterN + '/' + meterD; else bar += '[M:' + meterN + '/' + meterD + ']';
+        continue;
+      }
+      if (tag === 'Harmony') { pendingHarmony = harmonyText(el); continue; }
+      if (tag === 'Tuplet') { const an = el.querySelector('actualNotes'); if (an) bar += '(' + parseInt(an.textContent); continue; }
+      if (tag === 'Rest') {
+        const dtEl = el.querySelector('durationType'); const dt = dtEl ? dtEl.textContent : 'quarter';
+        let n64 = (dt === 'measure') ? meterN * (64 / meterD) : (DUR64[dt] || 16);
+        const dots = el.querySelector('dots'); if (dots) n64 *= (2 - Math.pow(0.5, parseInt(dots.textContent)));
+        bar += 'z' + lenTok(n64); continue;
+      }
+      if (tag === 'Chord') {
+        const dtEl = el.querySelector('durationType'); let n64 = DUR64[dtEl ? dtEl.textContent : 'eighth'] || 8;
+        const dots = el.querySelector('dots'); if (dots) n64 *= (2 - Math.pow(0.5, parseInt(dots.textContent)));
+        const notes = [...el.querySelectorAll('Note')];
+        const hasTie = !!el.querySelector('Spanner[type="Tie"] next');
+        if (pendingHarmony) { bar += '"' + pendingHarmony + '"'; pendingHarmony = null; }
+        const noteStr = nt => {
+          const pitch = parseInt(nt.querySelector('pitch').textContent);
+          const tpc = parseInt(nt.querySelector('tpc').textContent);
+          const info = abcNote(pitch, tpc);
+          const key = info.letter + info.octave;
+          const eff = (key in measureAcc) ? measureAcc[key] : (keyAcc[info.letter] || 0);
+          let accStr = '';
+          if (info.acc !== eff) { accStr = info.acc > 0 ? '^'.repeat(info.acc) : info.acc < 0 ? '_'.repeat(-info.acc) : '='; measureAcc[key] = info.acc; }
+          return accStr + info.base;
+        };
+        if (!notes.length) continue;
+        bar += (notes.length === 1 ? noteStr(notes[0]) : '[' + notes.map(noteStr).join('') + ']') + lenTok(n64);
+        if (hasTie) bar += '-';
+        continue;
+      }
+    }
+    if (meas.querySelector('endRepeat')) bar += ':|';
+    else bar += (mi < measures.length - 1) ? '|' : '|]';
+    outBars.push(bar);
+  });
+
+  const abc = ['X:1', 'T: ' + title, composer ? 'C: ' + composer : '',
+               'M: ' + (headerMeter || '4/4'), 'L: 1/16', 'K: ' + (headerKey || 'C')]
+              .filter(Boolean).concat(outBars).join('\n');
+  return { title, artist: composer, key: headerKey || 'C', type: 'Sheet Music',
+           _source: 'abc', abc_text: abc, abc_file_name: filename };
 }
 
 function parseMusicXML(xmlText, filename) {
@@ -6360,6 +6521,21 @@ function loadFile(file) {
         if (song) loadFileSongs([song]);
         else alert('Could not parse MusicXML in ' + file.name);
       } catch(err) { console.error('[MXL]', err); alert('Error reading .mxl: ' + err.message); }
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+
+  // ── .mscz: MuseScore archive → extract .mscx → ABC ────────────────────────
+  if (name.endsWith('.mscz')) {
+    reader.onload = async function(e) {
+      try {
+        const mscx = await unzipMSCZ(e.target.result);
+        if (!mscx) { alert('Could not extract score from ' + file.name); return; }
+        const song = parseMuseScore(mscx, file.name);
+        if (song && song.abc_text) loadFileSongs([song]);
+        else alert('Could not parse MuseScore file ' + file.name);
+      } catch(err) { console.error('[MSCZ]', err); alert('Error reading .mscz: ' + err.message); }
     };
     reader.readAsArrayBuffer(file);
     return;
@@ -9293,14 +9469,14 @@ function renderDiagrams() {
 function _buildInstDiagram(chord, instId, showLabel, capo){
   capo = capo || 0;
   const inst=resolveInst(instId);
-  // With a capo, the player fingers the chord transposed DOWN by the capo amount.
-  const shape = _capoChord(chord, capo);
+  // Shape this instrument fingers (relative to the primary capo).
+  const shape = _fingering(chord, capo);
   let lblParts=[];
   if(showLabel) lblParts.push(instLabel(instId));
   if(capo) lblParts.push('capo '+capo);
   const labelHtml=lblParts.length ? '<div class="cd-inst-label">'+escapeHtml(lblParts.join(' · '))+'</div>' : '';
-  // When capo'd, name the actual shape so the player knows what to finger.
-  const fingeredHtml=capo ? '<div class="cd-fingered">'+escapeHtml(shape)+'</div>' : '';
+  // Name the fingered shape only when it differs from the page chord.
+  const fingeredHtml=(shape !== chord) ? '<div class="cd-fingered">'+escapeHtml(shape)+'</div>' : '';
   const block=document.createElement('div'); block.className='cd-inst-block';
   const nonFretted = inst==='piano' || (typeof isSqueezebox==='function' && isSqueezebox(inst));
   if(nonFretted){
@@ -9370,9 +9546,9 @@ function _normChordText(s) { return (s || '').replace(/♭/g, 'b').replace(/♯/
 function showChordTooltip(span, x, y) {
   // span text is already the transposed name (abcjs/transposeText) — don't transpose
   // again; just normalise ♭/♯ and, if Simplify is on, reduce to root form.
-  let name = _normChordText(cleanToken(span.textContent.trim()));
+  let name = _normChordText(cleanToken(((span.dataset && span.dataset.chord) || span.textContent).trim()));
   if (isSimplifiedView && typeof simplifyChord === 'function') name = simplifyChord(name);
-  const pShape = _capoChord(name, primaryCapo);
+  const pShape = _fingering(name, primaryCapo);
   const svg = renderChordDiagram(pShape, resolveInst(currentInstrument));
   if (!svg) { chordHoverEl.style.display = 'none'; return; }
   const capLbl = (instId, capo) => {
@@ -9381,12 +9557,12 @@ function showChordTooltip(span, x, y) {
     return p.join(' · ');
   };
   const oneCol = (sh, isvg, instId, capo) =>
-    '<div class="cht-one">' + (capo ? '<div class="cd-fingered">' + escapeHtml(sh) + '</div>' : '')
+    '<div class="cht-one">' + (sh !== name ? '<div class="cd-fingered">' + escapeHtml(sh) + '</div>' : '')
     + isvg + '<div class="cd-inst-label">' + escapeHtml(capLbl(instId, capo)) + '</div></div>';
   let body;
   const showSec = secondaryInstrument && secondaryInstrument !== 'none'
                && (resolveInst(secondaryInstrument) !== resolveInst(currentInstrument) || secondaryCapo !== primaryCapo);
-  const sShape = _capoChord(name, secondaryCapo);
+  const sShape = _fingering(name, secondaryCapo);
   const secSvg = showSec ? renderChordDiagram(sShape, resolveInst(secondaryInstrument)) : null;
   if (secSvg) {
     body = '<div class="cht-dual">'
@@ -9589,6 +9765,8 @@ function setSecondaryInstrument(inst){
   const _irc=document.getElementById('ireal-song-card');
   const _ics=currentIdx>=0?songs[currentIdx]:null;
   if(_irc && _irc.style.display!=='none' && _ics && _ics._source==='ireal' && typeof renderIRealSong==='function') renderIRealSong(_ics);
+  const _sc=document.getElementById('song-card');
+  if(_sc && _sc.classList.contains('visible') && _ics && _ics._source==='plaintext' && typeof renderTabContent==='function') renderTabContent();
 }
 function chooseInstrument(inst, which){ if(which==='secondary') setSecondaryInstrument(inst); else setActiveInstrument(inst); }
 function wireInstSection(container, which){
@@ -9635,8 +9813,8 @@ function wireInstSection(container, which){
     });
   });
   // Capo controls (−11..11), restored from storage.
-  try{ primaryCapo  =Math.max(-11,Math.min(11,parseInt(localStorage.getItem('ms_capo_primary'))||0)); }catch(e){}
-  try{ secondaryCapo=Math.max(-11,Math.min(11,parseInt(localStorage.getItem('ms_capo_secondary'))||0)); }catch(e){}
+  try{ primaryCapo  =Math.max(0,Math.min(11,parseInt(localStorage.getItem('ms_capo_primary'))||0)); }catch(e){}
+  try{ secondaryCapo=Math.max(0,Math.min(11,parseInt(localStorage.getItem('ms_capo_secondary'))||0)); }catch(e){}
   _updateCapoDisplay();
   document.querySelectorAll('.capo-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> setCapo(btn.dataset.capo, parseInt(btn.dataset.capoDir)||0));
@@ -9647,15 +9825,19 @@ function _updateCapoDisplay(){
   const s=document.querySelector('[data-capo-val="secondary"]'); if(s) s.textContent=String(secondaryCapo);
 }
 function setCapo(which, delta){
-  if(which==='secondary'){ secondaryCapo=Math.max(-11,Math.min(11,secondaryCapo+delta));
+  if(which==='secondary'){ secondaryCapo=Math.max(0,Math.min(11,secondaryCapo+delta));
     try{ localStorage.setItem('ms_capo_secondary',String(secondaryCapo)); }catch(e){} }
-  else { primaryCapo=Math.max(-11,Math.min(11,primaryCapo+delta));
-    try{ localStorage.setItem('ms_capo_primary',String(primaryCapo)); }catch(e){} }
+  else { primaryCapo=Math.max(0,Math.min(11,primaryCapo+delta));
+    try{ localStorage.setItem('ms_capo_primary',String(primaryCapo)); }catch(e){}
+    // Primary capo shifts the sounding key — keep the Key display in sync.
+    if(typeof updateKeyDisplay==='function') updateKeyDisplay(); }
   _updateCapoDisplay();
   if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
   const _irc=document.getElementById('ireal-song-card');
   const _ics=currentIdx>=0?songs[currentIdx]:null;
   if(_irc && _irc.style.display!=='none' && _ics && _ics._source==='ireal' && typeof renderIRealSong==='function') renderIRealSong(_ics);
+  const _sc=document.getElementById('song-card');
+  if(_sc && _sc.classList.contains('visible') && _ics && _ics._source==='plaintext' && typeof renderTabContent==='function') renderTabContent();
 }
 
 // ── CHORD SIMPLIFICATION ─────────────────────────────────────────────────────
@@ -11244,10 +11426,10 @@ ${body}
     );
     diagHtml = '<div class="pd-diagrams">';
     chords.forEach(name => {
-      const shape = _capoChord(name, primaryCapo);   // honour the primary capo
-      const svg = renderChordDiagram(shape, diagInst, 0.9);
+      // The page chord is the fingered shape (primary); capo only labels the key.
+      const svg = renderChordDiagram(name, diagInst, 0.9);
       if (svg) diagHtml += '<div class="pd-diag"><div class="pd-name">' +
-        escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+': '+escapeHtml(shape)+')</small>' : '') +
+        escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+')</small>' : '') +
         '</div>' + svg + '</div>';
     });
     diagHtml += '</div>';
@@ -14109,7 +14291,7 @@ function renderIRealSong(song){
         unit.appendChild(nm);
         if(currentInstrument&&currentInstrument!=='none'){
           // Apply the primary instrument's capo: show the shape to finger.
-          const key=_capoChord(irealChordKey(tr,_dispQual), primaryCapo);
+          const key=_fingering(irealChordKey(tr,_dispQual), primaryCapo);
           let svg;
           if(typeof isSqueezebox==='function' && isSqueezebox(currentInstrument)){
             const probe=makeSqueezeboxSVG(key,currentInstrument,1,true);
@@ -14369,23 +14551,30 @@ function _runOnlineSearch(q) {
 // ── PUBLISH MODAL ─────────────────────────────────────────────────────────────
 var _publishIndices = [];
 
+var _publishCollectionName = null;   // set → confirm publishes a collection, not loose songs
+
+// Notice shown for large batches — applies to any item type (songs, tunes, lead
+// sheets, tabs). Threshold is 10 OR MORE.
+function _setPublishNotice(count) {
+  var notice = document.getElementById('pub-many-notice');
+  if (!notice) return;
+  if (count >= 10) {
+    notice.textContent = '⏳ You\'re publishing ' + count + ' items. It may take a moment to submit them all — ' +
+      'please keep this window open until it finishes.';
+    notice.style.display = 'block';
+  } else {
+    notice.style.display = 'none';
+  }
+}
+
 function showPublishModal(indices) {
   _publishIndices = indices || [];
+  _publishCollectionName = null;
   var names = _publishIndices
     .map(function(i) { return songs[i] ? (songs[i].title || 'Untitled') : ''; })
     .filter(Boolean).join(', ');
   document.getElementById('pub-song-name').textContent = names;
-  // Many-songs notice: submitting a large batch takes a while.
-  var notice = document.getElementById('pub-many-notice');
-  if (notice) {
-    if (_publishIndices.length > 10) {
-      notice.textContent = '⏳ You\'re publishing ' + _publishIndices.length + ' songs. ' +
-        'This may take a few minutes to submit them all — please keep this window open until it finishes.';
-      notice.style.display = 'block';
-    } else {
-      notice.style.display = 'none';
-    }
-  }
+  _setPublishNotice(_publishIndices.length);
   document.getElementById('pub-status').textContent = '';
   document.getElementById('pub-confirm-btn').disabled = false;
   document.getElementById('publish-modal').classList.add('open');
@@ -14398,11 +14587,15 @@ function showPublishCollectionModal(folderId) {
   var folder = folders.find(function(f) { return f.id === folderId; });
   if (!folder) return;
   _publishIndices = (folder.songIndices || []).filter(function(i) { return i < songs.length; });
+  _publishCollectionName = folder.name;
   document.getElementById('pub-song-name').textContent =
-    'Collection: ' + folder.name + ' (' + _publishIndices.length + ' songs)';
+    'Collection: ' + folder.name + ' (' + _publishIndices.length + ' items)';
+  _setPublishNotice(_publishIndices.length);
   document.getElementById('pub-status').textContent = '';
   document.getElementById('pub-confirm-btn').disabled = false;
   document.getElementById('publish-modal').classList.add('open');
+  var box = document.querySelector('#publish-modal .pub-box');
+  if (box) box.scrollTop = 0;
 }
 
 document.getElementById('pub-cancel-btn').addEventListener('click', function() {
@@ -14421,23 +14614,35 @@ document.getElementById('pub-confirm-btn').addEventListener('click', function() 
   statusEl.textContent = 'Publishing...';
   btn.disabled = true;
   var payload = _publishIndices.map(function(i) { return songs[i]; }).filter(Boolean);
-  fetch(FUNCTIONS_BASE + '/publish-songs', {
+  var isCollection = !!_publishCollectionName;
+  // Folder publishing registers a COMMUNITY COLLECTION (name + songs) so it shows
+  // up in the Collections › Community list; loose songs go to /publish-songs.
+  var url  = FUNCTIONS_BASE + (isCollection ? '/publish-collection' : '/publish-songs');
+  var body = isCollection
+    ? JSON.stringify({ name: _publishCollectionName, songs: payload })
+    : JSON.stringify(payload);
+  fetch(url, {
     method: 'POST',
     headers: _sbHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(payload),
+    body: body,
   }).then(function(r) {
     return r.json().then(function(data) {
       if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
       return data;
     });
   }).then(function() {
-    statusEl.textContent = 'Published successfully!';
+    statusEl.textContent = isCollection
+      ? 'Collection submitted! It will appear in Community once approved.'
+      : 'Published successfully!';
     setTimeout(function() {
       document.getElementById('publish-modal').classList.remove('open');
-    }, 1800);
+    }, isCollection ? 2600 : 1800);
     btn.disabled = false;
   }).catch(function(e) {
-    statusEl.textContent = 'Failed: ' + (e.message || 'unknown error');
+    var msg = e.message === 'duplicate'
+      ? 'This collection is already published.'
+      : (e.message || 'unknown error');
+    statusEl.textContent = 'Failed: ' + msg;
     btn.disabled = false;
   });
 });
