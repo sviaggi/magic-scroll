@@ -453,6 +453,36 @@
   .filter-row.sub { color: var(--c-chrome-muted); }
   .filter-row input { accent-color: var(--c-accent); }
   .filter-empty { padding: 8px 12px; color: var(--c-chrome-muted); }
+  /* Folder picker modal (bulk move to folder) */
+  .fp-overlay {
+    position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5); padding: 16px;
+  }
+  .fp-box {
+    background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border); border-radius: 6px;
+    width: 320px; max-width: 100%; max-height: 80vh; display: flex; flex-direction: column;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5); overflow: hidden;
+  }
+  .fp-title {
+    padding: 12px 14px; font-size: 0.85rem; font-weight: bold; color: var(--c-chrome-text);
+    border-bottom: 1px solid var(--c-chrome-border);
+  }
+  .fp-list { overflow-y: auto; padding: 6px 0; flex: 1; }
+  .fp-row {
+    width: 100%; text-align: left; display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: none; border: none; color: var(--c-chrome-text);
+    font-size: 0.8rem; cursor: pointer; border-radius: 0;
+  }
+  .fp-row:hover { background: var(--c-chrome-bg3); color: var(--c-accent); }
+  .fp-row .fp-ic { flex-shrink: 0; width: 1.1em; text-align: center; }
+  .fp-row .fp-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fp-none { color: var(--c-chrome-muted); }
+  .fp-new { color: var(--c-accent); border-top: 1px solid var(--c-chrome-border); margin-top: 4px; }
+  .fp-cancel {
+    margin: 8px 14px 12px; padding: 7px; font-size: 0.78rem; border-radius: 4px;
+    background: var(--c-chrome-bg3); color: var(--c-chrome-text); border: 1px solid var(--c-chrome-border); cursor: pointer;
+  }
+  .fp-cancel:hover { background: var(--c-chrome-bg2); }
   #btn-online-toggle {
     font-size: 0.72rem;
     padding: 3px 6px;
@@ -750,13 +780,13 @@
     font-size: 0.8rem;
   }
   #ctx-menu.open, #rt-ctx-menu.open { display: block; }
-  /* rich-text formatting toolbar above the song editor */
-  #rt-toolbar { display: flex; gap: 6px; align-items: center; margin: 12px 0; }
-  #rt-toolbar button {
+  /* rich-text formatting toolbar (song editor + lead-sheet notes) */
+  #rt-toolbar, .rt-toolbar { display: flex; gap: 6px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+  #rt-toolbar button, .rt-toolbar button {
     font-family: var(--font-mono); font-size: 0.82rem; min-width: 30px;
     padding: 4px 9px; line-height: 1;
   }
-  #rt-toolbar #rt-embed { min-width: auto; }
+  #rt-toolbar #rt-embed, .rt-toolbar .rt-embed-btn { min-width: auto; }
   .ctx-item {
     padding: 6px 14px;
     color: var(--c-chrome-text);
@@ -1209,6 +1239,7 @@
   #edit-toolbar button { font-size: 0.75rem; padding: 4px 10px; }
   #btn-edit-toggle.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
   #btn-ls-edit.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
+  #btn-abc-edit.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
   /* Lead-sheet read-only state */
   #ireal-song-card:not(.ls-edit-mode) .ls-bar { cursor: default; }
   #ireal-song-card:not(.ls-edit-mode) .ls-kebab-btn { display: none !important; }
@@ -1668,23 +1699,25 @@
   #tab-content.mono-spacing .chord-token {
     letter-spacing: 0.06em;
   }
-  /* ── TAB MODE ─────────────────────────────────────────────────────────────
-     Tablature staff lines must stay character-aligned, so force a TRUE
-     monospace font (overriding the Valeson-led --font-mono) and disable
-     wrapping. The font-size is set inline by _fitTabFontSize() so the widest
-     line fits the screen regardless of the app's view-size (XS–XL). */
-  #tab-content.tab-mode {
+  /* ── TAB BLOCK ─────────────────────────────────────────────────────────────
+     A run of tablature staff lines (and any chord line directly above them)
+     rendered in TRUE monospace so frets stay character-aligned — even inside an
+     otherwise-proportional chord sheet (e.g. a tabbed intro). _fitTabBlocks()
+     sets the font-size inline so the widest line fits the screen (any view size). */
+  .tab-block {
     font-family: 'Courier Prime', 'Courier New', ui-monospace, monospace !important;
-    line-height: 1.45;
-    white-space: pre;
+    line-height: 1.4;
+    margin: 6px 0;
     overflow-x: auto;
     letter-spacing: 0;
     font-kerning: none;
     font-variant-ligatures: none;
     font-feature-settings: "kern" 0, "liga" 0, "calt" 0;
   }
-  #tab-content.tab-mode > div { white-space: pre; min-height: 0; }
-  #tab-content.tab-mode .chord-token {
+  /* Higher specificity than "#tab-content div { white-space: pre-wrap }" so tab
+     lines never wrap (wrapping makes them unreadable and fools the width fit). */
+  #tab-content .tab-block-line { white-space: pre; min-height: 0; }
+  .tab-block .chord-token {
     font-family: 'Courier Prime', 'Courier New', ui-monospace, monospace !important;
     letter-spacing: 0;
   }
@@ -2333,7 +2366,7 @@
   .ls-notes-view{font-family:var(--font-chord);font-size:0.88rem;line-height:1.7;
     padding:9px 11px;color:var(--c-card-text);white-space:pre-wrap;}
   .ls-notes-view .chord-token{color:var(--c-chord-text);font-weight:bold;cursor:default;}
-  .ls-notes-ta{width:100%;min-height:90px;background:rgba(0,0,0,0.06);
+  .ls-notes-ta{width:100%;min-height:15em;background:rgba(0,0,0,0.06);
     color:var(--c-card-text);border:1px solid var(--c-card-border);border-radius:3px;
     padding:9px 11px;font-size:0.88rem;font-family:var(--font-chord);
     resize:vertical;box-sizing:border-box;line-height:1.55;}
@@ -3237,7 +3270,7 @@ Another lyric line
       📱 <a href="https://www.instagram.com/spencer.california/">@Spencer.California</a>
     </div>
     <div class="contact-muted">
-      Please include the song file and a description of what went wrong.<br>Version: 1.0.0
+      Please include the song file and a description of what went wrong.<br>Version: 1.0.2
     </div>
     <div><a href="https://ko-fi.com/spencercalifornia" target="_blank">Like the project? A donation would mean the world! ☕ 🌍</a></div>
     <!-- ── FAQ / Credits loaded from FAQ.txt ────────────────────────── -->
@@ -4463,26 +4496,38 @@ function _songContentType(song){
     if (_isTabLine(ln)) { tabLines++; continue; }
     if (typeof lineIsChordLine === 'function' && lineIsChordLine(ln)) chordLines++;
   }
-  if (tabLines >= 3) return 'Tab';
+  // Tab only when tablature dominates; a chord sheet with a tabbed intro or a
+  // fingerpicking pattern stays 'Chords' (its tab lines are still shown mono).
+  if (tabLines >= 3 && tabLines >= chordLines) return 'Tab';
   if (chordLines >= 1) return 'Chords';
+  if (tabLines >= 1) return 'Tab';
   return 'Lyrics';
 }
-// Scale the tab font-size so the widest line fits the container width,
-// independent of the fs-* view-size class. Linear: width ∝ font-size for a
-// monospace block, so measure once at a base size then scale by the ratio.
-function _fitTabFontSize(){
-  const tc = document.getElementById('tab-content');
-  if (!tc || !tc.classList.contains('tab-mode')) return;
-  const BASE = 16;
-  tc.style.fontSize = BASE + 'px';
-  const avail = tc.clientWidth;            // content box (incl. padding)
-  const need  = tc.scrollWidth;            // widest line at BASE px
-  if (avail > 0 && need > avail){
-    const fs = Math.max(5, Math.floor(BASE * (avail / need) * 0.97));
-    tc.style.fontSize = fs + 'px';
-  } else {
-    tc.style.fontSize = '';                // fits at base; keep CSS default
-  }
+// True for a line that sits directly above a tab run and should share its
+// monospace alignment (a chord line immediately preceding tab staff lines).
+function _lineIsTabHeader(lines, i){
+  return i + 1 < lines.length && _isTabLine(lines[i+1])
+      && !_isTabLine(lines[i]) && lines[i].trim() !== ''
+      && typeof lineIsChordLine === 'function' && lineIsChordLine(lines[i]);
+}
+// Scale every .tab-block so the widest tab line fits the container width,
+// independent of the fs-* view-size class, and uniformly across blocks (so
+// intro tabs and later tabs share one readable size). Linear in font-size.
+function _fitTabBlocks(){
+  const blocks = document.querySelectorAll('#tab-content .tab-block');
+  if (!blocks.length) return;
+  const BASE = 15;
+  let maxRatio = 1;
+  blocks.forEach(b => { b.style.fontSize = BASE + 'px'; });
+  blocks.forEach(b => {
+    const avail = b.clientWidth, need = b.scrollWidth;
+    if (avail > 0 && need > avail) maxRatio = Math.max(maxRatio, need / avail);
+  });
+  // Always pin an explicit size (BASE when it already fits, smaller when it must
+  // shrink) so tabs render at a consistent width independent of the fs-* view
+  // size — never inheriting a large size that would force lines to wrap.
+  const fs = maxRatio > 1 ? Math.max(5, Math.floor(BASE / maxRatio * 0.98)) : BASE;
+  blocks.forEach(b => { b.style.fontSize = fs + 'px'; });
 }
 
 function renderTabContent() {
@@ -4513,55 +4558,70 @@ function renderTabContent() {
     }).join('\n');
   }
 
-  const frag = document.createDocumentFragment();
-  transposed.split('\n').forEach(line => {
-    const lineEl = document.createElement('div');
-    const isChord = lineIsChordLine(line);
+  // Renders a chord/lyric line's parts (chord tokens + text) into `el`.
+  const CPFX = /^([A-G][b#]?(?:maj|min|sus|add|aug|dim|mmaj|dom|m|M)?(?:[0-9]{1,2})?(?:[b#][0-9]{1,2})?(?:\/[A-G][b#]?)?)/;
+  function renderChordLineInto(el, line) {
+    const isForced = line.startsWith('!');
     const dispLine = (line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line;
-    if (isChord) {
-      const isForced = line.startsWith('!');
-      const CPFX = /^([A-G][b#]?(?:maj|min|sus|add|aug|dim|mmaj|dom|m|M)?(?:[0-9]{1,2})?(?:[b#][0-9]{1,2})?(?:\/[A-G][b#]?)?)/;
-      dispLine.split(/(\s+)/).forEach(part => {
-        if (/^\s+$/.test(part)) {
-          lineEl.appendChild(document.createTextNode(part));
-        } else if (isChordToken(part)) {
-          const span = document.createElement('span');
-          span.className = 'chord-token';
-          span.textContent = part;
-          lineEl.appendChild(span);
-        } else if (isForced) {
-          const m = part.match(CPFX);
-          if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
-            const s2 = document.createElement('span');
-            s2.className = 'chord-token'; s2.textContent = m[1];
-            lineEl.appendChild(s2);
-            lineEl.appendChild(document.createTextNode(part.slice(m[1].length)));
-          } else { lineEl.appendChild(document.createTextNode(part)); }
-        } else {
-          lineEl.appendChild(document.createTextNode(part));
-        }
-      });
+    dispLine.split(/(\s+)/).forEach(part => {
+      if (/^\s+$/.test(part)) {
+        el.appendChild(document.createTextNode(part));
+      } else if (isChordToken(part)) {
+        const span = document.createElement('span');
+        span.className = 'chord-token'; span.textContent = part;
+        el.appendChild(span);
+      } else if (isForced) {
+        const m = part.match(CPFX);
+        if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
+          const s2 = document.createElement('span');
+          s2.className = 'chord-token'; s2.textContent = m[1];
+          el.appendChild(s2);
+          el.appendChild(document.createTextNode(part.slice(m[1].length)));
+        } else { el.appendChild(document.createTextNode(part)); }
+      } else {
+        el.appendChild(document.createTextNode(part));
+      }
+    });
+  }
+
+  const frag = document.createDocumentFragment();
+  const lines = transposed.split('\n');
+  let curBlock = null;   // active .tab-block (monospace) while inside a tab run
+  const inBlock = (i) => _isTabLine(lines[i]) || _lineIsTabHeader(lines, i);
+  lines.forEach((line, i) => {
+    // Tab staff lines — and the chord line directly above them — render in a
+    // shared monospace block so frets/fingerings stay character-aligned, even
+    // when the rest of the file is an ordinary chord sheet.
+    if (inBlock(i)) {
+      if (!curBlock) { curBlock = document.createElement('div'); curBlock.className = 'tab-block'; frag.appendChild(curBlock); }
+      const row = document.createElement('div'); row.className = 'tab-block-line';
+      if (_isTabLine(line)) {
+        row.textContent = (line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line;
+      } else {
+        renderChordLineInto(row, line);   // the header chord line (keeps chord tokens)
+      }
+      curBlock.appendChild(row);
+      return;
+    }
+    curBlock = null;
+    const lineEl = document.createElement('div');
+    if (lineIsChordLine(line)) {
+      renderChordLineInto(lineEl, line);
     } else {
-      // Apply rich-text markup: **bold**, *italic*, _underline_, [yt:…], [link:…|…]
+      const dispLine = (line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line;
       const populated = applyMarkup(dispLine, lineEl);
       if (!populated && !lineEl.innerHTML) lineEl.textContent = dispLine;
     }
     frag.appendChild(lineEl);
   });
 
+  tc.classList.remove('tab-mode');
+  tc.style.fontSize = '';
   tc.innerHTML = '';
   tc.appendChild(frag);
 
-  // Tablature: force true monospace and auto-scale to fit width (independent of
-  // the fs-* view size). Other songs keep pre-wrap + the chosen view size.
-  if (_songContentType(song) === 'Tab') {
-    tc.classList.add('tab-mode');
-    tc.style.fontSize = '';
-    requestAnimationFrame(_fitTabFontSize);
-  } else {
-    tc.classList.remove('tab-mode');
-    tc.style.fontSize = '';
-  }
+  // Fit any tab blocks to the screen width (uniform, independent of view size).
+  if (tc.querySelector('.tab-block')) requestAnimationFrame(_fitTabBlocks);
 }
 
 // ── HTML PARSING — for files exported with 'ug export' ─────────────────────
@@ -4937,11 +4997,72 @@ function folderForSong(i) {
   return folders.find(f => f.songIndices.includes(i)) || null;
 }
 
+// Rename any library item (song / sheet music / lead sheet / tab).
+function renameSong(i) {
+  const s = songs[i]; if (!s) return;
+  const nm = prompt('Rename:', s.title || '');
+  if (nm === null) return;
+  const t = nm.trim(); if (!t) return;
+  s.title = t;
+  saveSongs();
+  buildSongList(document.getElementById('search-input').value);
+  if (i === currentIdx) renderSong(i);   // refresh the visible title on the open item
+}
+
 function createFolder(name) {
   const f = { id: makeFolderId(), name, songIndices: [], collapsed: false };
   folders.push(f);
   saveFolders();
   buildSongList(document.getElementById('search-input').value);
+  return f;
+}
+
+// Flat, depth-annotated list of every folder and subfolder (for pickers).
+function _folderTreeList() {
+  const byName = (a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  const allSubIds = new Set(folders.flatMap(f => f.subfolderIds || []));
+  const tops = folders.filter(f => !allSubIds.has(f.id)).sort(byName);
+  const out = [];
+  (function walk(list, depth){
+    list.forEach(f => {
+      out.push({ f, depth });
+      const subs = (f.subfolderIds || []).map(id => folders.find(x => x.id === id)).filter(Boolean).sort(byName);
+      walk(subs, depth + 1);
+    });
+  })(tops, 0);
+  return out;
+}
+
+// Clickable modal to move all selected library items into a folder/subfolder.
+function showBulkFolderPicker() {
+  if (!selectedSongs.size) return;
+  const existing = document.getElementById('bulk-folder-modal'); if (existing) existing.remove();
+  const ov = document.createElement('div'); ov.id = 'bulk-folder-modal'; ov.className = 'fp-overlay';
+  const box = document.createElement('div'); box.className = 'fp-box';
+  const n = selectedSongs.size;
+  box.innerHTML = '<div class="fp-title">Move ' + n + ' item' + (n>1?'s':'') + ' to…</div>';
+  const list = document.createElement('div'); list.className = 'fp-list';
+  function row(label, icon, onClick, extraClass, depth) {
+    const b = document.createElement('button');
+    b.className = 'fp-row' + (extraClass ? ' ' + extraClass : '');
+    b.style.paddingLeft = (12 + (depth||0)*16) + 'px';
+    b.innerHTML = '<span class="fp-ic">' + icon + '</span><span class="fp-lbl">' + escapeHtml(label) + '</span>';
+    b.addEventListener('click', onClick);
+    list.appendChild(b);
+  }
+  const done = (fid) => { selectedSongs.forEach(i => moveSongToFolder(i, fid)); ov.remove(); setMultiselectMode(false); };
+  row('No folder (remove from folders)', '✕', () => done(null), 'fp-none', 0);
+  _folderTreeList().forEach(({f, depth}) => row(f.name, '📁', () => done(f.id), '', depth));
+  row('New folder…', '＋', () => {
+    const nm = prompt('New folder name:'); if (nm && nm.trim()) done(createFolder(nm.trim()).id);
+  }, 'fp-new', 0);
+  box.appendChild(list);
+  const cancel = document.createElement('button'); cancel.className = 'fp-cancel'; cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => ov.remove());
+  box.appendChild(cancel);
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 function renameFolder(id) {
@@ -5077,6 +5198,7 @@ function makeSongItem(i, q) {
   });
 
   // ── Menu items ───────────────────────────────────────────────────────────
+  menu.appendChild(makeMenuItem('✎ Rename', '', () => renameSong(i)));
   menu.appendChild(makeMenuItem('📁 Move to folder', '', () => showMoveToFolderMenu(i, kebab)));
   menu.appendChild(makeMenuItem('⧉ Duplicate', '', () => {
     const src  = songs[i];
@@ -9772,17 +9894,7 @@ document.getElementById('btn-bulk-delete').addEventListener('click', () => {
 });
 
 document.getElementById('btn-bulk-folder').addEventListener('click', () => {
-  if (!selectedSongs.size) return;
-  // build a quick picker
-  if (!folders.length) { alert('No folders yet — create one first with the 📁 button.'); return; }
-  const opts = ['(none — remove from folder)', ...folders.map(f => f.name)];
-  const choice = prompt('Move to folder:\n' + opts.map((o,i) => i + ': ' + o).join('\n'));
-  if (choice === null) return;
-  const idx = parseInt(choice);
-  if (isNaN(idx) || idx < 0 || idx >= opts.length) return;
-  const folderId = idx === 0 ? null : folders[idx-1].id;
-  selectedSongs.forEach(i => moveSongToFolder(i, folderId));
-  setMultiselectMode(false);
+  showBulkFolderPicker();
 });
 
 // ── DIAGRAM SIZE ──────────────────────────────────────────────────────────────
@@ -9888,9 +10000,9 @@ if (window.innerWidth <= 520) {
           && typeof renderIRealSong === 'function') {
         renderIRealSong(s);
         if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
-      } else if (typeof _fitTabFontSize === 'function'
-          && document.getElementById('tab-content').classList.contains('tab-mode')) {
-        _fitTabFontSize();   // re-scale tab to the new width
+      } else if (typeof _fitTabBlocks === 'function'
+          && document.getElementById('tab-content').querySelector('.tab-block')) {
+        _fitTabBlocks();   // re-scale tab blocks to the new width
       }
     }, 250);
   }
@@ -10061,9 +10173,10 @@ function setEditMode(on) {
   split.classList.toggle('visible', on);
   editBtn.classList.toggle('active', on);
   editBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  editBtn.textContent = on ? '💾 Save & Read' : '✎ Edit';
-  editBtn.title = on ? 'Save and switch back to read mode' : 'Edit this song';
-  saveBtn.style.display = on ? '' : 'none';
+  editBtn.textContent = on ? '✎ Editing' : '✎ Edit';
+  editBtn.title = on ? 'Exit edit mode (changes are kept automatically)' : 'Edit this song';
+  // Changes persist automatically; a file is only written via "Save As…".
+  saveBtn.style.display = 'none';
 
   if (on) {
     document.getElementById('edit-title').value  = song.title  || '';
@@ -10075,23 +10188,42 @@ function setEditMode(on) {
     updateEditorPreview();
     hasUnsavedChanges = false;
     setSaveStatus('');
-    document.getElementById('song-editor').focus();
     // trigger auto-resize so textarea fits the loaded content immediately
     autoResizeEditor();
+    // Focus without scrolling, and put the caret at the TOP — otherwise setting
+    // .value leaves the caret at the end and the view jumps to the bottom.
+    const _ed = document.getElementById('song-editor');
+    try { _ed.setSelectionRange(0, 0); } catch (e) {}
+    _ed.focus({ preventScroll: true });
+    _ed.scrollTop = 0;
+    window.scrollTo(0, 0);
   } else {
-    if (hasUnsavedChanges && !confirm('Leave without saving changes?')) {
-      // stay in edit mode
-      isEditMode = true;
-      card.style.display = 'none';
-      split.classList.add('visible');
-      editBtn.classList.add('active');
-      editBtn.textContent = '👁 Read';
-      return;
-    }
+    // Exit is a clean toggle — changes were already persisted in-app, so no
+    // "unsaved" prompt and no forced file download.
     renderTabContent();
     hasUnsavedChanges = false;
     setSaveStatus('');
   }
+}
+// Persist the current chord/tab edits to the library (localStorage) WITHOUT
+// writing a file. saveCurrentEdits() additionally downloads a .txt copy and is
+// reserved for the explicit "Save As…" action.
+function persistCurrentEdits() {
+  if (currentIdx < 0) return;
+  const song = songs[currentIdx];
+  const t = document.getElementById('edit-title').value.trim();
+  const a = document.getElementById('edit-artist').value.trim();
+  song.title       = t || song.title;
+  song.artist      = a || song.artist;
+  song.key         = document.getElementById('edit-key').value.trim();
+  song.capo        = parseInt(document.getElementById('edit-capo').value) || 0;
+  song.tab_content = document.getElementById('song-editor').value;
+  const dt = document.getElementById('display-title'); if (dt) dt.textContent = song.title || 'Untitled';
+  const da = document.getElementById('display-artist'); if (da) da.textContent = song.artist || '';
+  saveSongs();
+  buildSongList(document.getElementById('search-input').value);
+  hasUnsavedChanges = false;
+  setSaveStatus('saved');
 }
 
 function updateEditorPreview() {
@@ -10129,8 +10261,11 @@ function updateEditorPreview() {
 // ── RICH-TEXT FORMATTING (editor) ─────────────────────────────────────────────
 // Wraps the current selection in the song editor with markup recognised by
 // applyMarkup(): **bold**, *italic*, _underline_, [yt:…], [link: text | url].
-function rtWrapSelection(before, after) {
-  const ta = document.getElementById('song-editor');
+// All rt* helpers take an optional target <textarea> (defaults to the song
+// editor) so the same formatting works for the lead-sheet notes editor too.
+function _rtTarget(ta) { return ta || document.getElementById('song-editor'); }
+function rtWrapSelection(before, after, ta) {
+  ta = _rtTarget(ta);
   if (!ta) return;
   const s = ta.selectionStart, e = ta.selectionEnd;
   const sel = ta.value.slice(s, e);
@@ -10141,8 +10276,8 @@ function rtWrapSelection(before, after) {
   ta.selectionEnd   = s + before.length + sel.length;
   ta.dispatchEvent(new Event('input'));
 }
-function rtInsertAtCursor(text) {
-  const ta = document.getElementById('song-editor');
+function rtInsertAtCursor(text, ta) {
+  ta = _rtTarget(ta);
   if (!ta) return;
   const s = ta.selectionStart, e = ta.selectionEnd;
   ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
@@ -10150,8 +10285,8 @@ function rtInsertAtCursor(text) {
   ta.selectionStart = ta.selectionEnd = s + text.length;
   ta.dispatchEvent(new Event('input'));
 }
-function rtEmbed() {
-  const ta = document.getElementById('song-editor');
+function rtEmbed(ta) {
+  ta = _rtTarget(ta);
   if (!ta) return;
   const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
   const url = (prompt('Paste a link to embed (YouTube video, or any web link):', '') || '').trim();
@@ -10163,13 +10298,32 @@ function rtEmbed() {
     const label = (prompt('Link text (optional):', sel || '') || url).trim();
     snippet = '[link: ' + label + ' | ' + url + ']';
   }
-  rtInsertAtCursor(snippet);
+  rtInsertAtCursor(snippet, ta);
 }
-function rtApply(kind) {
-  if (kind === 'bold')      rtWrapSelection('**', '**');
-  else if (kind === 'italic')    rtWrapSelection('*', '*');
-  else if (kind === 'underline') rtWrapSelection('_', '_');
-  else if (kind === 'embed')     rtEmbed();
+function rtApply(kind, ta) {
+  if (kind === 'bold')           rtWrapSelection('**', '**', ta);
+  else if (kind === 'italic')    rtWrapSelection('*', '*', ta);
+  else if (kind === 'underline') rtWrapSelection('_', '_', ta);
+  else if (kind === 'embed')     rtEmbed(ta);
+}
+// Build a rich-text toolbar (Bold / Italic / Underline / Embed) bound to a
+// specific textarea — used for both the song editor and lead-sheet notes.
+function buildRtToolbar(targetTa) {
+  const bar = document.createElement('div');
+  bar.className = 'rt-toolbar';
+  [['bold','<b>B</b>','Bold (**text**)'],
+   ['italic','<i>I</i>','Italic (*text*)'],
+   ['underline','<u>U</u>','Underline (_text_)'],
+   ['embed','⧉ Embed…','Embed a video or link']].forEach(([kind,html,title])=>{
+    const b=document.createElement('button');
+    b.type='button'; b.innerHTML=html; b.title=title;
+    if(kind==='embed') b.className='rt-embed-btn';
+    // preventDefault on mousedown so the textarea keeps its selection/focus
+    b.addEventListener('mousedown', e=>e.preventDefault());
+    b.addEventListener('click', ()=>rtApply(kind, targetTa));
+    bar.appendChild(b);
+  });
+  return bar;
 }
 document.getElementById('rt-bold').addEventListener('click', () => rtApply('bold'));
 document.getElementById('rt-italic').addEventListener('click', () => rtApply('italic'));
@@ -10208,13 +10362,33 @@ document.addEventListener('scroll', () => closeRtCtx(), true);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRtCtx(); });
 
 // Live preview as user types
+// Debounced in-app autosave while editing, so leaving the editor (navigating to
+// another song) never loses work — no file is written (that's Save As…).
+let _editAutoSaveT = null;
+function _scheduleEditAutosave() {
+  clearTimeout(_editAutoSaveT);
+  _editAutoSaveT = setTimeout(() => {
+    if (!isEditMode || currentIdx < 0) return;
+    const song = songs[currentIdx];
+    song.tab_content = document.getElementById('song-editor').value;
+    const t = document.getElementById('edit-title').value.trim();
+    const a = document.getElementById('edit-artist').value.trim();
+    song.title  = t || song.title;
+    song.artist = a || song.artist;
+    song.key    = document.getElementById('edit-key').value.trim();
+    song.capo   = parseInt(document.getElementById('edit-capo').value) || 0;
+    saveSongs();   // localStorage only — no list rebuild mid-typing
+  }, 600);
+}
 document.getElementById('song-editor').addEventListener('input', () => {
   markDirty();
   updateEditorPreview();
+  _scheduleEditAutosave();
 });
 ['edit-title', 'edit-artist', 'edit-key', 'edit-capo'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
     markDirty();
+    _scheduleEditAutosave();
     if (id === 'edit-title')
       document.getElementById('preview-title').textContent = document.getElementById('edit-title').value;
     if (id === 'edit-artist')
@@ -10290,18 +10464,18 @@ function saveCurrentEdits() {
   downloadSong(song);   // write to disk, not just localStorage
 }
 
-document.getElementById('btn-save').addEventListener('click', saveCurrentEdits);
+document.getElementById('btn-save').addEventListener('click', persistCurrentEdits);
 document.getElementById('btn-edit-toggle').addEventListener('click', () => {
-  // Switching from edit → read: auto-save first
-  if (isEditMode) saveCurrentEdits();
+  // Switching from edit → read: persist in-app (no file download)
+  if (isEditMode) persistCurrentEdits();
   setEditMode(!isEditMode);
 });
 
-// Ctrl/Cmd+S shortcut
+// Ctrl/Cmd+S shortcut — persist in-app (no forced download; use Save As… for a file)
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault();
-    if (isEditMode) saveCurrentEdits();
+    if (isEditMode) persistCurrentEdits();
   }
 });
 
@@ -10775,7 +10949,7 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
   const _tuneRow = document.getElementById('pp-tune-row');
   const _tuneSel = document.getElementById('pp-tune-idx');
   if (_ps && _ps._source === 'abc') {
-    const _blks = _ps.abc_text.split(/(?=^X:\s*\d)/m).filter(b=>b.trim());
+    const _blks = _abcTuneBlocks(_ps.abc_text);
     if (_blks.length > 1) {
       _tuneSel.innerHTML = '';
       _blks.forEach(function(blk, i) {
@@ -10916,7 +11090,7 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   // between lines, and re-inject whistle tabs if they're on.
   if (song._source === 'abc') {
     const tuneIdx  = parseInt(document.getElementById('pp-tune-idx')?.value || '0') || 0;
-    const blocks   = song.abc_text.split(/(?=^X:\s*\d)/m).filter(b=>b.trim());
+    const blocks   = _abcTuneBlocks(song.abc_text);
     const blk      = blocks[tuneIdx] || blocks[0] || '';
     const tm       = blk.match(/^T:\s*(.+)/m);
     const tuneTitle= tm ? tm[1].trim() : song.title;
@@ -11518,9 +11692,19 @@ function loadSFZDirectory(files) {
 
 // ── ABC NOTATION SUPPORT ─────────────────────────────────────────────────────
 
+// Split ABC source into TUNE blocks, dropping any leading preamble (e.g. an
+// '%%abc-charset' line or '%%' directives before the first X:). Without this,
+// the preamble becomes block[0], shifting every tune index by one — so the
+// first tune renders/plays as an empty block ("No notes found").
+function _abcTuneBlocks(text) {
+  var all = String(text || '').split(/(?=^X:\s*\d)/m);
+  var tunes = all.filter(function(b){ return /^X:\s*\d/m.test(b); });
+  return tunes.length ? tunes : all.filter(function(b){ return b.trim(); });
+}
+
 function parseABCFile(text, filename) {
   // Return ONE song per file — all tunes displayed together in renderABCSong
-  var blocks = text.split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
+  var blocks = _abcTuneBlocks(text);
   if (!blocks.length) return [];
   function get(abc, f) {
     var m = abc.match(new RegExp('^' + f + ':\\s*(.+)', 'm'));
@@ -11533,7 +11717,10 @@ function parseABCFile(text, filename) {
     var q = (m[2]||'').toLowerCase();
     return m[1] + (q && q[0]==='m' && q!=='maj' && q!=='major' ? 'm' : '');
   }
-  var first = blocks[0];
+  // Read header fields from the first real TUNE block (one with an X: header),
+  // not a leading preamble (e.g. '%abc' version lines or '%%' directives), so
+  // the title/composer come from the ABC itself rather than the filename.
+  var first = blocks.find(function(b){ return /^X:\s*\d/m.test(b); }) || blocks[0];
   return [{
     title:       get(first,'T') || filename.replace(/\.abc$/i,''),
     artist:      get(first,'C') || get(first,'A') || '',
@@ -11551,6 +11738,8 @@ let abcAudioCtx   = null;
 let abcPlaying    = false;
 let abcVisualObj  = null;
 let abcStopFn     = null;
+let _abcNoteCache = {};       // per-tune built note timing, reused across plays/tempo changes
+let _abcTempoT    = null;     // debounce timer for tempo-slider restarts
 let _abcScrubbing = false;   // true while user is dragging the progress bar
 let _abcCursorTC  = null;    // ABCJS.TimingCallbacks instance for the note cursor
 
@@ -11602,40 +11791,90 @@ function abcToNotes(abcText, bpm, semitoneShift) {
   const beatDur   = 60 / bpm;          // seconds per quarter note
   const unitDur   = beatDur * 4 * defaultLen; // seconds per unit note
 
-  const body = abcText.replace(/^[A-Za-z]:.*$/gm, '').replace(/%.*/g, '');
-  const notes = [];
-  // Accidentals in current bar
-  const barAccidentals = {};
-
-  // Note regex: optional acc, note letter, optional octave marks, optional length
+  // Strip everything that is NOT a played melody note before scanning, so the
+  // note regex can't pick up letters inside chord symbols, decorations, etc.
+  const body = abcText
+    .replace(/^[A-Za-z]:.*$/gm, '')       // header / field lines (T:, K:, …)
+    .replace(/%.*/g, '')                  // comments
+    .replace(/"[^"]*"/g, '')              // chord symbols / annotations  "G", "^text"
+    .replace(/![^!\n]*!/g, '')            // decorations  !trill! !fermata!
+    .replace(/\+[^+\n]*\+/g, '')          // legacy decorations  +trill+
+    .replace(/\{[^}]*\}/g, '')            // grace notes  {ge}
+    .replace(/\[[A-Za-z]:[^\]]*\]/g, '')  // inline fields  [K:…] [M:…]
+    .replace(/\(\d+(?::\d+){0,2}/g, '')   // tuplet markers  (3  (3:2:3
+    .replace(/[()]/g, '')                 // slur parentheses
+    .replace(/-/g, '');                   // ties
+  // Parse one bar's note text into events (accidentals apply within the bar).
   const noteRe = /([_^=]*)([A-Ga-gz])([',]*)(\d*)(\/*)(\d*)/g;
-  let m;
-  while ((m = noteRe.exec(body)) !== null) {
-    const [, accs, letter, octs, numStr, slashes, denStr] = m;
-    if (letter === 'z') {
-      // rest
+  function parseBar(text) {
+    const out = [], acc = {};
+    let m; noteRe.lastIndex = 0;
+    while ((m = noteRe.exec(text)) !== null) {
+      const [, accs, letter, octs, numStr, slashes, denStr] = m;
       const dur = calcDur(numStr, slashes, denStr, unitDur);
-      notes.push({ freq: 0, dur });
-      continue;
+      if (letter === 'z') { out.push({ freq: 0, dur }); continue; }
+      const upper = letter.toUpperCase();
+      const isLower = letter === letter.toLowerCase();
+      let octave = isLower ? 5 : 4;
+      for (const c of octs) { if (c === "'") octave++; else if (c === ',') octave--; }
+      let a = acc[upper + octave] ?? keySig[upper] ?? 0;
+      for (const x of accs) { if (x === '^') a = 1; else if (x === '_') a = -1; else if (x === '=') a = 0; }
+      acc[upper + octave] = a;
+      const semitone = NOTE_MAP[upper] + a + (octave + 1) * 12 + semitoneShift;
+      out.push({ freq: 440 * Math.pow(2, (semitone - 69) / 12), dur });
     }
-    const upper = letter.toUpperCase();
-    const isLower = letter === letter.toLowerCase();
-    // Octave: uppercase = octave 4, lowercase = octave 5
-    let octave = isLower ? 5 : 4;
-    for (const c of octs) { if (c === "'") octave++; else if (c === ',') octave--; }
-
-    // Accidental
-    let acc = barAccidentals[upper + octave] ?? keySig[upper] ?? 0;
-    for (const a of accs) { if (a === '^') acc = 1; else if (a === '_') acc = -1; else if (a === '=') acc = 0; }
-    barAccidentals[upper + octave] = acc;
-
-    const semitone = NOTE_MAP[upper] + acc + (octave + 1) * 12 + semitoneShift;
-    const freq = 440 * Math.pow(2, (semitone - 69) / 12);
-    const dur  = calcDur(numStr, slashes, denStr, unitDur);
-    notes.push({ freq, dur });
-
-    if (body[noteRe.lastIndex] === '|') { Object.keys(barAccidentals).forEach(k => delete barAccidentals[k]); }
+    return out;
   }
+
+  // Tokenise into bars, capturing repeat/ending structure so playback honours
+  // |: :| repeats and |1/|2 (variant) endings — abcjs setTiming handles these,
+  // but this fallback parser must too when setTiming is unavailable.
+  const bars = [];
+  let curText = '', curEndRep = false, pendStartRep = false, pendEnding = 0;
+  function flushBar() {
+    const parsed = parseBar(curText);
+    if (parsed.length || curEndRep || pendStartRep || pendEnding || curText.trim())
+      bars.push({ notes: parsed, startRep: pendStartRep, endRep: curEndRep, ending: pendEnding });
+    curText = ''; curEndRep = false; pendStartRep = false; pendEnding = 0;
+  }
+  for (let i = 0; i < body.length; ) {
+    const c = body[i];
+    if (c === '|') {
+      if (body[i+1] === ':') { flushBar(); pendStartRep = true; i += 2; continue; }            // |:
+      if (body[i+1] === ']' || body[i+1] === '|') { flushBar(); i += 2; continue; }             // |] ||
+      if (/\d/.test(body[i+1])) { flushBar(); pendEnding = +body[i+1]; i += 2; continue; }       // |1 |2
+      flushBar(); i += 1; continue;                                                             // |
+    }
+    if (c === ':' && body[i+1] === '|') {
+      curEndRep = true; let j = i + 2;
+      if (/\d/.test(body[j])) { flushBar(); pendEnding = +body[j]; i = j + 1; continue; }         // :|2
+      flushBar(); i = j; continue;                                                               // :|
+    }
+    if (c === ':' && body[i+1] === ':') { curEndRep = true; flushBar(); pendStartRep = true; i += 2; continue; } // ::
+    if (c === '[' && /\d/.test(body[i+1])) { flushBar(); pendEnding = +body[i+1]; i += 2; continue; }            // [1 [2
+    if (c === '[' || c === ']') { i += 1; continue; }   // note-chord brackets
+    curText += c; i += 1;
+  }
+  flushBar();
+
+  // Expand repeats + variant endings into a linear play order of bar indices.
+  const order = [];
+  let startRepeatIdx = 0, secondPass = false, jumpedBack = false, guard = 0;
+  for (let i = 0; i < bars.length && guard < 100000; guard++) {
+    const b = bars[i];
+    if (b.startRep && !jumpedBack) { startRepeatIdx = i; secondPass = false; }
+    jumpedBack = false;
+    if (b.ending === 1 && secondPass) {                 // skip the 1st ending on the repeat
+      while (i < bars.length && !bars[i].endRep) i++;
+      i++; continue;
+    }
+    order.push(i);
+    if (b.endRep && !secondPass) { secondPass = true; i = startRepeatIdx; jumpedBack = true; continue; }
+    i++;
+  }
+
+  const notes = [];
+  order.forEach(bi => { bars[bi].notes.forEach(n => notes.push(n)); });
   return notes;
 }
 
@@ -11694,7 +11933,7 @@ function startABCSynth(tuneIdx, seekFrac) {
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song || song._source !== 'abc') return;
   const bpm = parseInt(document.getElementById('abc-tempo').value) || 120;
-  var blocks = _abcSrc(song).split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
+  var blocks = _abcTuneBlocks(_abcSrc(song));
   var abcBlock = blocks[tuneIdx || 0] || blocks[0];
   // Audio transpose for this tune = its individual offset + the global one.
   var _tuneTr = _abcEffectiveTr(tuneIdx || 0);
@@ -11720,37 +11959,71 @@ function startABCSynth(tuneIdx, seekFrac) {
   const _curVO      = abcVisualObj && abcVisualObj[_curTuneIdx];
 
   var timingEvents = null;  // [{milliseconds, midiPitches:[{pitch}], _durMs}, ...]
+  var notes = null;         // abcToNotes fallback: [{freq,dur}, ...]
   var notesTotalDur = 0;
 
-  if (_curVO && typeof _curVO.setTiming === 'function') {
+  // Build ABCJS timing events from a visual object (idempotent, never throws).
+  function _abcBuildTimings(vo){
+    if (!vo || typeof vo.setTiming !== 'function') return null;
     try {
-      // Populate abcelem.midiPitches on every note element before setTiming reads them.
-      // Without this call, midiPitches is [] on all events → complete silence.
-      if (typeof _curVO.setUpAudio === 'function') _curVO.setUpAudio({});
-      var allTimings = _curVO.setTiming(bpm, 0);
-      var evts = allTimings.filter(function(e) { return e.type === 'event'; });
-      if (evts.length > 0) {
-        // Pre-compute note duration = gap to next event (capped at 2s, trimmed 10%)
-        for (var _ti = 0; _ti < evts.length; _ti++) {
-          var _next = evts[_ti + 1];
-          evts[_ti]._durMs = (_next
-            ? Math.min(_next.milliseconds - evts[_ti].milliseconds, 2000)
-            : 500) * 0.9;
-        }
-        timingEvents = evts;
-        notesTotalDur = allTimings[allTimings.length - 1].milliseconds / 1000;
+      if (typeof vo.setUpAudio === 'function') vo.setUpAudio({});   // populate midiPitches
+      var all = vo.setTiming(bpm, 0);
+      if (!all || !all.length) return null;
+      var evts = all.filter(function(e){ return e.type === 'event'; });
+      if (!evts.length) return null;
+      for (var i = 0; i < evts.length; i++) {
+        var nx = evts[i + 1];
+        evts[i]._durMs = (nx ? Math.min(nx.milliseconds - evts[i].milliseconds, 2000) : 500) * 0.9;
       }
-    } catch(e) { timingEvents = null; }
+      return { evts: evts, total: all[all.length - 1].milliseconds / 1000 };
+    } catch(e) { return null; }
   }
 
-  // Fallback to custom parser
-  var notes = null;
-  if (!timingEvents) {
+  // 1) Reuse cached timing when available — rescale linearly for the new tempo.
+  //    This avoids re-running setTiming on every play/tempo change (which can
+  //    intermittently fail) and is exact since durations scale with BPM.
+  // Keyed by index but validated by block content, so a stale entry from a
+  // different tune/song is never reused (guards the "plays previous tune" bug).
+  var cached = _abcNoteCache[_curTuneIdx];
+  if (cached && cached.baseBpm > 0 && cached.block === abcBlock) {
+    var f = cached.baseBpm / bpm;
+    if (cached.evts) {
+      timingEvents = cached.evts.map(function(e){
+        var c = Object.assign({}, e); c.milliseconds = e.milliseconds * f; c._durMs = e._durMs * f; return c;
+      });
+      notesTotalDur = cached.total * f;
+    } else if (cached.notes) {
+      notes = cached.notes.map(function(n){ return { freq:n.freq, dur:n.dur * f }; });
+      notesTotalDur = cached.total * f;
+    }
+  }
+
+  // 2) Build fresh via the on-screen visual object.
+  if (!timingEvents && !notes) {
+    var built = _abcBuildTimings(_curVO);
+    // 3) If that yields nothing, re-parse the tune into a throwaway visual object
+    //    (avoids any stale internal state on the on-screen object).
+    if (!built && typeof ABCJS !== 'undefined' && ABCJS.renderAbc) {
+      try {
+        var _tmp = document.createElement('div');
+        var _fresh = ABCJS.renderAbc(_tmp, abcBlock, {});
+        built = _abcBuildTimings(_fresh && _fresh[0]);
+      } catch(e) {}
+    }
+    if (built) {
+      timingEvents = built.evts; notesTotalDur = built.total;
+      _abcNoteCache[_curTuneIdx] = { block: abcBlock, evts: built.evts, total: built.total, baseBpm: bpm };
+    }
+  }
+
+  // 4) Last resort: the custom abcToNotes parser.
+  if (!timingEvents && !notes) {
     try { notes = abcToNotes(abcBlock, bpm, _tuneTr); } catch(e) {}
     if (!notes || !notes.length) {
       document.getElementById('abc-status').textContent = '⚠ No notes found'; return;
     }
     notesTotalDur = notes.reduce(function(s,n){return s+n.dur;}, 0);
+    _abcNoteCache[_curTuneIdx] = { block: abcBlock, notes: notes.map(function(n){return {freq:n.freq,dur:n.dur};}), total: notesTotalDur, baseBpm: bpm };
   }
 
   // ── Pick-up (anacrusis) sync ──────────────────────────────────────────────
@@ -11994,6 +12267,9 @@ function _abcSrc(song) {
 
 function renderABCSong(song) {
   document.getElementById('abc-player-bar').style.display = '';
+  // Reset the ABC editor UI on (re)render so the Edit button isn't left stuck on
+  // "Editing" after navigating away mid-edit. (Content is autosaved on input.)
+  if (typeof _abcSetEditing === 'function') _abcSetEditing(false);
   document.getElementById('abc-title').textContent =
     (_abcSet && _abcSet.baseIdx === currentIdx && _abcSet.order && _abcSet.order.length > 1)
       ? _abcSet.order.map(function(i){ return (songs[i] && songs[i].title) || 'Untitled'; }).join(' · ')
@@ -12052,6 +12328,8 @@ function renderABCSong(song) {
   const notationEl = document.getElementById('abc-notation');
   notationEl.innerHTML = '';
   abcVisualObj = [];
+  _abcNoteCache = {};   // tune layout/content changed — drop cached note timing
+  window._abcLastTuneIdx = 0;   // playbar defaults to this song's first tune
   // Sheet music is laid out at a fixed staff width (760) then scaled to fit the
   // container — so on a ~360px phone it shrinks to ~half size, and in XS view it
   // would otherwise stay small too. Lay it out narrower in those cases so abcjs
@@ -12079,7 +12357,7 @@ function renderABCSong(song) {
   // single card-level header.
   const _cardHdr = document.querySelector('#abc-song-card > .song-header');
   if (_cardHdr) _cardHdr.style.display = 'none';
-  const blocks = _abcSrc(song).split(/(?=^X:\s*\d)/m).filter(function(b){return b.trim();});
+  const blocks = _abcTuneBlocks(_abcSrc(song));
   blocks.forEach(function(block, i) {
     // ── Per-tune header (its own sheet-music item) ──
     const T  = _abcField(block, 'T') || ('Tune ' + (i + 1));
@@ -12234,35 +12512,59 @@ document.getElementById('abc-set-apply').addEventListener('click', _abcSetApply)
 document.getElementById('abc-set-cancel').addEventListener('click', function() { document.getElementById('abc-set-modal').classList.remove('open'); });
 document.getElementById('abc-set-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
 
-document.getElementById('btn-abc-edit').addEventListener('click', () => {
-  const song = currentIdx >= 0 ? songs[currentIdx] : null;
-  if (!song) return;
-  const wrap = document.getElementById('abc-editor-wrap');
-  if (wrap.style.display === 'none') {
-    document.getElementById('abc-editor').value = song.abc_text || song.tab_content || '';
-    wrap.style.display = '';
-    document.getElementById('btn-abc-edit').textContent = '👁 View';
-  } else {
-    wrap.style.display = 'none';
-    document.getElementById('btn-abc-edit').textContent = '✎ Edit ABC';
-  }
-});
-
-document.getElementById('btn-abc-save').addEventListener('click', () => {
+// Persist the ABC editor's text to the library (no file written) and re-render.
+function _abcPersistEdits() {
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song) return;
   const txt = document.getElementById('abc-editor').value;
-  song.abc_text = txt; song.tab_content = txt;
-  saveSongs();
-  document.getElementById('abc-editor-wrap').style.display = 'none';
-  document.getElementById('btn-abc-edit').textContent = '✎ Edit ABC';
-  renderABCSong(song);
-  showToast('Saved to library');
+  if (txt !== (song.abc_text || '')) {
+    song.abc_text = txt; song.tab_content = txt;
+    _abcNoteCache = {};              // content changed — invalidate cached note timing
+    saveSongs();
+    renderABCSong(song);
+  }
+}
+function _abcSetEditing(on) {
+  document.getElementById('abc-editor-wrap').style.display = on ? '' : 'none';
+  const btn = document.getElementById('btn-abc-edit');
+  btn.textContent = on ? '✎ Editing' : '✎ Edit';
+  btn.classList.toggle('active', on);
+}
+document.getElementById('btn-abc-edit').addEventListener('click', () => {
+  const song = currentIdx >= 0 ? songs[currentIdx] : null;
+  if (!song) return;
+  const editing = document.getElementById('abc-editor-wrap').style.display !== 'none';
+  if (!editing) {
+    document.getElementById('abc-editor').value = song.abc_text || song.tab_content || '';
+    _abcSetEditing(true);
+  } else {
+    _abcPersistEdits();               // silent in-app save on exit
+    _abcSetEditing(false);
+  }
 });
 
+// Explicit in-app save button (kept for discoverability) — same silent persist.
+document.getElementById('btn-abc-save').addEventListener('click', () => {
+  _abcPersistEdits();
+  _abcSetEditing(false);
+});
+
+// Cancel discards edits without saving.
 document.getElementById('btn-abc-cancel').addEventListener('click', () => {
-  document.getElementById('abc-editor-wrap').style.display = 'none';
-  document.getElementById('btn-abc-edit').textContent = '✎ Edit ABC';
+  _abcSetEditing(false);
+});
+
+// Debounced autosave while editing ABC, so navigating away never loses work.
+let _abcEditT = null;
+document.getElementById('abc-editor').addEventListener('input', function() {
+  clearTimeout(_abcEditT);
+  _abcEditT = setTimeout(function() {
+    const s = currentIdx >= 0 ? songs[currentIdx] : null;
+    if (!s || s._source !== 'abc') return;
+    s.abc_text = document.getElementById('abc-editor').value; s.tab_content = s.abc_text;
+    _abcNoteCache = {};
+    saveSongs();
+  }, 600);
 });
 
 document.getElementById('btn-publish-abc').addEventListener('click', () => {
@@ -12307,7 +12609,16 @@ document.getElementById('abc-tempo').addEventListener('input', function() {
   const v = this.value;
   document.getElementById('abc-tempo-label').textContent = v + ' BPM';
   document.getElementById('bpm-input').value = v;
-  if (abcPlaying) { stopABCSynth(); setTimeout(startABCSynth, 50); }
+  if (abcPlaying) {
+    // Debounced restart of the SAME tune at its CURRENT position (dragging the
+    // slider fires many events; restarting tune 0 from the top each time both
+    // jumped the playhead and could race the note-timing rebuild).
+    const idx = window._abcLastTuneIdx || 0;
+    const pr  = (parseFloat(document.getElementById('abc-progress').value) || 0) / 100;
+    clearTimeout(_abcTempoT);
+    stopABCSynth();
+    _abcTempoT = setTimeout(function(){ startABCSynth(idx, pr); }, 140);
+  }
 });
 document.getElementById('bpm-input').addEventListener('change', function() {
   const t = document.getElementById('abc-tempo');
@@ -13844,11 +14155,16 @@ function renderIRealSong(song){
     const notesWrap=document.createElement('div');notesWrap.className='ls-notes-wrap';
     const notesLbl=document.createElement('div');notesLbl.className='ls-notes-label';notesLbl.textContent='Lyrics / Notes';
     const notesTa=document.createElement('textarea');notesTa.className='ls-notes-ta';
+    notesTa.rows=8;
     notesTa.placeholder='Lyrics, annotations, performance notes...';
     notesTa.value=song.ireal_notes||'';
     notesTa.addEventListener('input',()=>{song.ireal_notes=notesTa.value;saveSongs();});
     notesTa.addEventListener('keydown',e=>e.stopPropagation());
-    notesWrap.appendChild(notesLbl);notesWrap.appendChild(notesTa);
+    // Rich-text toolbar (Bold / Italic / Underline / Embed), same as chord sheets.
+    const rtBar=(typeof buildRtToolbar==='function')?buildRtToolbar(notesTa):null;
+    notesWrap.appendChild(notesLbl);
+    if(rtBar) notesWrap.appendChild(rtBar);
+    notesWrap.appendChild(notesTa);
     cont.appendChild(notesWrap);
   } else if(song.ireal_notes&&song.ireal_notes.trim()){
     const notesWrap=document.createElement('div');notesWrap.className='ls-notes-wrap';
