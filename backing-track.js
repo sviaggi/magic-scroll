@@ -1163,6 +1163,13 @@
   window.btGetSong      = function() { return _bt_song; };
   window.btOpenBar      = btOpenBar;
   window.btCloseBar     = btCloseBar;
+  // Live-update the sounding transpose (e.g. when the capo or key changes) so a
+  // playing backing track follows immediately — the scheduler reads _transpose
+  // per note, so subsequent bars use the new value.
+  window.btRefreshTranspose = function() {
+    _transpose = (typeof window !== 'undefined' && typeof window.getTransposeAmount === 'function')
+                 ? window.getTransposeAmount() : 0;
+  };
   window.BT_INSTRUMENTS = BT_INSTRUMENTS;
   window.btLoaded       = true;
 })();

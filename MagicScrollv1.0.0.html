@@ -2308,6 +2308,12 @@
   .ls-section-lbl{position:absolute;top:2px;left:4px;background:var(--c-accent);
     color:#fff;font-size:0.58rem;font-weight:bold;padding:0 4px;border-radius:2px;line-height:1.6;}
   .ls-chord-nm{font-size:1.15em;font-weight:bold;line-height:1.2;color:var(--c-notation-ink);white-space:nowrap;}
+  /* Secondary instrument's fingered chord (capo differs) — distinct colour, no diagram */
+  .ls-chord-sec{font-size:0.82em;margin-left:2px;white-space:nowrap;}
+  .ls-chord-sec .ls-chord-nm{color:var(--c-accent);font-size:1em;}
+  /* Explicit capo tag under the lead-sheet chord grid */
+  .ls-capo-tag{margin:10px 2px 2px;font-size:0.74rem;font-weight:bold;color:var(--c-accent);
+    display:inline-block;border:1px solid var(--c-accent);border-radius:4px;padding:3px 9px;}
   .ls-chord-nm .ls-q{font-size:0.68em;vertical-align:super;line-height:1;}
   .ls-chord-nm .ls-bs{font-size:0.8em;}
   .ls-rep-sym{font-size:1.4em;opacity:0.4;align-self:center;}
@@ -3507,12 +3513,32 @@ if (songs.length > 0 && !_demoLoading) {
 }
 let currentIdx      = -1;
 let transposeAmount = 0;
-window.getTransposeAmount = function() { return transposeAmount; };
+let primaryCapo = 0, secondaryCapo = 0;   // per-instrument capo (0..11)
+// The AUDIO transpose (backing track, ABC synth) is the SOUNDING shift = display
+// transpose + the primary capo. The DISPLAY (notation, chord tokens) uses only
+// transposeAmount, so a capo raises the pitch without moving what's on the page.
+window.getTransposeAmount = function() { return transposeAmount + (primaryCapo || 0); };
+// Per-song, session-only memory of transpose + capo (WeakMap → not persisted).
+const _songSession = new WeakMap();
+function _saveSongState() {
+  if (currentIdx < 0 || !songs[currentIdx]) return;
+  _songSession.set(songs[currentIdx], { tr: transposeAmount, pc: primaryCapo, sc: secondaryCapo });
+}
+function _restoreSongState(song) {
+  const st = (song && _songSession.get(song)) || {};
+  transposeAmount = st.tr || 0;
+  primaryCapo     = st.pc || 0;
+  secondaryCapo   = st.sc || 0;
+  if (typeof _updateCapoDisplay === 'function') _updateCapoDisplay();
+  if (typeof updateKeyDisplay === 'function') updateKeyDisplay();
+  if (typeof window.btRefreshTranspose === 'function') window.btRefreshTranspose();
+}
 let scrollInterval  = null;
 let isScrolling     = false;
 let currentInstrument = 'guitar';
 let secondaryInstrument = 'none';   // optional 2nd instrument shown alongside the main one
-let primaryCapo = 0, secondaryCapo = 0;   // per-instrument capo / pre-transpose (−11..11)
+// Chord the player FINGERS so that, with a capo on fret `capo`, it sounds like
+// `chord` (the page chord): finger = chord transposed DOWN by the capo amount.
 // Chord the player FINGERS so that, with a capo on fret `capo`, it sounds like
 // `chord` (the page chord): finger = chord transposed DOWN by the capo amount.
 function _capoChord(chord, capo){ return capo ? transposeChordToken(chord, -capo) : chord; }
@@ -3522,6 +3548,13 @@ function _capoChord(chord, capo){ return capo ? transposeChordToken(chord, -capo
 // the page chord as-is; a secondary at a different capo is shifted so it sounds
 // the same pitch.
 function _fingering(chord, instCapo){ return _capoChord(chord, (instCapo||0) - (primaryCapo||0)); }
+// Card "Key" text = the SOUNDING key (display transpose + primary capo), with a
+// "(capo N)" hint so it's clear the capo is what moved the key.
+function _keyWithCapo(baseKey){
+  if (!baseKey) return baseKey || '';
+  const sk = transposeKey(baseKey, transposeAmount + (primaryCapo||0)) || baseKey;
+  return sk + (primaryCapo ? ' (capo ' + primaryCapo + ')' : '');
+}
 
 // Instruments that share a tuning with an existing chord-engine key
 const INSTRUMENT_ALIASES = {
@@ -4900,7 +4933,10 @@ function renderSong(idx) {
     return;
   }
   try {
-  currentIdx=idx; transposeAmount=0;
+  currentIdx=idx;
+  // Capo + transpose reset per song, but restore this song's cached state if it
+  // was visited earlier this session.
+  _restoreSongState(songs[idx]);
   // Hide backing track bar when navigating to a non-lead-sheet song
   if(typeof btCloseBar==='function' && songs[idx]._source !== 'ireal') btCloseBar();
   // Auto-detect key if song doesn't already have one — works for plain songs,
@@ -4941,7 +4977,7 @@ function renderSong(idx) {
   document.getElementById('display-artist').textContent=song.artist||'';
   const meta=document.getElementById('display-meta'); meta.innerHTML='';
   const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
-  [['Type',_dispType],['Key',song.key],['Tuning',song.tuning],['Capo',song.capo?'Fret '+song.capo:null]].forEach(([l,v])=>{
+  [['Type',_dispType],['Key',song.key?_keyWithCapo(song.key):null],['Tuning',song.tuning],['Capo',song.capo?'Fret '+song.capo:null]].forEach(([l,v])=>{
     if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
     p.innerHTML=l+': <span>'+v+'</span>'; meta.appendChild(p);
   });
@@ -6023,8 +6059,24 @@ function parseMuseScore(mscx, filename) {
   } catch (e) { console.error('[MuseScore]', e); return null; }
 
   const meta = n => { const m = [...doc.querySelectorAll('metaTag')].find(t => t.getAttribute('name') === n); return m ? m.textContent.trim() : ''; };
-  let title = meta('workTitle'); if (!title || /^title$/i.test(title)) title = filename.replace(/\.[^.]+$/, '');
-  let composer = meta('composer'); if (/^composer$/i.test(composer)) composer = '';
+  // The real title/composer usually live in the score's title frame (a VBox with
+  // <Text><style>title</style> / <style>composer</style>). The metaTags are often
+  // left at MuseScore's placeholder defaults ("Untitled score", "Composer …"), so
+  // read the frame first, then a non-placeholder metaTag, then the filename.
+  const frameText = styleName => {
+    for (const t of doc.querySelectorAll('Text')) {
+      const st = t.querySelector('style');
+      if (st && st.textContent.trim().toLowerCase() === styleName) {
+        const tx = t.querySelector('text');
+        if (tx && tx.textContent.trim()) return tx.textContent.replace(/\s+/g, ' ').trim();
+      }
+    }
+    return '';
+  };
+  const PLACEHOLDER = /^(untitled score|untitled|title|composer(\s*\/\s*arranger)?|subtitle|arranger|lyricist)$/i;
+  const clean = s => (s && !PLACEHOLDER.test(s.trim())) ? s.trim() : '';
+  let title = frameText('title') || clean(meta('workTitle')) || filename.replace(/\.[^.]+$/, '');
+  let composer = frameText('composer') || clean(meta('composer'));
 
   const staff = [...doc.querySelectorAll('Staff')].find(s => s.querySelector('Measure'));
   if (!staff) return null;
@@ -6141,19 +6193,19 @@ function parseMusicXML(xmlText, filename) {
   const ga = (el, sel) => el ? [...el.querySelectorAll(sel)] : [];
 
   // ── Metadata ──────────────────────────────────────────────────────────────
-  // MuseScore 4 puts the real title in <credit> not <work-title>
-  let title = g(doc, 'work work-title')?.textContent.trim() || '';
-  const creditTitleEl = ga(doc, 'credit').find(c => g(c, 'credit-type')?.textContent === 'title');
-  if (creditTitleEl) {
-    const ct = g(creditTitleEl, 'credit-words')?.textContent.trim();
-    if (ct && ct !== 'Untitled score' && ct !== 'Untitled Score') title = ct;
-  }
-  title = title || filename.replace(/\.[^.]+$/, '');
-
-  const composerEl = ga(doc, 'creator').find(el => el.getAttribute('type') === 'composer')
-                  || ga(doc, 'credit').find(c => g(c, 'credit-type')?.textContent === 'composer');
-  const composer   = (composerEl?.querySelector ? g(composerEl, 'credit-words')
-                                                : composerEl)?.textContent.trim() || '';
+  // The real title/composer live in <credit> (what's drawn on the page); the
+  // <work-title> / <creator> tags are often left at placeholder defaults.
+  const PLACEHOLDER = /^(untitled score|untitled|title|composer(\s*\/\s*arranger)?|subtitle|arranger|lyricist)$/i;
+  const clean = s => (s && !PLACEHOLDER.test(String(s).trim())) ? String(s).trim() : '';
+  const creditWords = type => {
+    const c = ga(doc, 'credit').find(c => g(c, 'credit-type')?.textContent.trim().toLowerCase() === type);
+    return c ? (g(c, 'credit-words')?.textContent.trim() || '') : '';
+  };
+  const title = clean(creditWords('title'))
+             || clean(g(doc, 'work work-title')?.textContent)
+             || filename.replace(/\.[^.]+$/, '');
+  const composer = clean(creditWords('composer'))
+                || clean(ga(doc, 'creator').find(el => el.getAttribute('type') === 'composer')?.textContent);
 
   // ── Key / pitch helpers ───────────────────────────────────────────────────
   const FIFTHS_TO_KEY = {
@@ -6184,18 +6236,20 @@ function parseMusicXML(xmlText, filename) {
     return acc + n + suf;
   }
 
-  // ── Duration helper (L: 1/8) ─────────────────────────────────────────────
-  // ABC duration = (xmlDuration / divisions) * 2
-  // divisions=4, xmlDur=4 (quarter) → 2; xmlDur=8 (half) → 4; xmlDur=2 (eighth) → 1
-  function abcDur(xmlDur, divs) {
-    const d = (xmlDur / divs) * 2;
-    const n = Math.round(d * 16); // work in 1/16-of-base units to avoid float issues
-    if (n === 16) return '';               // duration = 1 (one base unit) → no suffix
-    if (n % 16 === 0) return String(n/16); // whole multiples
-    if (n % 8  === 0) return String(n/8);  // half-steps
-    if (n % 4  === 0) return String(n/4);  // quarter-steps (dotted half = 24 → 3 above)
-    if (n % 2  === 0) return `${n/2}/2`;
-    return `${n}/16`;
+  // ── Duration (L: 1/16), from the NOTATED type + dots ──────────────────────
+  // Using <type>+<dot> (not raw <duration>/divisions) keeps 16ths, dotted notes
+  // and tuplets exact — tuplet ratios are expressed with ABC's (n grouping.
+  const gcd = (a, b) => b ? gcd(b, a % b) : Math.abs(a);
+  const TYPE16 = { 'whole':16,'half':8,'quarter':4,'eighth':2,'16th':1,'32nd':0.5,'64th':0.25,'128th':0.125,'breve':32,'long':64 };
+  function lenTok(s16) {                   // s16 = length in sixteenth-notes (= L)
+    let num = s16, den = 1;
+    while (Math.abs(num - Math.round(num)) > 1e-9 && den < 64) { num *= 2; den *= 2; }
+    num = Math.round(num);
+    const gg = gcd(num, den) || 1; num /= gg; den /= gg;
+    if (num === 1 && den === 1) return '';
+    if (den === 1) return String(num);
+    if (num === 1) return '/' + den;
+    return num + '/' + den;
   }
 
   // ── Process ───────────────────────────────────────────────────────────────
@@ -6206,12 +6260,38 @@ function parseMusicXML(xmlText, filename) {
   let timeSig   = { beats:4, beatType:4 };
   let firstKey  = null, firstTime = null;
 
+  function noteLen16(el) {
+    const typeEl = g(el, 'type');
+    if (typeEl) {
+      let s16 = TYPE16[typeEl.textContent.trim()];
+      if (s16 != null) { const dots = ga(el, 'dot').length; return s16 * (2 - Math.pow(0.5, dots)); }
+    }
+    const dur = parseInt(g(el, 'duration')?.textContent || '0');
+    if (dur > 0 && divisions > 0) return dur * 4 / divisions;
+    return null;   // e.g. whole-measure rest with no <type>
+  }
+  const KIND = {'major':'','minor':'m','dominant':'7','major-seventh':'maj7','minor-seventh':'m7',
+    'diminished':'dim','augmented':'+','half-diminished':'m7b5','suspended-fourth':'sus4',
+    'suspended-second':'sus2','major-sixth':'6','minor-sixth':'m6','dominant-ninth':'9',
+    'major-ninth':'maj9','minor-ninth':'m9','minor-major':'mMaj7','power':'5'};
+  function harmonyABC(h) {
+    const rs = g(h, 'root root-step')?.textContent; if (!rs) return null;
+    const ra = parseInt(g(h, 'root root-alter')?.textContent || '0');
+    let s = rs + (ra > 0 ? '#'.repeat(ra) : ra < 0 ? 'b'.repeat(-ra) : '');
+    const kindEl = g(h, 'kind');
+    const kindTxt = kindEl?.getAttribute('text');
+    if (kindTxt != null && kindTxt !== '') s += kindTxt;
+    else if (kindEl) s += (KIND[kindEl.textContent.trim()] ?? '');
+    const bs = g(h, 'bass bass-step');
+    if (bs) { const ba = parseInt(g(h, 'bass bass-alter')?.textContent || '0'); s += '/' + bs.textContent + (ba>0?'#':ba<0?'b':''); }
+    return s;
+  }
+
   const lines = [], mBuf = [];
   let mCount = 0;
   const PER_LINE = 4;
 
   for (const mEl of ga(part, 'measure')) {
-    // Attribute changes
     const attrs = g(mEl, 'attributes');
     if (attrs) {
       const dv = g(attrs, 'divisions');     if (dv) divisions = parseInt(dv.textContent);
@@ -6226,24 +6306,22 @@ function parseMusicXML(xmlText, filename) {
         if (firstTime === null) firstTime = {...timeSig};
       }
     }
-
+    const measSixteenths = timeSig.beats * (16 / timeSig.beatType);
     const keyAcc = keyAccidentals(keySig);
     const mAcc   = {};  // measure-local accidentals, reset each bar
 
-    // Collect voice-1 note groups (including their <chord/> siblings)
+    // Ordered items: harmony (attaches to the next note) + voice-1 note groups.
     const groups = [];
+    let pendHarm = null;
     for (const el of mEl.children) {
+      if (el.tagName === 'harmony') { pendHarm = harmonyABC(el); continue; }
       if (el.tagName !== 'note') continue;
       if ((g(el, 'voice')?.textContent || '1') !== '1') continue;
       const isChord = !!g(el, 'chord');
-      if (isChord && groups.length > 0) {
-        groups[groups.length - 1].notes.push(el);
-      } else {
-        groups.push({ notes: [el], dur: parseInt(g(el, 'duration')?.textContent || '4') });
-      }
+      if (isChord && groups.length) { groups[groups.length - 1].notes.push(el); continue; }
+      groups.push({ notes: [el], harm: pendHarm, base: el }); pendHarm = null;
     }
 
-    // Barlines
     let startRep = false, endRep = false, finalBar = false;
     for (const bl of ga(mEl, 'barline')) {
       const style = g(bl, 'bar-style')?.textContent || '';
@@ -6253,42 +6331,45 @@ function parseMusicXML(xmlText, filename) {
       if (style === 'light-heavy' || style === 'final')  finalBar = true;
     }
 
-    // Render notes
-    let mStr = startRep ? '|: ' : '';
-    for (const {notes, dur} of groups) {
-      const base   = notes[0];
+    let mStr = startRep ? '|:' : '';
+    for (const grp of groups) {
+      const base = grp.base;
+      if (ga(g(base, 'notations'), 'tuplet').some(t => t.getAttribute('type') === 'start')) {
+        const an = g(base, 'time-modification actual-notes')?.textContent;
+        if (an) mStr += '(' + parseInt(an);
+      }
+      if (grp.harm) mStr += '"' + grp.harm + '"';
       const isRest = !!g(base, 'rest');
-      const ds     = abcDur(dur, divisions);
-      const tied   = ga(g(base, 'notations'), 'tied').some(t => t.getAttribute('type') === 'start')
-                  || ga(base, 'tied').some(t => t.getAttribute('type') === 'start');
-
+      let s16 = noteLen16(base);
+      if (isRest && (s16 == null || g(base, 'rest')?.getAttribute('measure') === 'yes')) s16 = measSixteenths;
+      if (s16 == null) s16 = 4;
+      const ds = lenTok(s16);
+      const tied = ga(g(base, 'notations'), 'tied').some(t => t.getAttribute('type') === 'start')
+                || ga(base, 'tie').some(t => t.getAttribute('type') === 'start');
       if (isRest) {
         mStr += 'z' + ds;
-      } else if (notes.length === 1) {
+      } else if (grp.notes.length === 1) {
         const s  = g(base, 'pitch step')?.textContent || 'C';
         const al = parseFloat(g(base, 'pitch alter')?.textContent || '0');
         const oc = parseInt(g(base,  'pitch octave')?.textContent || '4');
         mStr += noteABC(s, al, oc, keyAcc, mAcc) + ds + (tied ? '-' : '');
       } else {
-        mStr += '[';
-        for (const n of notes) {
+        let inner = '';
+        for (const n of grp.notes) {
           if (g(n, 'rest')) continue;
           const s  = g(n, 'pitch step')?.textContent || 'C';
           const al = parseFloat(g(n, 'pitch alter')?.textContent || '0');
           const oc = parseInt(g(n, 'pitch octave')?.textContent || '4');
-          mStr += noteABC(s, al, oc, keyAcc, mAcc);
+          inner += noteABC(s, al, oc, keyAcc, mAcc);
         }
-        mStr += ']' + ds + (tied ? '-' : '');
+        mStr += '[' + inner + ']' + ds + (tied ? '-' : '');
       }
     }
 
-    // Assemble into lines
     if (endRep) {
-      mBuf.push(mStr.trimEnd() + ' :|');
-      lines.push(mBuf.join(' | ')); mBuf.length = 0; mCount = 0;
+      mBuf.push(mStr + ' :|'); lines.push(mBuf.join(' | ')); mBuf.length = 0; mCount = 0;
     } else if (finalBar) {
-      mBuf.push(mStr);
-      lines.push(mBuf.join(' | ') + ' |]'); mBuf.length = 0; mCount = 0;
+      mBuf.push(mStr); lines.push(mBuf.join(' | ') + ' |]'); mBuf.length = 0; mCount = 0;
     } else {
       mBuf.push(mStr);
       if (++mCount % PER_LINE === 0) { lines.push(mBuf.join(' | ')); mBuf.length = 0; }
@@ -6296,14 +6377,13 @@ function parseMusicXML(xmlText, filename) {
   }
   if (mBuf.length) lines.push(mBuf.join(' | '));
 
-  // Build ABC
   const k  = firstKey  || {keySig:0, keyMode:'major'};
   const t  = firstTime || {beats:4, beatType:4};
   const ks = FIFTHS_TO_KEY[String(k.keySig)] + (k.keyMode === 'minor' ? 'm' : '');
 
   const abc = ['X: 1', 'T: ' + title,
     composer ? 'C: ' + composer : '',
-    `M: ${t.beats}/${t.beatType}`, 'L: 1/8', 'K: ' + ks,
+    `M: ${t.beats}/${t.beatType}`, 'L: 1/16', 'K: ' + ks,
     ...lines
   ].filter(Boolean).join('\n');
 
@@ -6611,29 +6691,23 @@ document.getElementById('main').addEventListener('dragover',e=>e.preventDefault(
 document.getElementById('main').addEventListener('drop',e=>{e.preventDefault();[...e.dataTransfer.files].forEach(loadFile);});
 
 // ── TRANSPOSE — also refreshes diagrams if the panel is open ───────────────
-document.getElementById('btn-transpose-up').addEventListener('click',()=>{
-  transposeAmount=Math.min(11,transposeAmount+1);
+function _afterTranspose() {
+  _saveSongState();               // remember transpose per song for the session
   updateKeyDisplay();
+  if (typeof window.btRefreshTranspose === 'function') window.btRefreshTranspose();  // backing track follows
   const curSong = currentIdx>=0 ? songs[currentIdx] : null;
   if (curSong && curSong._source==='abc') { renderABCSong(curSong); }
   else if (curSong && curSong._source==='ireal') { renderIRealSong(curSong); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
   else { renderTabContent(); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
+}
+document.getElementById('btn-transpose-up').addEventListener('click',()=>{
+  transposeAmount=Math.min(11,transposeAmount+1); _afterTranspose();
 });
 document.getElementById('btn-transpose-down').addEventListener('click',()=>{
-  transposeAmount=Math.max(-11,transposeAmount-1);
-  updateKeyDisplay();
-  const curSong = currentIdx>=0 ? songs[currentIdx] : null;
-  if (curSong && curSong._source==='abc') { renderABCSong(curSong); }
-  else if (curSong && curSong._source==='ireal') { renderIRealSong(curSong); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
-  else { renderTabContent(); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); }
+  transposeAmount=Math.max(-11,transposeAmount-1); _afterTranspose();
 });
 document.getElementById('btn-transpose-reset').addEventListener('click',()=>{
-  transposeAmount=0; updateKeyDisplay();
-  const curSong = currentIdx>=0 ? songs[currentIdx] : null;
-  if (curSong && curSong._source==='abc') { renderABCSong(curSong); return; }
-  if (curSong && curSong._source==='ireal') { renderIRealSong(curSong); if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams(); return; }
-  renderTabContent();
-  if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+  transposeAmount=0; _afterTranspose();
 });
 
 // ── FONT SIZE ───────────────────────────────────────────────────────────────
@@ -9812,9 +9886,8 @@ function wireInstSection(container, which){
       const car=head.querySelector('.caret'); if(car) car.textContent = opening?'▾':'▸';
     });
   });
-  // Capo controls (−11..11), restored from storage.
-  try{ primaryCapo  =Math.max(0,Math.min(11,parseInt(localStorage.getItem('ms_capo_primary'))||0)); }catch(e){}
-  try{ secondaryCapo=Math.max(0,Math.min(11,parseInt(localStorage.getItem('ms_capo_secondary'))||0)); }catch(e){}
+  // Capo controls (0..11) — capo does NOT persist globally; it resets per song
+  // (renderSong → _restoreSongState) and is remembered per song for the session.
   _updateCapoDisplay();
   document.querySelectorAll('.capo-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> setCapo(btn.dataset.capo, parseInt(btn.dataset.capoDir)||0));
@@ -9825,19 +9898,27 @@ function _updateCapoDisplay(){
   const s=document.querySelector('[data-capo-val="secondary"]'); if(s) s.textContent=String(secondaryCapo);
 }
 function setCapo(which, delta){
-  if(which==='secondary'){ secondaryCapo=Math.max(0,Math.min(11,secondaryCapo+delta));
-    try{ localStorage.setItem('ms_capo_secondary',String(secondaryCapo)); }catch(e){} }
-  else { primaryCapo=Math.max(0,Math.min(11,primaryCapo+delta));
-    try{ localStorage.setItem('ms_capo_primary',String(primaryCapo)); }catch(e){}
-    // Primary capo shifts the sounding key — keep the Key display in sync.
-    if(typeof updateKeyDisplay==='function') updateKeyDisplay(); }
+  if(which==='secondary'){ secondaryCapo=Math.max(0,Math.min(11,secondaryCapo+delta)); }
+  else { primaryCapo=Math.max(0,Math.min(11,primaryCapo+delta)); }
+  // Interacting with the capo counts as engaging with the diagrams → dismiss the
+  // "report bad chords" notice.
+  if(typeof hideDiagDisclaimer==='function') hideDiagDisclaimer();
+  _saveSongState();               // remember this song's capo for the session
   _updateCapoDisplay();
+  // Primary capo raises the SOUNDING pitch: refresh the key label + backing track.
+  if(which==='primary'){
+    if(typeof updateKeyDisplay==='function') updateKeyDisplay();
+    if(typeof window.btRefreshTranspose==='function') window.btRefreshTranspose();
+  }
   if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
-  const _irc=document.getElementById('ireal-song-card');
   const _ics=currentIdx>=0?songs[currentIdx]:null;
-  if(_irc && _irc.style.display!=='none' && _ics && _ics._source==='ireal' && typeof renderIRealSong==='function') renderIRealSong(_ics);
-  const _sc=document.getElementById('song-card');
-  if(_sc && _sc.classList.contains('visible') && _ics && _ics._source==='plaintext' && typeof renderTabContent==='function') renderTabContent();
+  if(!_ics) return;
+  // Re-render the open card so the sounding key / secondary chord / capo badge
+  // update. Notation & fingered chords themselves stay put (display uses only
+  // transposeAmount), but ABC's audio synth reads the capo when it next plays.
+  if(_ics._source==='ireal' && document.getElementById('ireal-song-card').style.display!=='none' && typeof renderIRealSong==='function') renderIRealSong(_ics);
+  else if(_ics._source==='abc' && document.getElementById('abc-song-card').style.display!=='none' && typeof renderABCSong==='function') renderABCSong(_ics);
+  else { const _sc=document.getElementById('song-card'); if(_sc && _sc.classList.contains('visible') && typeof renderTabContent==='function') renderTabContent(); }
 }
 
 // ── CHORD SIMPLIFICATION ─────────────────────────────────────────────────────
@@ -12117,8 +12198,9 @@ function startABCSynth(tuneIdx, seekFrac) {
   const bpm = parseInt(document.getElementById('abc-tempo').value) || 120;
   var blocks = _abcTuneBlocks(_abcSrc(song));
   var abcBlock = blocks[tuneIdx || 0] || blocks[0];
-  // Audio transpose for this tune = its individual offset + the global one.
-  var _tuneTr = _abcEffectiveTr(tuneIdx || 0);
+  // AUDIO transpose = per-tune offset + global transpose + the primary capo
+  // (the capo raises the sounding pitch while the printed notation stays put).
+  var _tuneTr = _abcEffectiveTr(tuneIdx || 0) + (primaryCapo || 0);
 
   const ctx  = getABCAudioCtx();
   if (ctx.state === 'suspended') { try { ctx.resume(); } catch(e) {} }
@@ -12174,7 +12256,9 @@ function startABCSynth(tuneIdx, seekFrac) {
         var c = Object.assign({}, e); c.milliseconds = e.milliseconds * f; c._durMs = e._durMs * f; return c;
       });
       notesTotalDur = cached.total * f;
-    } else if (cached.notes) {
+    } else if (cached.notes && cached.tr === _tuneTr) {
+      // abcToNotes bakes the transpose (incl. capo) into freq, so only reuse when
+      // the total transpose matches — otherwise a capo/key change wouldn't sound.
       notes = cached.notes.map(function(n){ return { freq:n.freq, dur:n.dur * f }; });
       notesTotalDur = cached.total * f;
     }
@@ -12205,7 +12289,7 @@ function startABCSynth(tuneIdx, seekFrac) {
       document.getElementById('abc-status').textContent = '⚠ No notes found'; return;
     }
     notesTotalDur = notes.reduce(function(s,n){return s+n.dur;}, 0);
-    _abcNoteCache[_curTuneIdx] = { block: abcBlock, notes: notes.map(function(n){return {freq:n.freq,dur:n.dur};}), total: notesTotalDur, baseBpm: bpm };
+    _abcNoteCache[_curTuneIdx] = { block: abcBlock, tr: _tuneTr, notes: notes.map(function(n){return {freq:n.freq,dur:n.dur};}), total: notesTotalDur, baseBpm: bpm };
   }
 
   // ── Pick-up (anacrusis) sync ──────────────────────────────────────────────
@@ -12462,7 +12546,7 @@ function renderABCSong(song) {
   const _rawKey = _abcKeyMatch ? _abcKeyMatch[1].trim() : song.key;
   const _normKey = normaliseKeyStr(_rawKey || '') || song.key || '';
   song.key = _normKey;  // update in memory (and save so next load has correct key)
-  const _dispKey = _normKey ? transposeKey(_normKey, transposeAmount) : '';
+  const _dispKey = _normKey ? _keyWithCapo(_normKey) : '';
   const _abcMetaEl = document.getElementById('abc-meta');
   _abcMetaEl.innerHTML = '';
   [['Type', song.type||null], ['Key', _dispKey||null]].forEach(([l,v])=>{
@@ -14229,7 +14313,8 @@ function renderIRealSong(song){
   const chart=song.ireal_chart;
   if(!chart){cont.textContent='No chart data.';return;}
   // ── Song header ──────────────────────────────────────────────────────────
-  const _dispKey=song.key?transposeKey(song.key,transposeAmount):'';
+  // Sounding key (transpose + capo); the capo is called out by its own tag below.
+  const _dispKey=song.key?(transposeKey(song.key, transposeAmount + (primaryCapo||0))||song.key):'';
   const hdr=document.createElement('div');hdr.className='song-header';
   const _titleEl=document.createElement('div');_titleEl.className='song-main-title';
   _titleEl.textContent=song.title||'Untitled';
@@ -14289,6 +14374,16 @@ function renderIRealSong(song){
         const _dispQual=isSimplifiedView?(ch.qual&&ch.qual.match(/^[-m](?!aj)/)?'m':''):(ch.qual);
         nm.innerHTML=irealChordHTML(tr,_dispQual,isSimplifiedView?'':tb);
         unit.appendChild(nm);
+        // Secondary instrument at a different capo → its fingered chord differs;
+        // show it in a distinct colour (no diagram of its own).
+        if(secondaryInstrument && secondaryInstrument!=='none' && secondaryCapo!==primaryCapo){
+          const _rel=(primaryCapo||0)-(secondaryCapo||0);
+          const _secRoot=transposeIRealRoot(tr,_rel);
+          const _secBass=isSimplifiedView?'':transposeIRealBass(tb,_rel);
+          const secSpan=document.createElement('span'); secSpan.className='ls-chord-sec';
+          secSpan.innerHTML='('+irealChordHTML(_secRoot,_dispQual,_secBass)+')';
+          unit.appendChild(secSpan);
+        }
         if(currentInstrument&&currentInstrument!=='none'){
           // Apply the primary instrument's capo: show the shape to finger.
           const key=_fingering(irealChordKey(tr,_dispQual), primaryCapo);
@@ -14331,6 +14426,15 @@ function renderIRealSong(song){
     grid.appendChild(cell);
   });
   cont.appendChild(grid);
+
+  // Explicit capo tag under the diagrams (the diagrams themselves stay the
+  // fingered shapes; the capo raises the sounding key shown in the header).
+  if(primaryCapo){
+    const capoTag=document.createElement('div');
+    capoTag.className='ls-capo-tag';
+    capoTag.textContent='🎸 Capo '+primaryCapo+' — diagrams show the shapes you finger';
+    cont.appendChild(capoTag);
+  }
 
   // Notes / Lyrics annotation
   if(isLsEditMode){
