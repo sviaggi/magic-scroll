@@ -3200,7 +3200,7 @@
           <button type="button" id="rt-underline" title="Underline (_text_)"><u>U</u></button>
           <button type="button" id="rt-embed" title="Embed a video or link">⧉ Embed…</button>
         </div>
-        <textarea id="song-editor" spellcheck="false" autocorrect="off" autocapitalize="off"
+        <textarea id="song-editor" spellcheck="false"
           placeholder="Paste or type your song here.
 
 Put chords on their own line above lyrics:
@@ -3565,7 +3565,7 @@ if (songs.length === 0) {
   _demoLoading = true;
   (function() {
     var wizABC = `X: 1
-T: Wizard's Walk, The
+T: The Wizard's Walk
 C: Jay Ungar
 Z: magnus
 S: https://thesession.org/tunes/885#setting40205
@@ -3573,18 +3573,12 @@ R: reel
 M: 4/4
 L: 1/8
 K: Emin
-|:e2 dc BAGF|GAFG E2 B2|e2 ef gfef|gafg e4|
-a2 gf edcB|cdBc A2E2|A2 AB cBAB|cdBc A4:|
-BBfB BfBB|gccg ccg"o"c|BBfB BfBB|gccg ccgc|
-fBBB gcc"o"c|fBBB gccc|fB^cc ^dde"o"e|ffgg aab"o"b|
-egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
-=cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^de|
-BBfB BfBB|gccg ccg"o"c|BBfB BfBB|gccg ccgc|
-fBBB gcc"o"c|fBBB gcc"o"c|fB^cc ^dd ez|ff gz az bz|
-egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
-=cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^de|
-egbe bgeg|^dfbf bfdf|=dfab afdB|^ceae aec"o"A|
-=cege cege|Bege Beg"o"e|_Bege Bege|=Bege fe^d2-|d1d/e5E/||`;
+"Em"e2 dc BAGF|"D"GAFG E2 B2|"Em"e2 ef gfef|"D"gafg e4|
+"Am"a2 gf edcB|"Em"cdBc A2E2|"Am"A2 AB cBAB|"Em"cdBc A4||
+"Bm"BB[Bf]B B[Bf]BB|"C"[cg]cc[cg] cc[cg]c|"Bm"BB[Bf]B B[Bf]BB|"C"[cg]cc[cg] cc[cg]c|
+"Bm"[Bf]BBB "C"[cg]ccc|"Bm"[Bf]BBB "C"[cg]ccc|"Bm"[Bf]B^cc "B"^ddee|"D"ffgg aabb|
+|:"Em"egbe bgeg|"B"^dfbf bfdf|"D"=dfab afdB|"A"^ceae aecA|
+"C"=cege cege|"Em"Bege Bege|"Edim"_Bege Bege|"Em"=Bege fe^de:|`;
     // The Starter pack: a welcome song, a lead sheet, two tunes, and (when
     // available) the Worth the Weight chord chart — all grouped in one folder.
     var starterIndices = [];
@@ -3637,15 +3631,15 @@ M: 3/4
 R: Waltz
 L: 1/8
 K: D
-dc | B3dBA | F2A3D | E3FED
-B,3A,DC | B,3A,B,C | D3CDE | FGA2GF
-E3Adc | B3dBA | F2A3D | E3FED
-B,3EFA | B3ABc | d2DFAd | f2FAdf
-a4a2 | b3afa | e2c4 | a3gfd
-B4B2 | g3fed | f3edA | FAdfad'
-c'4a2 | b3afa | e2c4 | a3gfd
-B3EFA | B3dBA | F2A3D | E3DC2
-D6 |]`;
+dc | "G"B3dBA | "D"F2A3D | "A"E3FED
+"Bm"B,3A,DC | B,3A,B,C | "A"D3CDE | "G"FGA2GF
+"A"E3Adc | "G"B3dBA | "D"F2A3D | "A"E3FED
+"Em"B,3EFA | "Bm"B3ABc | "D"d2DFAd | f2FAdf
+"A"a4a2 | "Bm"b3afa | "A"e2c4 | "F#m"a3gfd
+"Bm"B4B2 | "Em"g3fed | "D"f3edA | FAdfad'
+"A"c'4a2 | "Bm"b3afa | "A"e2c4 | "F#m"a3gfd
+"Bm"B3EFA | "G"B3dBA | "D"F2A3D | "A"E3DC2
+"D"D6 |]`;
     parseABCFile(wearyABC, "Weary Wayfarer.abc").forEach(addStarter);
 
     function commit() {
