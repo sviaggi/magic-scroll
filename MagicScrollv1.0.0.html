@@ -450,7 +450,14 @@
     padding: 4px 12px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
   }
-  .filter-reset { font-size: 0.62rem; padding: 2px 6px; }
+  .filter-actions { display: flex; gap: 6px; }
+  .filter-reset {
+    font-size: 0.62rem; padding: 2px 9px;
+    border: 1px solid var(--c-chrome-border); background: var(--c-chrome-bg3);
+    color: var(--c-chrome-text); border-radius: 3px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .filter-reset:hover { border-color: var(--c-accent); color: var(--c-accent); }
   .filter-row {
     display: flex; align-items: center; gap: 7px; padding: 4px 12px;
     cursor: pointer; color: var(--c-chrome-text); white-space: nowrap;
@@ -1721,17 +1728,17 @@
   .theme-preset-btn.active { background: var(--c-accent); color: var(--c-chrome-bg); }
 
   /* ── MONOSPACE CHORD/LYRIC SPACING ──────────────────────────────────────────
-     Disables kerning and ligatures on chord/lyric content only.
-     The font stays the same — just the inter-glyph spacing becomes uniform.
-     Helps chords align above their corresponding lyrics. */
-  #tab-content.mono-spacing {
+     Renders chord and lyric lines in a TRUE monospace font so every character
+     occupies the same width and chords line up exactly above their lyrics.
+     (Uniform letter-spacing alone can't do this — a proportional font still
+     gives each glyph a different width, so columns drift.) */
+  #tab-content.mono-spacing,
+  #tab-content.mono-spacing .chord-token {
+    font-family: 'Courier Prime', 'Courier New', ui-monospace, monospace !important;
     font-kerning: none;
     font-variant-ligatures: none;
     font-feature-settings: "kern" 0, "liga" 0, "calt" 0;
-    letter-spacing: 0.04em;
-  }
-  #tab-content.mono-spacing .chord-token {
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
   }
   /* ── TAB BLOCK ─────────────────────────────────────────────────────────────
      A run of tablature staff lines (and any chord line directly above them)
@@ -2717,7 +2724,7 @@
       <div class="settings-section-title">Display Options</div>
       <div class="settings-row">
         <label>Monospace chord/lyric spacing</label>
-        <button id="btn-mono-spacing" style="font-size:0.68rem;padding:2px 8px;" title="Even character spacing on chord and lyric lines without changing the font">⇔ Off</button>
+        <button id="btn-mono-spacing" style="font-size:0.68rem;padding:2px 8px;" title="Render chord and lyric lines in a true monospace font so chords line up exactly above their lyrics">⇔ Off</button>
       </div>
 
       <div class="settings-actions">
@@ -3958,7 +3965,8 @@ document.getElementById('btn-sc-save-theme').addEventListener('click', () => {
 
 document.getElementById('btn-sc-reset').addEventListener('click', () => {
   if (!confirm('Reset colours to defaults?')) return;
-  applyBuiltinTheme('');
+  applyBuiltinTheme('theme-session');            // Royal is the app default, not Parchment
+  localStorage.setItem('ug_theme', 'theme-session');
   syncColorPickersFromVars();
   localStorage.removeItem('ms_color_settings');
 });
@@ -5479,30 +5487,43 @@ function _buildFilterPanel() {
     }
   });
   panel.innerHTML = '';
-  var _allKeys = [];   // every filter key present, so "None" can turn them all off
+  var _allKeys = [];     // every filter key present, so "None" can turn them all off
+  var _cbByKey = {};     // key -> checkbox, so selecting a subtype can re-check its parent
   var head = document.createElement('div'); head.className = 'filter-head';
   var lbl = document.createElement('span'); lbl.textContent = 'Filter by type'; head.appendChild(lbl);
+  var actions = document.createElement('div'); actions.className = 'filter-actions';
+  var allBtn = document.createElement('button'); allBtn.className = 'filter-reset'; allBtn.textContent = 'All';
+  allBtn.title = 'Select every type';
+  allBtn.addEventListener('click', function(e){
+    e.stopPropagation();                 // keep the panel open
+    _libFilterOff.clear(); _buildFilterPanel(); _refreshFilterBtn();
+    buildSongList(document.getElementById('search-input').value);
+  });
   var none = document.createElement('button'); none.className = 'filter-reset'; none.textContent = 'None';
   none.title = 'Deselect every type';
-  none.addEventListener('click', function(){
+  none.addEventListener('click', function(e){
+    e.stopPropagation();                 // keep the panel open
     _allKeys.forEach(function(k){ _libFilterOff.add(k); });
     _buildFilterPanel(); _refreshFilterBtn();
     buildSongList(document.getElementById('search-input').value);
   });
-  var reset = document.createElement('button'); reset.className = 'filter-reset'; reset.textContent = 'Reset';
-  reset.addEventListener('click', function(){
-    _libFilterOff.clear(); _buildFilterPanel(); _refreshFilterBtn();
-    buildSongList(document.getElementById('search-input').value);
-  });
-  head.appendChild(none); head.appendChild(reset); panel.appendChild(head);
+  actions.appendChild(allBtn); actions.appendChild(none);
+  head.appendChild(actions); panel.appendChild(head);
 
   function row(label, key, isSub) {
     _allKeys.push(key);
     var lab = document.createElement('label'); lab.className = 'filter-row' + (isSub ? ' sub' : '');
     if (isSub) lab.style.paddingLeft = '24px';
     var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !_libFilterOff.has(key);
+    _cbByKey[key] = cb;
     cb.addEventListener('change', function(){
       if (cb.checked) _libFilterOff.delete(key); else _libFilterOff.add(key);
+      // Selecting a Sheet Music subtype (e.g. Reels) re-enables its parent, since
+      // a subtype filter has no effect while the parent category is turned off.
+      if (cb.checked && key.indexOf('sub:') === 0 && _libFilterOff.has('cat:Sheet Music')) {
+        _libFilterOff.delete('cat:Sheet Music');
+        if (_cbByKey['cat:Sheet Music']) _cbByKey['cat:Sheet Music'].checked = true;
+      }
       _refreshFilterBtn();
       buildSongList(document.getElementById('search-input').value);
     });
@@ -10706,6 +10727,13 @@ function _editTransposeText(delta) {
   updateEditorPreview();
   autoResizeEditor();
   _scheduleEditAutosave();
+  // Commit the transposed text to the song now (not just on the debounced autosave)
+  // and refresh the chord-diagram panel so its shapes follow the new key.
+  if (currentIdx >= 0) {
+    songs[currentIdx].tab_content = ta.value;
+    const _dp = document.getElementById('diagram-panel');
+    if (_dp && _dp.classList.contains('visible') && typeof renderDiagrams === 'function') renderDiagrams();
+  }
   try { ta.setSelectionRange(0, 0); } catch (e) {}
   ta.focus({ preventScroll: true });
 }
