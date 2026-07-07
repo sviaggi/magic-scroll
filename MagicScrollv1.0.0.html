@@ -1296,6 +1296,21 @@
     outline: none;
   }
   .editor-field input:focus { border-color: var(--c-accent); }
+  .edit-transpose-btns { display: flex; gap: 5px; }
+  .edit-transpose-btns button {
+    flex: 1;
+    background: var(--c-chrome-bg2);
+    border: 1px solid var(--c-chrome-border);
+    color: var(--c-chrome-text);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 5px 8px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .edit-transpose-btns button:hover { border-color: var(--c-accent); color: var(--c-accent); }
+  .edit-transpose-btns button:active { background: var(--c-accent); color: #fff; }
 
   /* The textarea itself — full width, auto-height via field-sizing + JS fallback */
   #song-editor {
@@ -2368,6 +2383,15 @@
   /* inline chord diagram units */
   .ls-chord-unit{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;vertical-align:top;flex-shrink:0;color:var(--c-notation-ink);}
   .ls-chord-unit svg{display:block;}
+  /* editable lead-sheet header (edit mode) */
+  .ls-edit-header{display:flex;flex-wrap:wrap;gap:10px;margin:2px 2px 10px;}
+  .ls-ef{display:flex;flex-direction:column;gap:3px;flex:1 1 140px;min-width:120px;}
+  .ls-ef.bpm{flex:0 0 90px;min-width:80px;}
+  .ls-ef-lbl{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--c-card-meta);}
+  .ls-edit-header input{background:var(--c-chrome-bg2);border:1px solid var(--c-chrome-border);
+    color:var(--c-chrome-text);font-family:var(--font-chord);font-size:0.9rem;padding:6px 8px;
+    border-radius:3px;outline:none;width:100%;box-sizing:border-box;}
+  .ls-edit-header input:focus{border-color:var(--c-accent);}
   /* notes / lyrics annotation area */
   .ls-notes-wrap{margin-top:20px;}
   .ls-notes-label{font-size:0.68rem;font-weight:bold;text-transform:uppercase;letter-spacing:0.07em;
@@ -2980,10 +3004,6 @@
                  border:1px solid var(--c-chrome-border);border-radius:2px;
                  padding:12px;resize:vertical;outline:none;field-sizing:content;
                  box-sizing:border-box;"></textarea>
-        <div style="display:flex;gap:8px;margin-top:6px;">
-          <button id="btn-abc-save"   style="border-color:#4a8a4a;color:#6ab86a;">💾 Save</button>
-          <button id="btn-abc-cancel">Cancel</button>
-        </div>
       </div>
       <div class="song-header">
         <div class="song-main-title" id="abc-title"></div>
@@ -3028,8 +3048,11 @@
             <input type="text" id="edit-key" placeholder="e.g. Am">
           </div>
           <div class="editor-field">
-            <label>Capo</label>
-            <input type="number" id="edit-capo" placeholder="0" min="0" max="12">
+            <label>Transpose</label>
+            <div class="edit-transpose-btns">
+              <button type="button" id="edit-tr-down" title="Move every chord in the text down a semitone (permanent)">♭ −</button>
+              <button type="button" id="edit-tr-up" title="Move every chord in the text up a semitone (permanent)">♯ +</button>
+            </div>
           </div>
         </div>
         <div id="rt-toolbar">
@@ -3222,13 +3245,9 @@ Another lyric line
         <label>Artist</label>
         <input type="text" id="ns-artist" placeholder="Artist name" autocomplete="off">
       </div>
-      <div class="modal-field">
+      <div class="modal-field" style="grid-column:1/-1">
         <label>Key (optional)</label>
         <input type="text" id="ns-key" placeholder="e.g. Am" autocomplete="off">
-      </div>
-      <div class="modal-field">
-        <label>Capo fret (optional)</label>
-        <input type="number" id="ns-capo" placeholder="0" min="0" max="12">
       </div>
     </div>
     <div id="new-song-format">
@@ -4933,6 +4952,14 @@ function renderSong(idx) {
     return;
   }
   try {
+  // If we were editing a DIFFERENT song, commit those edits to THAT song and
+  // leave edit mode before switching. Otherwise the editor still holds the old
+  // song's text, and the next persist (e.g. clicking Edit on the new song) would
+  // write it into the newly-opened song — cloning the previous one.
+  if (isEditMode && currentIdx >= 0 && currentIdx !== idx) {
+    persistCurrentEdits();
+    isEditMode = false;
+  }
   currentIdx=idx;
   // Capo + transpose reset per song, but restore this song's cached state if it
   // was visited earlier this session.
@@ -5371,6 +5398,18 @@ function showMoveToFolderMenu(songIdx, anchorEl) {
   }, 0);
 }
 
+// Hide every song card (plain / ABC / lead sheet) and show the empty placeholder.
+// Used whenever the library becomes empty, so no leftover card lingers under it.
+function _showEmptyState(){
+  document.getElementById('song-card').classList.remove('visible');
+  var _abcC=document.getElementById('abc-song-card'); if(_abcC)_abcC.style.display='none';
+  var _irC =document.getElementById('ireal-song-card'); if(_irC)_irC.style.display='none';
+  var _at=document.getElementById('abc-toolbar'); if(_at)_at.style.display='none';
+  var _it=document.getElementById('ireal-toolbar'); if(_it)_it.style.display='none';
+  var _pb=document.getElementById('abc-player-bar'); if(_pb)_pb.style.display='none';
+  document.getElementById('empty-state').style.display='flex';
+}
+
 function removeSong(i) {
   const song = songs[i];
   if (!confirm('Remove "' + (song.title || 'this song') + '"?')) return;
@@ -5379,8 +5418,7 @@ function removeSong(i) {
   songs.splice(i, 1);
   if (currentIdx === i) {
     currentIdx = -1;
-    document.getElementById('song-card').classList.remove('visible');
-    document.getElementById('empty-state').style.display = 'flex';
+    _showEmptyState();
   } else if (currentIdx > i) {
     currentIdx--;
   }
@@ -10153,7 +10191,7 @@ document.getElementById('btn-bulk-delete').addEventListener('click', () => {
   setMultiselectMode(false);
   buildSongList('');
   if (currentIdx >= 0) renderSong(currentIdx);
-  else { document.getElementById('song-card').classList.remove('visible'); document.getElementById('empty-state').style.display='flex'; }
+  else _showEmptyState();
 });
 
 document.getElementById('btn-bulk-folder').addEventListener('click', () => {
@@ -10389,8 +10427,7 @@ document.addEventListener('mouseup', function(e) {
     songs=[];folders=[];currentIdx=-1;saveAll();
     document.getElementById('search-input').value='';
     buildSongList('');
-    document.getElementById('song-card').classList.remove('visible');
-    document.getElementById('empty-state').style.display='flex';
+    _showEmptyState();
   });
 })();
 
@@ -10445,7 +10482,6 @@ function setEditMode(on) {
     document.getElementById('edit-title').value  = song.title  || '';
     document.getElementById('edit-artist').value = song.artist || '';
     document.getElementById('edit-key').value    = song.key    || '';
-    document.getElementById('edit-capo').value   = song.capo   || '';
     document.getElementById('song-editor').value =
       song.tab_content || song.content || song.tab || '';
     updateEditorPreview();
@@ -10479,7 +10515,6 @@ function persistCurrentEdits() {
   song.title       = t || song.title;
   song.artist      = a || song.artist;
   song.key         = document.getElementById('edit-key').value.trim();
-  song.capo        = parseInt(document.getElementById('edit-capo').value) || 0;
   song.tab_content = document.getElementById('song-editor').value;
   const dt = document.getElementById('display-title'); if (dt) dt.textContent = song.title || 'Untitled';
   const da = document.getElementById('display-artist'); if (da) da.textContent = song.artist || '';
@@ -10639,7 +10674,6 @@ function _scheduleEditAutosave() {
     song.title  = t || song.title;
     song.artist = a || song.artist;
     song.key    = document.getElementById('edit-key').value.trim();
-    song.capo   = parseInt(document.getElementById('edit-capo').value) || 0;
     saveSongs();   // localStorage only — no list rebuild mid-typing
   }, 600);
 }
@@ -10648,7 +10682,7 @@ document.getElementById('song-editor').addEventListener('input', () => {
   updateEditorPreview();
   _scheduleEditAutosave();
 });
-['edit-title', 'edit-artist', 'edit-key', 'edit-capo'].forEach(id => {
+['edit-title', 'edit-artist', 'edit-key'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
     markDirty();
     _scheduleEditAutosave();
@@ -10658,6 +10692,29 @@ document.getElementById('song-editor').addEventListener('input', () => {
       document.getElementById('preview-artist').textContent = document.getElementById('edit-artist').value;
   });
 });
+
+// ── EDIT-MODE TRANSPOSE — permanently rewrites the chords in the editor text ──
+// Unlike the reading-view "Key/transpose" control (which only shifts the display),
+// this rewrites the actual chord tokens in the text so the change is saved.
+function _editTransposeText(delta) {
+  const ta = document.getElementById('song-editor');
+  if (!ta) return;
+  ta.value = transposeText(ta.value, delta);
+  // Keep the Key field in step with the shifted chords.
+  const kf = document.getElementById('edit-key');
+  if (kf && kf.value.trim()) {
+    const nk = transposeKey(kf.value.trim(), delta);
+    if (nk) kf.value = nk;
+  }
+  markDirty();
+  updateEditorPreview();
+  autoResizeEditor();
+  _scheduleEditAutosave();
+  try { ta.setSelectionRange(0, 0); } catch (e) {}
+  ta.focus({ preventScroll: true });
+}
+document.getElementById('edit-tr-up').addEventListener('click',   () => _editTransposeText(1));
+document.getElementById('edit-tr-down').addEventListener('click', () => _editTransposeText(-1));
 
 // ── SAVE ──────────────────────────────────────────────────────────────────────
 // ── TOAST NOTIFICATION ───────────────────────────────────────────────────────
@@ -10716,7 +10773,6 @@ function saveCurrentEdits() {
   song.title       = t || song.title;
   song.artist      = a || song.artist;
   song.key         = document.getElementById('edit-key').value.trim();
-  song.capo        = parseInt(document.getElementById('edit-capo').value) || 0;
   song.tab_content = document.getElementById('song-editor').value;
   document.getElementById('display-title').textContent  = song.title  || 'Untitled';
   document.getElementById('display-artist').textContent = song.artist || '';
@@ -10782,7 +10838,7 @@ document.getElementById('btn-save-as').addEventListener('click', () => {
 
 // ── NEW SONG MODAL ────────────────────────────────────────────────────────────
 function openNewSongModal() {
-  ['ns-title', 'ns-artist', 'ns-key', 'ns-capo'].forEach(id => {
+  ['ns-title', 'ns-artist', 'ns-key'].forEach(id => {
     document.getElementById(id).value = '';
   });
   // Reset iReal section
@@ -10908,7 +10964,7 @@ document.getElementById('btn-ns-create').addEventListener('click', () => {
     title,
     artist:      nsArtist,
     key:         nsKey,
-    capo:        parseInt(document.getElementById('ns-capo').value) || 0,
+    capo:        0,
     tab_content: '',
     type:        'Chords',
     _source:     'plaintext',
@@ -12778,17 +12834,36 @@ document.getElementById('abc-set-apply').addEventListener('click', _abcSetApply)
 document.getElementById('abc-set-cancel').addEventListener('click', function() { document.getElementById('abc-set-modal').classList.remove('open'); });
 document.getElementById('abc-set-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
 
+// Text the editor held when the current edit session began. Used to detect real
+// changes on exit — the debounced autosave keeps song.abc_text in sync as you
+// type, so comparing against song.abc_text would always look "unchanged" and the
+// score would never re-render until a full reload.
+let _abcEditOrig = '';
+
 // Persist the ABC editor's text to the library (no file written) and re-render.
+// Always re-derives title / artist / key from the ABC text so a tune that began
+// as a bare "X:1" picks up T:/C:/K: pasted in later, and always re-renders on
+// exit so switching Edit→View reflects the new content immediately.
 function _abcPersistEdits() {
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song) return;
   const txt = document.getElementById('abc-editor').value;
-  if (txt !== (song.abc_text || '')) {
-    song.abc_text = txt; song.tab_content = txt;
-    _abcNoteCache = {};              // content changed — invalidate cached note timing
-    saveSongs();
-    renderABCSong(song);
-  }
+  if (txt === _abcEditOrig) return;   // nothing actually changed
+  song.abc_text = txt; song.tab_content = txt;
+  try {
+    const parsed = parseABCFile(txt, song.abc_file_name || song.title || 'tune')[0];
+    if (parsed) {
+      if (parsed.title)  song.title  = parsed.title;
+      if (parsed.artist) song.artist = parsed.artist;
+      if (parsed.key)    song.key    = parsed.key;
+      if (parsed.type)   song.type   = parsed.type;
+    }
+  } catch (e) { /* keep existing metadata if the ABC can't be parsed yet */ }
+  _abcNoteCache = {};                  // content changed — invalidate cached note timing
+  saveSongs();
+  buildSongList(document.getElementById('search-input').value);  // reflect new title in sidebar
+  renderABCSong(song);
+  _abcEditOrig = txt;
 }
 function _abcSetEditing(on) {
   document.getElementById('abc-editor-wrap').style.display = on ? '' : 'none';
@@ -12802,22 +12877,12 @@ document.getElementById('btn-abc-edit').addEventListener('click', () => {
   const editing = document.getElementById('abc-editor-wrap').style.display !== 'none';
   if (!editing) {
     document.getElementById('abc-editor').value = song.abc_text || song.tab_content || '';
+    _abcEditOrig = document.getElementById('abc-editor').value;
     _abcSetEditing(true);
   } else {
-    _abcPersistEdits();               // silent in-app save on exit
+    _abcPersistEdits();               // silent in-app save + re-render on exit
     _abcSetEditing(false);
   }
-});
-
-// Explicit in-app save button (kept for discoverability) — same silent persist.
-document.getElementById('btn-abc-save').addEventListener('click', () => {
-  _abcPersistEdits();
-  _abcSetEditing(false);
-});
-
-// Cancel discards edits without saving.
-document.getElementById('btn-abc-cancel').addEventListener('click', () => {
-  _abcSetEditing(false);
 });
 
 // Debounced autosave while editing ABC, so navigating away never loses work.
@@ -14329,14 +14394,43 @@ function renderIRealSong(song){
     p.innerHTML=escapeHtml(l)+': <span>'+escapeHtml(v)+'</span>';
     _metaEl.appendChild(p);
   });
-  hdr.appendChild(_titleEl);
-  if(song.artist)hdr.appendChild(_artistEl);
-  hdr.appendChild(_metaEl);
-  cont.appendChild(hdr);
   if(isLsEditMode){
+    // Editable header: title / author / style / BPM. Changes persist immediately
+    // (localStorage + sidebar); the full re-render happens when edit mode exits.
+    const eh=document.createElement('div');eh.className='ls-edit-header';
+    const _mkField=(labelText, value, onInput, opts)=>{
+      opts=opts||{};
+      const w=document.createElement('label');w.className='ls-ef'+(opts.cls?' '+opts.cls:'');
+      const lb=document.createElement('span');lb.className='ls-ef-lbl';lb.textContent=labelText;
+      const inp=document.createElement('input');
+      inp.type=opts.type||'text';
+      if(opts.type==='number'){inp.min='0';inp.max='400';inp.inputMode='numeric';}
+      if(opts.placeholder)inp.placeholder=opts.placeholder;
+      inp.value=(value==null?'':value);
+      inp.addEventListener('input',()=>onInput(inp.value));
+      w.appendChild(lb);w.appendChild(inp);return w;
+    };
+    eh.appendChild(_mkField('Title', song.title||'', v=>{
+      song.title=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
+    }, {placeholder:'Song title'}));
+    eh.appendChild(_mkField('Author', song.artist||'', v=>{
+      song.artist=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
+    }, {placeholder:'Composer / artist'}));
+    eh.appendChild(_mkField('Style', song.style||'', v=>{
+      song.style=v.trim(); saveSongs();
+    }, {placeholder:'e.g. Medium Swing'}));
+    eh.appendChild(_mkField('BPM', song.bpm||'', v=>{
+      const n=parseInt(v,10); song.bpm=(n>0?n:null); saveSongs();
+    }, {type:'number', placeholder:'120', cls:'bpm'}));
+    cont.appendChild(eh);
     const hint=document.createElement('div');hint.className='ls-edit-hint';
-    hint.textContent='Editing — click a bar to change its chords, or use its ⋮ menu for barlines, time signature, sections and inserting/deleting bars.';
+    hint.textContent='Editing — change the title, author, style and BPM above; click a bar to change its chords, or use its ⋮ menu for barlines, time signature, sections and inserting/deleting bars.';
     cont.appendChild(hint);
+  } else {
+    hdr.appendChild(_titleEl);
+    if(song.artist)hdr.appendChild(_artistEl);
+    hdr.appendChild(_metaEl);
+    cont.appendChild(hdr);
   }
   const bars=(chart.bars||[]).slice();while(bars.length%4!==0)bars.push(null);
   const grid=document.createElement('div');grid.className='ls-grid';
@@ -14790,7 +14884,7 @@ document.getElementById('ns-type').addEventListener('change', function() {
   if (abcDiv) abcDiv.style.display = (v === 'abc')    ? '' : 'none';
   if (irDiv)  irDiv.style.display  = (v === 'ireal')  ? '' : 'none';
   var showMeta = (v === 'song' || v === 'blank-lead');
-  ['ns-title', 'ns-artist', 'ns-key', 'ns-capo'].forEach(function(id) {
+  ['ns-title', 'ns-artist', 'ns-key'].forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
     var field = el.closest ? el.closest('.modal-field') : el.parentElement;
