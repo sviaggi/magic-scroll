@@ -152,6 +152,10 @@
     --c-chord-text:     #8b2020;
     --theme-image:      'parchment';
     --c-notation-ink:   #1a1208;   /* dark ink on cream card */
+    /* Inset overlay for big text blocks (song/ABC editors, lead-sheet notes):
+       slightly DARKER than the card in light themes. Dark themes override it to
+       a light overlay so the box reads slightly LIGHTER than the card. */
+    --c-inset-ov:       rgba(0,0,0,0.06);
   }
 
   /* ── DARK THEME ──────────────────────────────────────────────────────────── */
@@ -180,6 +184,7 @@
     --c-notation-ink:   #c8b8f0;  /* lavender — readable on dark card */
     --c-notation-bg:    transparent;
     --c-notation-border:#c8c0e8;
+    --c-inset-ov:       rgba(255,255,255,0.05);  /* lighter than the dark card */
   }
 
   /* ── GREEN THEME ─────────────────────────────────────────────────────────── */
@@ -205,6 +210,7 @@
     --c-chord-text:     #90e060;
     --theme-image:      'green';
     --c-notation-ink:   #a0e090;   /* pale green on dark card */
+    --c-inset-ov:       rgba(255,255,255,0.05);  /* lighter than the dark card */
   }
 
   /* ── THE SESSION THEME ───────────────────────────────────────────────────────
@@ -1273,6 +1279,16 @@
   }
   #edit-split.visible { display: flex; }
 
+  /* The editor sits on an opaque UI card (like lead sheets) so the Title/Artist/
+     Key/Transpose fields read against a solid block colour, not the page image. */
+  #edit-pane {
+    background-color: var(--c-card-fallback);
+    color: var(--c-card-text);
+    border-radius: 2px;
+    padding: 24px 28px 28px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.5);
+  }
+
   #editor-meta {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1283,7 +1299,7 @@
     font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--c-chrome-muted);
+    color: var(--c-card-meta);
   }
   .editor-field input {
     background: var(--c-chrome-bg2);
@@ -1319,9 +1335,9 @@
        grow with its content natively, no JS needed. Falls back to JS below. */
     field-sizing: content;
     min-height: 320px;
-    background: var(--c-chrome-bg2);
-    color: var(--c-chrome-text);
-    border: 1px solid var(--c-chrome-border);
+    background: var(--c-inset-ov);
+    color: var(--c-card-text);
+    border: 1px solid var(--c-card-border);
     border-radius: 2px;
     font-family: var(--font-mono);
     font-size: 0.9rem;
@@ -2399,7 +2415,7 @@
   .ls-notes-view{font-family:var(--font-chord);font-size:0.88rem;line-height:1.7;
     padding:9px 11px;color:var(--c-card-text);white-space:pre-wrap;}
   .ls-notes-view .chord-token{color:var(--c-chord-text);font-weight:bold;cursor:default;}
-  .ls-notes-ta{width:100%;min-height:15em;background:rgba(0,0,0,0.06);
+  .ls-notes-ta{width:100%;min-height:15em;background:var(--c-inset-ov);
     color:var(--c-card-text);border:1px solid var(--c-card-border);border-radius:3px;
     padding:9px 11px;font-size:0.88rem;font-family:var(--font-chord);
     resize:vertical;box-sizing:border-box;line-height:1.55;}
@@ -2848,41 +2864,12 @@
         </select>
       </div>
 
-      <div class="settings-section-title">Colour</div>
-      <div class="settings-row">
-        <label>Colour mode</label>
-        <select id="pp-colour">
-          <option value="colour">Colour (as on screen)</option>
-          <option value="bw">Black &amp; white</option>
-        </select>
-      </div>
-
-      <div class="settings-section-title">Background</div>
-      <div class="settings-row">
-        <label>Background image</label>
-        <select id="pp-bg">
-          <option value="none">None (white)</option>
-          <option value="parchment">Parchment</option>
-          <option value="custom">Custom (from Themes panel)</option>
-        </select>
-      </div>
-
       <div class="settings-section-title">Chord Diagrams</div>
       <div class="settings-row">
         <label>Include diagrams</label>
-        <select id="pp-diagrams">
-          <option value="none">No diagrams</option>
-          <option value="guitar">Guitar (Standard)</option>
-          <option value="drop_d">Guitar (Drop D)</option>
-          <option value="dadgad">Guitar (DADGAD)</option>
-          <option value="open_g">Guitar (Open G)</option>
-          <option value="ukulele">Ukulele</option>
-          <option value="baritone_uke">Baritone Uke</option>
-          <option value="piano">Piano</option>
-          <option value="mandolin">Mandolin</option>
-          <option value="mandola">Mandola</option>
-          <option value="banjo">Banjo</option>
-        </select>
+        <input type="checkbox" id="pp-diagrams" checked
+               style="width:auto;height:auto;accent-color:var(--c-accent);">
+        <span style="font-size:0.65rem;color:var(--c-chrome-muted);">(primary instrument)</span>
       </div>
 
       <div class="settings-section-title">Layout</div>
@@ -2981,6 +2968,7 @@
         <span style="border-left:1px solid var(--c-chrome-border);height:16px;margin:0 2px;"></span>
         <button id="btn-abc-soundfont" title="Load SF2 or SFZ soundfont">🎵 Soundfont</button>
         <span id="abc-soundfont-name" style="font-size:0.65rem;color:var(--c-chrome-muted);"></span>
+        <button id="btn-abc-soundfont-clear" title="Unload soundfont (revert to the default sound)" style="display:none;font-size:0.72rem;padding:1px 6px;">✕</button>
         <span style="border-left:1px solid var(--c-chrome-border);height:16px;margin:0 2px;"></span>
         <button id="btn-whistle-tab" title="Toggle tin whistle fingering diagrams" style="font-size:0.72rem;">🪈 Whistle Tabs</button>
         <select id="whistle-tab-key" title="Whistle key" style="font-size:0.72rem;display:none;">
@@ -3000,8 +2988,8 @@
       <div id="abc-editor-wrap" style="display:none;width:100%;margin-bottom:16px;">
         <textarea id="abc-editor" spellcheck="false" autocorrect="off"
           style="width:100%;min-height:240px;font-family:var(--font-mono);font-size:0.85rem;
-                 background:var(--c-chrome-bg2);color:var(--c-chrome-text);
-                 border:1px solid var(--c-chrome-border);border-radius:2px;
+                 background:var(--c-inset-ov);color:var(--c-card-text);
+                 border:1px solid var(--c-card-border);border-radius:2px;
                  padding:12px;resize:vertical;outline:none;field-sizing:content;
                  box-sizing:border-box;"></textarea>
       </div>
@@ -3278,8 +3266,7 @@ Another lyric line
                 background:var(--c-chrome-bg3);padding:7px 9px;border-radius:3px;
                 border-left:3px solid var(--c-accent);line-height:1.45;">
         <strong>ℹ Lead Sheets</strong> — import, display, transposition, chord simplification,
-        editing, and lyrics are all functional.
-        Backing track playback is not yet available.
+        editing, lyrics, and backing-track playback are all functional.
       </p>
     </div>
     <div class="modal-actions">
@@ -3298,7 +3285,7 @@ Another lyric line
       📱 <a href="https://www.instagram.com/spencer.california/">@Spencer.California</a>
     </div>
     <div class="contact-muted">
-      Please include the song file and a description of what went wrong.<br>Version: 1.0.2
+      Please include the song file and a description of what went wrong.<br>Version: 1.0.3
     </div>
     <div><a href="https://ko-fi.com/spencercalifornia" target="_blank">Like the project? A donation would mean the world! ☕ 🌍</a></div>
     <!-- ── FAQ / Credits loaded from FAQ.txt ────────────────────────── -->
@@ -5492,16 +5479,25 @@ function _buildFilterPanel() {
     }
   });
   panel.innerHTML = '';
+  var _allKeys = [];   // every filter key present, so "None" can turn them all off
   var head = document.createElement('div'); head.className = 'filter-head';
   var lbl = document.createElement('span'); lbl.textContent = 'Filter by type'; head.appendChild(lbl);
+  var none = document.createElement('button'); none.className = 'filter-reset'; none.textContent = 'None';
+  none.title = 'Deselect every type';
+  none.addEventListener('click', function(){
+    _allKeys.forEach(function(k){ _libFilterOff.add(k); });
+    _buildFilterPanel(); _refreshFilterBtn();
+    buildSongList(document.getElementById('search-input').value);
+  });
   var reset = document.createElement('button'); reset.className = 'filter-reset'; reset.textContent = 'Reset';
   reset.addEventListener('click', function(){
     _libFilterOff.clear(); _buildFilterPanel(); _refreshFilterBtn();
     buildSongList(document.getElementById('search-input').value);
   });
-  head.appendChild(reset); panel.appendChild(head);
+  head.appendChild(none); head.appendChild(reset); panel.appendChild(head);
 
   function row(label, key, isSub) {
+    _allKeys.push(key);
     var lab = document.createElement('label'); lab.className = 'filter-row' + (isSub ? ' sub' : '');
     if (isSub) lab.style.paddingLeft = '24px';
     var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !_libFilterOff.has(key);
@@ -11513,9 +11509,10 @@ ${body}
   }
 
   const fontOpt  = document.getElementById('pp-font').value;
-  const colourOpt= document.getElementById('pp-colour').value;
-  const bgOpt    = document.getElementById('pp-bg').value;
-  const diagInst = document.getElementById('pp-diagrams').value;
+  const includeDiagrams = document.getElementById('pp-diagrams').checked;
+  // Diagrams always use whichever primary instrument the user has selected.
+  let diagInst = (typeof resolveInst === 'function') ? resolveInst(currentInstrument) : currentInstrument;
+  if (!diagInst || diagInst === 'none') diagInst = 'guitar';
   const onePage  = document.getElementById('pp-onepage').checked;
   const multiCol = document.getElementById('pp-columns').checked;
 
@@ -11540,36 +11537,39 @@ ${body}
     chordFont = bodyFont;
   }
 
-  // ── Colour vars ──
-  const chordColor = colourOpt === 'bw' ? '#000' : 'var(--c-chord-text)';
+  // ── Colour vars — resolve the chord colour to a literal (CSS variables don't
+  //    carry into the print window) and keep it dark enough to read on white.
+  var _csP = window.getComputedStyle(document.documentElement);
+  let chordColor = (_csP.getPropertyValue('--c-chord-text') || '').trim();
+  (function(){
+    var m = chordColor && chordColor.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (!m) { chordColor = '#8a3b00'; return; }
+    var h = m[1]; if (h.length === 3) h = h.replace(/(.)/g, '$1$1');
+    var r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+    chordColor = (0.299*r + 0.587*g + 0.114*b) > 150 ? '#8a3b00' : '#' + h;  // too light → fallback
+  })();
   const textColor  = '#000';
 
-  // ── Background ──
-  let bgCSS = '';
-  if (bgOpt === 'parchment') {
-    bgCSS = 'background-image:url("Parchment.jpg");background-size:cover;';
-  } else if (bgOpt === 'custom') {
-    const main = document.getElementById('main');
-    const bi   = main.style.backgroundImage;
-    if (bi) bgCSS = 'background-image:' + bi + ';background-size:cover;';
-  }
+  // Printing is always on a plain white page.
+  const bgCSS = '';
 
-  // ── Chord diagrams ──
+  // ── Chord diagrams (primary instrument) ──
   let diagHtml = '';
-  if (diagInst !== 'none') {
-    const chords = extractChords(
-      song.tab_content || song.content || song.tab || '',
-      transposeAmount
-    );
-    diagHtml = '<div class="pd-diagrams">';
+  if (includeDiagrams) {
+    // Mirror the on-screen panel: transpose the chords, finger the shapes for the
+    // primary capo, and pass an explicit dark ink so they print visibly (the SVG
+    // otherwise inherits theme CSS variables that don't exist in the print window).
+    const _diagSrc = transposeText(song.tab_content || song.content || song.tab || '', transposeAmount);
+    const chords = extractChords(_diagSrc);
+    let _cells = '';
     chords.forEach(name => {
-      // The page chord is the fingered shape (primary); capo only labels the key.
-      const svg = renderChordDiagram(name, diagInst, 0.9);
-      if (svg) diagHtml += '<div class="pd-diag"><div class="pd-name">' +
+      const shape = (typeof _fingering === 'function') ? _fingering(name, primaryCapo) : name;
+      const svg = renderChordDiagram(shape, diagInst, 0.9, '#1a1208');
+      if (svg) _cells += '<div class="pd-diag"><div class="pd-name">' +
         escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+')</small>' : '') +
         '</div>' + svg + '</div>';
     });
-    diagHtml += '</div>';
+    if (_cells) diagHtml = '<div class="pd-diagrams">' + _cells + '</div>';
   }
 
   // ── Build song content ──
@@ -11910,6 +11910,7 @@ async function loadSF2File(file) {
     }
   }
   showToast('SF2 loaded: '+sfzSamples.size+' notes');
+  _showSoundfontLoaded();
 }
 
 function loadSFZDirectory(files) {
@@ -11968,8 +11969,23 @@ function loadSFZDirectory(files) {
       } catch(e) {}
     }));
     showToast('SFZ loaded: ' + sfzFileName + ' (' + sfzSamples.size + ' notes)');
+    _showSoundfontLoaded();
   };
   r.readAsText(sfzFile);
+}
+
+// Reveal the "unload" (✕) button once a custom soundfont is active.
+function _showSoundfontLoaded() {
+  var cb = document.getElementById('btn-abc-soundfont-clear');
+  if (cb) cb.style.display = '';
+}
+// Drop the user soundfont and fall back to the bundled/default sound.
+function _unloadSoundfont() {
+  sfzSamples  = null;
+  sfzFileName = null;
+  var el = document.getElementById('abc-soundfont-name'); if (el) el.textContent = '';
+  var cb = document.getElementById('btn-abc-soundfont-clear'); if (cb) cb.style.display = 'none';
+  if (typeof showToast === 'function') showToast('Soundfont unloaded — using the default sound');
 }
 
 // Wire unified Soundfont button — handles SF2 (single file) and SFZ (directory)
@@ -11984,6 +12000,9 @@ function loadSFZDirectory(files) {
     try { getABCAudioCtx(); } catch(e) {}
     sfInp.click();  // first let user pick a file (SF2 or SFZ)
   });
+
+  var sfClear = document.getElementById('btn-abc-soundfont-clear');
+  if (sfClear) sfClear.addEventListener('click', _unloadSoundfont);
 
   sfInp.addEventListener('change', function() {
     if (!this.files || !this.files[0]) return;
@@ -12735,7 +12754,7 @@ function renderABCSong(song) {
       },
     });
     abcVisualObj.push(vo && vo[0] ? vo[0] : null);
-    if (_wtActive && vo && vo[0]) _wtInjectTabs(notDiv, vo[0]);
+    if (_wtActive && vo && vo[0]) _wtInjectTabs(notDiv, vo[0], i, block);
     _wireAbcChordDiagrams(notDiv);   // chord symbols ("G" above the staff) → tappable diagrams
     (function(capturedIdx) {
       hdr.querySelector('.abc-item-play').addEventListener('click', function() {
@@ -12767,10 +12786,12 @@ function renderABCSong(song) {
   // diagnostic can report font-load state before playback).
   if (typeof window.btEnsureAudio === 'function') { try { window.btEnsureAudio(); } catch(e) {} }
   if (_wtActive) {
-    // Apply transposition to the key before checking compatibility
-    var _warnKey = transposeAmount
-      ? (transposeKey(song.key || '', transposeAmount) || song.key || '')
-      : (song.key || '');
+    // Compatibility check uses the first tune's CURRENT key: its original key
+    // shifted by the effective transpose (per-tune card key offset + global
+    // top-bar transpose), so changing the tune's card key updates the warning.
+    var _wBase = (_abcField(blocks[0] || '', 'K') || song.key || '').trim();
+    var _wEff  = _abcEffectiveTr(0);
+    var _warnKey = _wEff ? (transposeKey(_wBase, _wEff) || _wBase) : _wBase;
     _wtShowWarning(_warnKey, _wtBaseMidi);
   }
 }
@@ -13442,7 +13463,7 @@ function _wtShowWarning(keyStr, baseMidi) {
 }
 
 // ── SVG injection ────────────────────────────────────────────────────────────
-function _wtInjectTabs(notDiv, visualObj) {
+function _wtInjectTabs(notDiv, visualObj, tuneIdx, blockSrc) {
   var _rafKey = notDiv.id || 'default';
   if (_wtRafMap[_rafKey]) cancelAnimationFrame(_wtRafMap[_rafKey]);
   _wtRafMap[_rafKey] = requestAnimationFrame(function() {
@@ -13463,9 +13484,16 @@ function _wtInjectTabs(notDiv, visualObj) {
     // as many as there are visual note elements (Math.min caps the loop).
     var midiSeq = [];
     var song = currentIdx >= 0 ? songs[currentIdx] : null;
-    if (song && song.abc_text) {
+    // Use THIS tune's block and its effective transpose (per-tune card key offset
+    // + global top-bar transpose) so the tabs follow a key change made in the
+    // tune's own card, not just the top-bar transpose.
+    var _tabSrc = blockSrc || (song && song.abc_text) || '';
+    var _tabTr  = (typeof _abcEffectiveTr === 'function')
+                    ? _abcEffectiveTr(tuneIdx || 0)
+                    : (transposeAmount || 0);
+    if (_tabSrc) {
       try {
-        var noteObjs = abcToNotes(song.abc_text, 120, transposeAmount || 0);
+        var noteObjs = abcToNotes(_tabSrc, 120, _tabTr);
         noteObjs.filter(function(n){ return n.freq > 0; }).forEach(function(n){
           midiSeq.push(Math.round(freqToMidi(n.freq)));
         });
@@ -14413,7 +14441,7 @@ function renderIRealSong(song){
     eh.appendChild(_mkField('Title', song.title||'', v=>{
       song.title=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
     }, {placeholder:'Song title'}));
-    eh.appendChild(_mkField('Author', song.artist||'', v=>{
+    eh.appendChild(_mkField('Artist', song.artist||'', v=>{
       song.artist=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
     }, {placeholder:'Composer / artist'}));
     eh.appendChild(_mkField('Style', song.style||'', v=>{
