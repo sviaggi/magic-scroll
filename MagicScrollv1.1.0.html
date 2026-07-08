@@ -311,8 +311,7 @@
     height: auto;
     display: block;
     margin: 0 auto 14px;
-    color: var(--c-accent-dim);
-    opacity: 0.55;
+    color: var(--c-accent);
   }
 
   .sep { color: var(--c-chrome-border); font-size: 0.8rem; }
@@ -1263,6 +1262,42 @@
     margin-top: 8px;
     line-height: 1.5;
   }
+  .contact-app-header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    column-gap: 8px;
+    row-gap: 2px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--c-chrome-border);
+  }
+  .contact-app-name {
+    font-family: var(--font-ui);
+    font-size: 1.1rem;
+    color: var(--c-accent);
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+  }
+  .contact-app-name .logo-glyph-title { height: 0.95em; width: auto; flex-shrink: 0; display: block; }
+  .contact-app-version {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--c-chrome-muted);
+  }
+  .contact-app-links {
+    flex-basis: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .contact-app-links a { color: var(--c-accent); }
+  .contact-app-links .sep { color: var(--c-chrome-border); }
 
   #scroll-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 3px; background: var(--c-chrome-bg); z-index: 300; }
   #scroll-progress { height: 100%; background: linear-gradient(90deg, var(--c-accent-dim), var(--c-accent)); width: 0%; transition: width 0.1s linear; }
@@ -2412,6 +2447,16 @@
     color: var(--c-accent);
     border-color: var(--c-accent);
   }
+  #btn-abc-hide-chords.hc-on,
+  #btn-abc-note-names.nn-on {
+    background: var(--c-accent-dim);
+    color: var(--c-accent);
+    border-color: var(--c-accent);
+  }
+  /* Chord symbols above the staff, hidden via "Hide Chords" */
+  #abc-notation.abc-chords-hidden text.abcjs-chord { display: none; }
+  /* Letter-name labels injected under each note by "Note Names" */
+  .note-name-label { font-family: var(--font-mono); user-select: none; pointer-events: none; }
 
   /* ── iReal Lead Sheet ───────────────────────────────────────── */
   #ireal-song-card{padding:16px 4px 20px;width:100%;max-width:820px;box-sizing:border-box;
@@ -2574,10 +2619,16 @@
     background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 20px;
   }
   #abc-set-modal.open { display: flex; }
+  .abc-set-filters { display: flex; gap: 8px; margin-bottom: 10px; }
   #abc-set-search {
-    width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 5px 8px; border-radius: 3px;
+    flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 5px 8px; border-radius: 3px;
     background: var(--c-chrome-bg3); color: var(--c-chrome-text); border: 1px solid var(--c-chrome-border);
     font-family: var(--font-mono); font-size: 0.78rem;
+  }
+  #abc-set-type-filter {
+    flex: 0 0 auto; max-width: 40%; box-sizing: border-box; padding: 5px 6px; border-radius: 3px;
+    background: var(--c-chrome-bg3); color: var(--c-chrome-text); border: 1px solid var(--c-chrome-border);
+    font-family: var(--font-mono); font-size: 0.76rem;
   }
   .abc-set-order {
     font-size: 0.74rem; color: var(--c-accent); margin-bottom: 8px; min-height: 1.2em; line-height: 1.4;
@@ -2590,7 +2641,12 @@
   .abc-set-row input { accent-color: var(--c-accent); flex-shrink: 0; }
   .abc-set-row .as-title { font-size: 0.8rem; color: var(--c-chrome-text); }
   .abc-set-row .as-artist { font-size: 0.65rem; color: var(--c-chrome-muted); margin-left: 4px; }
+  .abc-set-row .as-type {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-chrome-muted);
+    margin-left: 8px; padding: 1px 6px; border: 1px solid var(--c-chrome-border); border-radius: 8px;
+  }
   .abc-set-row .as-pos { margin-left: auto; font-size: 0.65rem; color: var(--c-accent); font-variant-numeric: tabular-nums; }
+  .abc-set-empty { padding: 14px 10px; text-align: center; font-size: 0.75rem; color: var(--c-chrome-muted); margin-bottom: 14px; }
   /* ── Custom instrument modal ───────────────────────────────────────────── */
   #custom-inst-modal {
     display: none; position: fixed; inset: 0; z-index: 900;
@@ -3116,6 +3172,8 @@
           <option value="70">Bb whistle</option>
           <option value="63">Eb whistle</option>
         </select>
+        <button id="btn-abc-hide-chords" title="Hide the chord symbols marked in this ABC file" style="font-size:0.72rem;">🎼 Hide Chords</button>
+        <button id="btn-abc-note-names" title="Show the letter name under each note" style="font-size:0.72rem;">🔤 Note Names</button>
         <!-- Single-file picker for SF2 or SFZ; SFZ then re-prompts for folder -->
         <input type="file" id="abc-sf-input" accept=".sf2,.sfz" style="display:none">
         <!-- Directory picker for SFZ + samples (shown after SFZ detected) -->
@@ -3343,9 +3401,13 @@ Another lyric line
   <div class="ci-box">
     <h3>⛓ Create set</h3>
     <p class="ci-hint">Tick tunes to stack them on the page. They appear in the order you select them — the order is shown below.</p>
-    <input type="search" id="abc-set-search" placeholder="Search tunes…" autocomplete="off" spellcheck="false">
+    <div class="abc-set-filters">
+      <input type="search" id="abc-set-search" placeholder="Search tunes or type (jig, reel, waltz…)" autocomplete="off" spellcheck="false">
+      <select id="abc-set-type-filter" title="Filter by tune type"><option value="">All types</option></select>
+    </div>
     <div id="abc-set-order" class="abc-set-order"></div>
     <div id="abc-set-list" class="abc-set-list"></div>
+    <div id="abc-set-empty" class="abc-set-empty" style="display:none;">No tunes match this search / type.</div>
     <div class="ci-actions">
       <button id="abc-set-cancel" type="button">Cancel</button>
       <button id="abc-set-apply" type="button">Show set</button>
@@ -3445,6 +3507,20 @@ Another lyric line
 
 <div id="contact-tab">
   <div id="contact-panel">
+    <!-- ── App identity / version / platform links (always shown) ──── -->
+    <div class="contact-app-header">
+      <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
+      <span class="contact-app-version">version 1.1.0</span>
+      <div class="contact-app-links">
+        <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
+        <span class="sep">-</span>
+        <a href="https://play.google.com/store/apps/details?id=com.magicscroll.app" target="_blank" rel="noopener">Android</a>
+        <span class="sep">-</span>
+        <a href="https://www.spencercalifornia.music/app" target="_blank" rel="noopener">Web</a>
+        <span class="sep">-</span>
+        <a href="https://www.spencercalifornia.music/my-app" target="_blank" rel="noopener">About</a>
+      </div>
+    </div>
     <!-- ── Contact info (always shown) ─────────────────────────────── -->
     <h5 style="margin:0 0 8px;">Bug Reports / Donations</h5>
     <div>Found an issue? Get in touch:</div>
@@ -3452,7 +3528,7 @@ Another lyric line
       📱 <a href="https://www.instagram.com/spencer.california/">@Spencer.California</a>
     </div>
     <div class="contact-muted">
-      Please include the song file and a description of what went wrong.<br>Version: 1.1.0
+      Please include the song file and a description of what went wrong.
     </div>
     <div><a href="https://ko-fi.com/spencercalifornia" target="_blank">Like the project? A donation would mean the world! ☕ 🌍</a></div>
     <!-- ── FAQ / Credits loaded from FAQ.txt ────────────────────────── -->
@@ -12393,7 +12469,7 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
     try {
       _vo = ABCJS.renderAbc(tmp, blk, {
         staffwidth: 680, scale: 1.0, oneSvgPerLine: true,
-        paddingtop: 8, paddingbottom: _wtActive ? 88 : 14,
+        paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 24 : 14),
         visualTranspose: transposeAmount,
       });
     } catch (e) { /* fall through; tmp may still hold a render */ }
@@ -12401,6 +12477,7 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
     const _finishAbcPrint = function() {
       let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
       if (_wtActive) { try { _wtInjectTabsPrint(svgs); } catch (e) {} }
+      if (_notesActive) { try { _injectNoteNamesPrint(svgs, blk); } catch (e) {} }
       try { _wireAbcChordDiagrams(tmp); } catch (e) {}  // tag chord symbols so the chord font applies
       let body = svgs.length
         ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
@@ -12427,8 +12504,10 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#1a1208 !important; }
   svg line { stroke:#1a1208 !important; }
   .wt-tab { color:#1a1208 !important; }
+  .note-name-label { font-family:${_pf.chord}; fill:#1a1208 !important; }
   /* Chord symbols in the chord font (colour stays print ink, per spec). */
   text.abc-chord-sym, text.abc-chord-sym tspan { font-family:${_pf.chord} !important; }
+  ${_chordsHidden ? 'text.abcjs-chord{display:none;}' : ''}
 </style></head><body>
 <h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
 <h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
@@ -13767,6 +13846,7 @@ function renderABCSong(song) {
     });
     abcVisualObj.push(vo && vo[0] ? vo[0] : null);
     if (_wtActive && vo && vo[0]) _wtInjectTabs(notDiv, vo[0], i, block);
+    if (_notesActive && vo && vo[0]) _injectNoteNames(notDiv, i, block);
     _wireAbcChordDiagrams(notDiv);   // chord symbols ("G" above the staff) → tappable diagrams
     (function(capturedIdx) {
       hdr.querySelector('.abc-item-play').addEventListener('click', function() {
@@ -13818,18 +13898,43 @@ function _abcSetRenderOrder() {
   const names = _setOrder.map(i => (songs[i] && songs[i].title) || 'Untitled');
   document.getElementById('abc-set-order').textContent = names.length ? names.join(', ') : '(nothing selected)';
 }
+// A library song's tune type (jig/reel/waltz/etc) comes from the ABC "R:"
+// (rhythm) header on its first tune block — the same field the per-tune
+// sheet-music header already displays. Falls back to '' when absent.
+function _abcSongType(s) {
+  const blocks = _abcTuneBlocks(s.abc_text || '');
+  return (blocks.length ? _abcField(blocks[0], 'R') : '').trim();
+}
+function _abcSetPopulateTypeFilter() {
+  const sel = document.getElementById('abc-set-type-filter');
+  const prev = sel.value;
+  const types = new Set();
+  songs.forEach(s => { if (s._source === 'abc') { const t = _abcSongType(s); if (t) types.add(t); } });
+  const sorted = [...types].sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">All types</option>' +
+    sorted.map(t => '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>').join('');
+  sel.value = sorted.includes(prev) ? prev : '';
+}
 function _abcSetRenderList(q) {
   q = (q || '').toLowerCase();
+  const typeFilter = (document.getElementById('abc-set-type-filter').value || '').toLowerCase();
   const host = document.getElementById('abc-set-list'); host.innerHTML = '';
+  let shown = 0;
   songs.forEach((s, i) => {
     if (s._source !== 'abc') return;
     const title = s.title || 'Untitled', artist = s.artist || '';
-    if (q && (title + ' ' + artist).toLowerCase().indexOf(q) === -1) return;
+    const type = _abcSongType(s);
+    if (typeFilter && type.toLowerCase() !== typeFilter) return;
+    // Free-text search matches title, artist, AND type — so typing "reel"
+    // filters to reels without needing the dropdown.
+    if (q && (title + ' ' + artist + ' ' + type).toLowerCase().indexOf(q) === -1) return;
+    shown++;
     const pos = _setOrder.indexOf(i);
     const row = document.createElement('label'); row.className = 'abc-set-row';
     row.innerHTML = '<input type="checkbox"' + (pos >= 0 ? ' checked' : '') + '>' +
       '<span class="as-title">' + escapeHtml(title) + '</span>' +
       (artist ? '<span class="as-artist">' + escapeHtml(artist) + '</span>' : '') +
+      (type ? '<span class="as-type">' + escapeHtml(type) + '</span>' : '') +
       '<span class="as-pos">' + (pos >= 0 ? (pos + 1) : '') + '</span>';
     row.querySelector('input').addEventListener('change', function() {
       const at = _setOrder.indexOf(i);
@@ -13840,12 +13945,16 @@ function _abcSetRenderList(q) {
     });
     host.appendChild(row);
   });
+  const empty = document.getElementById('abc-set-empty');
+  if (empty) empty.style.display = shown ? 'none' : '';
 }
 function _abcSetOpen() {
   if (currentIdx < 0 || songs[currentIdx]._source !== 'abc') return;
   _setOrder = (_abcSet && _abcSet.baseIdx === currentIdx && _abcSet.order && _abcSet.order.length)
     ? _abcSet.order.slice() : [currentIdx];
   document.getElementById('abc-set-search').value = '';
+  document.getElementById('abc-set-type-filter').value = '';
+  _abcSetPopulateTypeFilter();
   _abcSetRenderOrder();
   _abcSetRenderList('');
   document.getElementById('abc-set-modal').classList.add('open');
@@ -13863,6 +13972,7 @@ function _abcSetApply() {
 }
 document.getElementById('btn-abc-set').addEventListener('click', _abcSetOpen);
 document.getElementById('abc-set-search').addEventListener('input', function() { _abcSetRenderList(this.value); });
+document.getElementById('abc-set-type-filter').addEventListener('change', function() { _abcSetRenderList(document.getElementById('abc-set-search').value); });
 document.getElementById('abc-set-apply').addEventListener('click', _abcSetApply);
 document.getElementById('abc-set-cancel').addEventListener('click', function() { document.getElementById('abc-set-modal').classList.remove('open'); });
 document.getElementById('abc-set-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
@@ -14600,6 +14710,9 @@ const WT_FINGERS = {
 let _wtActive   = false;
 let _wtBaseMidi = 62;
 var _wtRafMap   = {};  // notDiv.id → pending rAF id, for cancellation
+let _chordsHidden = false;   // "Hide Chords" toggle
+let _notesActive  = false;   // "Note Names" toggle
+var _nnRafMap   = {};  // notDiv.id → pending rAF id, for cancellation (Note Names)
 
 // ── Key compatibility ────────────────────────────────────────────────────────
 function _wtCrossFingerCount(keyStr, baseMidi) {
@@ -14792,6 +14905,106 @@ function _wtInjectTabsPrint(svgs) {
   });
 }
 
+// ── NOTE NAMES ───────────────────────────────────────────────────────────────
+// Labels the letter name (C, D♯, etc.) directly under each notehead — for
+// people who read tab/chords fine but struggle to sight-read staff notation.
+// Reuses the exact same MIDI-sequence approach as the whistle tabs above
+// (abcToNotes(), matched 1:1 against the visual .abcjs-note elements in order)
+// since that pipeline is already proven correct across repeats/grace notes/
+// transposition. Unlike the whistle tabs (which share one baseline per staff
+// system, since the fingering diagram is tall and needs a stable row), each
+// note name sits right under its OWN note — that's the whole point of the
+// feature — so no system-clustering is needed here.
+function _noteNameFor(midi) {
+  return NOTE_NAMES[((Math.round(midi) % 12) + 12) % 12];
+}
+function _injectNoteNames(notDiv, tuneIdx, blockSrc) {
+  var _rafKey = notDiv.id || 'default';
+  if (_nnRafMap[_rafKey]) cancelAnimationFrame(_nnRafMap[_rafKey]);
+  _nnRafMap[_rafKey] = requestAnimationFrame(function() {
+    delete _nnRafMap[_rafKey];
+    if (!_notesActive) return;
+    var svgEl = notDiv.querySelector('svg');
+    if (!svgEl) return;
+
+    var prev = svgEl.querySelectorAll('.note-name-label');
+    for (var p = 0; p < prev.length; p++) prev[p].parentNode.removeChild(prev[p]);
+
+    var midiSeq = [];
+    var song = currentIdx >= 0 ? songs[currentIdx] : null;
+    var _srcTr = blockSrc || (song && song.abc_text) || '';
+    var _tr = (typeof _abcEffectiveTr === 'function') ? _abcEffectiveTr(tuneIdx || 0) : (transposeAmount || 0);
+    if (_srcTr) {
+      try {
+        abcToNotes(_srcTr, 120, _tr)
+          .filter(function(n) { return n.freq > 0; })
+          .forEach(function(n) { midiSeq.push(Math.round(freqToMidi(n.freq))); });
+      } catch (e) {}
+    }
+    if (!midiSeq.length) return;
+
+    var noteEls = Array.from(svgEl.querySelectorAll('.abcjs-note')).filter(function(el) {
+      return !el.classList.contains('abcjs-gracenote') && !el.closest('.abcjs-gracenote');
+    });
+
+    var n = Math.min(midiSeq.length, noteEls.length);
+    var ns = 'http://www.w3.org/2000/svg';
+    for (var i = 0; i < n; i++) {
+      try {
+        var bb = noteEls[i].getBBox();
+        if (bb.width === 0 && bb.height === 0) continue;
+        var t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', bb.x + bb.width / 2);
+        t.setAttribute('y', bb.y + bb.height + 9);
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('font-size', '7.5');
+        t.setAttribute('fill', 'currentColor');
+        t.classList.add('note-name-label');
+        t.textContent = _noteNameFor(midiSeq[i]);
+        svgEl.appendChild(t);
+      } catch (e) {}
+    }
+  });
+}
+
+// Note names for PRINT — mirrors _wtInjectTabsPrint's per-SVG, in-order
+// consumption of the MIDI sequence (one staff line per SVG).
+function _injectNoteNamesPrint(svgs, blockSrc) {
+  var song = currentIdx >= 0 ? songs[currentIdx] : null;
+  var src = blockSrc || (song && song.abc_text) || '';
+  if (!src || !svgs || !svgs.length) return;
+  var midiSeq = [];
+  try {
+    abcToNotes(src, 120, transposeAmount || 0)
+      .filter(function(n) { return n.freq > 0; })
+      .forEach(function(n) { midiSeq.push(Math.round(freqToMidi(n.freq))); });
+  } catch (e) {}
+  if (!midiSeq.length) return;
+  var idx = 0;
+  var ns = 'http://www.w3.org/2000/svg';
+  svgs.forEach(function(svgEl) {
+    var noteEls = Array.prototype.slice.call(svgEl.querySelectorAll('.abcjs-note'))
+      .filter(function(el) { return !el.classList.contains('abcjs-gracenote') && !el.closest('.abcjs-gracenote'); });
+    noteEls.forEach(function(el) {
+      var midi = midiSeq[idx++];
+      if (midi == null) return;
+      try {
+        var bb = el.getBBox();
+        if (bb.width === 0 && bb.height === 0) return;
+        var t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', bb.x + bb.width / 2);
+        t.setAttribute('y', bb.y + bb.height + 9);
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('font-size', '7.5');
+        t.setAttribute('fill', 'currentColor');
+        t.classList.add('note-name-label');
+        t.textContent = _noteNameFor(midi);
+        svgEl.appendChild(t);
+      } catch (e) {}
+    });
+  });
+}
+
 // One fingering diagram <g> (origin = top-centre)
 function _wtDiagramGroup(midi) {
   // Holes drawn h5→h0 top-to-bottom (bell end at top, mouthpiece at bottom).
@@ -14860,6 +15073,29 @@ document.getElementById('whistle-tab-key').addEventListener('change', function()
   _wtBaseMidi = parseInt(this.value)||62;
   var song = currentIdx>=0 ? songs[currentIdx] : null;
   if (_wtActive && song && song._source==='abc') renderABCSong(song);
+});
+
+// "Hide Chords" — pure CSS, no re-render needed.
+document.getElementById('btn-abc-hide-chords').addEventListener('click', function() {
+  _chordsHidden = !_chordsHidden;
+  this.classList.toggle('hc-on', _chordsHidden);
+  document.getElementById('abc-notation').classList.toggle('abc-chords-hidden', _chordsHidden);
+});
+
+// "Note Names" — same on/off + scrub pattern as the whistle-tab toggle.
+document.getElementById('btn-abc-note-names').addEventListener('click', function() {
+  _notesActive = !_notesActive;
+  this.classList.toggle('nn-on', _notesActive);
+  if (!_notesActive) {
+    Object.keys(_nnRafMap).forEach(function(k) {
+      cancelAnimationFrame(_nnRafMap[k]); delete _nnRafMap[k];
+    });
+    document.querySelectorAll('.note-name-label').forEach(function(el) {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+  }
+  var song = currentIdx>=0 ? songs[currentIdx] : null;
+  if (song && song._source==='abc') renderABCSong(song);
 });
 
 // ── COLLECTIONS BROWSER ───────────────────────────────────────────────────────
