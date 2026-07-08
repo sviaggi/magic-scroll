@@ -3098,6 +3098,7 @@
 
         <button id="btn-abc-new">✦ New</button>
         <button id="btn-abc-edit">✎ Edit</button>
+        <button id="btn-abc-edit-cancel" title="Discard all changes made since entering edit mode" style="display:none">✕ Cancel</button>
         <button id="btn-abc-save-as">⬇ Save As…</button>
         <button id="btn-abc-set" title="Stack other tunes from your library under this one to make a set">⛓ Create set</button>
         <button id="btn-publish-abc" title="Publish this sheet music to the online library">☁ Publish</button>
@@ -3150,6 +3151,7 @@
     <div id="edit-toolbar" style="display:none">
       <button id="btn-new-song" title="Create a new blank song">✦ New</button>
       <button id="btn-edit-toggle" title="Toggle between edit and read mode" aria-pressed="false">✎ Edit</button>
+      <button id="btn-edit-cancel" title="Discard all changes made since entering edit mode" style="display:none">✕ Cancel</button>
       <button id="btn-save" title="Save changes to this song (Ctrl+S)">💾 Save</button>
       <button id="btn-save-as" title="Download this song as a .txt file">⬇ Save As…</button>
       <button id="btn-publish-song" title="Publish this song to the online library">☁ Publish</button>
@@ -4468,6 +4470,14 @@ function isAnnotationToken(tok) {
   return ANNOTATION_RE.test(tok) || ANNOTATION_RE.test(cleanToken(tok));
 }
 
+// "/", "-", "--", ",", "\" are frequently used right up against a chord to
+// denote a pause, strum, or break (e.g. "G," "D-" "Am/" "G--"). Strip a run of
+// these from a token's edges (never the middle, so slash chords like "C/G"
+// are untouched) before giving up on it — the leftover core may still be a
+// perfectly good chord.
+const PAUSE_PUNCT_RE = /^[,\-\/\\]+|[,\-\/\\]+$/g;
+function stripPausePunct(tok) { return tok.replace(PAUSE_PUNCT_RE, ''); }
+
 // kill multi-word parentheticals — they're always lyrics, never chords
 // "(To where I belong)" -> gone. "(F#)" -> stays (no space = probably a chord)
 function stripParenLyrics(line) {
@@ -4483,7 +4493,10 @@ function splitPipeDelimited(line) {
 function lineIsChordLine(line) {
   if (line.startsWith('~')) return false;       // ~ = forced lyric
   if (line.startsWith('!')) return true;        // ! = forced chord (mark-as-chord)
-  if (/[|\-]{3,}/.test(line)) return false;   // tab staff line
+  // Tab staff lines (e.g. "e|------0---...") need a real string-letter+pipe or
+  // pipe+fret-numbers signature — a bare run of dashes (a pause/strum marker
+  // like "---" on an otherwise ordinary chord line) must NOT trip this.
+  if (_isTabLine(line)) return false;
   line = splitPipeDelimited(line);
   const stripped = stripParenLyrics(line);
   const tokens = stripped.trim().split(/\s+/).filter(Boolean);
@@ -4492,6 +4505,8 @@ function lineIsChordLine(line) {
   for (const tok of tokens) {
     if (isChordToken(tok))       { chordCount++; continue; }
     if (isAnnotationToken(tok))  { continue; }
+    const bare = stripPausePunct(tok);
+    if (bare && bare !== tok && (isChordToken(bare) || isAnnotationToken(bare))) { chordCount += isChordToken(bare) ? 1 : 0; continue; }
     return false;
   }
   return chordCount >= 1;
@@ -4977,6 +4992,14 @@ function renderTabContent() {
         el.appendChild(document.createTextNode(part));
       } else if (isChordToken(part)) {
         el.appendChild(_chordTokenSpan(part));
+      } else if (stripPausePunct(part) && stripPausePunct(part) !== part && isChordToken(stripPausePunct(part))) {
+        // e.g. "G," or "Am--" — a chord with a pause/strum marker stuck to it
+        const lead  = (part.match(/^[,\-\/\\]+/)  || [''])[0];
+        const trail = (part.match(/[,\-\/\\]+$/) || [''])[0];
+        const core  = part.slice(lead.length, part.length - trail.length);
+        if (lead)  el.appendChild(document.createTextNode(lead));
+        el.appendChild(_chordTokenSpan(core));
+        if (trail) el.appendChild(document.createTextNode(trail));
       } else if (isForced) {
         const m = part.match(CPFX);
         if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
@@ -5085,6 +5108,7 @@ function parsePlainText(text, filename) {
 // simplified-view state — declared here so renderSong can reference applySimplifiedView
 let isSimplifiedView = false;
 let isLsEditMode  = false;  // lead-sheet edit toggle
+let _lsEditSnapshot = null; // deep clone of the song at edit-mode entry, for Cancel
 let _lsEditSong   = null;   // tracks which song owns the current mode
 
 function applySimplifiedView(on) {
@@ -10816,6 +10840,7 @@ document.addEventListener('mouseup', function(e) {
 // ── EDITOR — state & functions ────────────────────────────────────────────────
 let isEditMode        = false;
 let hasUnsavedChanges = false;
+let _songEditSnapshot = null;   // title/artist/key/timeSig/content at edit-mode entry, for Cancel
 
 function setSaveStatus(state) {
   const el = document.getElementById('save-status');
@@ -10849,18 +10874,29 @@ function setEditMode(on) {
   const card    = document.getElementById('song-card');
   const split   = document.getElementById('edit-split');
   const editBtn = document.getElementById('btn-edit-toggle');
+  const cancelBtn = document.getElementById('btn-edit-cancel');
   const saveBtn = document.getElementById('btn-save');
 
   card.style.display = on ? 'none' : '';
   split.classList.toggle('visible', on);
   editBtn.classList.toggle('active', on);
   editBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  editBtn.textContent = on ? '✎ Editing' : '✎ Edit';
-  editBtn.title = on ? 'Exit edit mode (changes are kept automatically)' : 'Edit this song';
+  // Keep the pencil icon and the active highlight in edit mode — "Save" makes
+  // it clear this button is the safe, deliberate way out (as opposed to
+  // Cancel, which discards). It only persists in-app; only Save As… downloads
+  // a file.
+  editBtn.textContent = on ? '✎ Save' : '✎ Edit';
+  editBtn.title = on ? 'Save changes and exit edit mode (in-app only — use Save As… for a file)' : 'Edit this song';
+  cancelBtn.style.display = on ? '' : 'none';
   // Changes persist automatically; a file is only written via "Save As…".
   saveBtn.style.display = 'none';
 
   if (on) {
+    // Snapshot everything the editor can touch, so Cancel can fully revert.
+    _songEditSnapshot = {
+      title: song.title, artist: song.artist, key: song.key, timeSig: song.timeSig,
+      tab_content: song.tab_content, content: song.content, tab: song.tab
+    };
     document.getElementById('edit-title').value  = song.title  || '';
     document.getElementById('edit-artist').value = song.artist || '';
     document.getElementById('edit-key').value    = song.key    || '';
@@ -11514,6 +11550,22 @@ document.getElementById('btn-edit-toggle').addEventListener('click', () => {
   // Switching from edit → read: persist in-app (no file download)
   if (isEditMode) persistCurrentEdits();
   setEditMode(!isEditMode);
+});
+document.getElementById('btn-edit-cancel').addEventListener('click', () => {
+  if (currentIdx < 0) { setEditMode(false); return; }
+  // Kill any pending debounced autosave — it captures the textarea's live value
+  // when it fires, which would otherwise clobber the revert we're about to do.
+  clearTimeout(_editAutoSaveT);
+  const song = songs[currentIdx];
+  if (_songEditSnapshot) {
+    Object.assign(song, _songEditSnapshot);
+    const dt = document.getElementById('display-title');  if (dt) dt.textContent = song.title  || 'Untitled';
+    const da = document.getElementById('display-artist');  if (da) da.textContent = song.artist || '';
+    saveSongs();
+    buildSongList(document.getElementById('search-input').value);
+  }
+  _songEditSnapshot = null;
+  setEditMode(false);   // discards the in-progress edit without persisting it
 });
 
 // Ctrl/Cmd+S shortcut — persist in-app (no forced download; use Save As… for a file)
@@ -13690,8 +13742,13 @@ function _abcSetEditing(on) {
   document.getElementById('abc-editor-wrap').style.display = on ? '' : 'none';
   const trBar = document.getElementById('abc-transpose-bar');
   if (trBar) trBar.style.display = on ? '' : 'none';
+  const cancelBtn = document.getElementById('btn-abc-edit-cancel');
+  if (cancelBtn) cancelBtn.style.display = on ? '' : 'none';
   const btn = document.getElementById('btn-abc-edit');
-  btn.textContent = on ? '✎ Editing' : '✎ Edit';
+  // Keep the pencil icon + active highlight — "Save" makes it clear this is
+  // the safe, deliberate way out (Cancel discards instead). In-app only; only
+  // Save As… writes a file.
+  btn.textContent = on ? '✎ Save' : '✎ Edit';
   btn.classList.toggle('active', on);
 }
 
@@ -13821,18 +13878,38 @@ function _abcPermTranspose(n) {
 }
 document.getElementById('abc-tr-down').addEventListener('click', () => _abcPermTranspose(-1));
 document.getElementById('abc-tr-up').addEventListener('click', () => _abcPermTranspose(1));
+let _abcEditSnapshot = null;   // title/artist/key/type/abc_text at edit-mode entry, for Cancel
 document.getElementById('btn-abc-edit').addEventListener('click', () => {
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song) return;
   const editing = document.getElementById('abc-editor-wrap').style.display !== 'none';
   if (!editing) {
+    _abcEditSnapshot = {
+      title: song.title, artist: song.artist, key: song.key, type: song.type,
+      abc_text: song.abc_text, tab_content: song.tab_content
+    };
     document.getElementById('abc-editor').value = song.abc_text || song.tab_content || '';
     _abcEditOrig = document.getElementById('abc-editor').value;
     _abcSetEditing(true);
   } else {
     _abcPersistEdits();               // silent in-app save + re-render on exit
     _abcSetEditing(false);
+    _abcEditSnapshot = null;
   }
+});
+document.getElementById('btn-abc-edit-cancel').addEventListener('click', () => {
+  const song = currentIdx >= 0 ? songs[currentIdx] : null;
+  if (!song) { _abcSetEditing(false); return; }
+  clearTimeout(_abcEditT);   // drop any pending debounced autosave before it clobbers the revert
+  if (_abcEditSnapshot) {
+    Object.assign(song, _abcEditSnapshot);
+    _abcNoteCache = {};
+    saveSongs();
+    buildSongList(document.getElementById('search-input').value);
+  }
+  _abcEditSnapshot = null;
+  _abcSetEditing(false);
+  renderABCSong(song);
 });
 
 // Debounced autosave while editing ABC, so navigating away never loses work.
@@ -15563,14 +15640,43 @@ function renderIRealSong(song){
   });
 
   const editLsBtn=document.createElement('button');editLsBtn.id='btn-ls-edit';
-  editLsBtn.textContent=isLsEditMode?'✎ Editing':'✎ Edit';
+  // Keep the pencil icon + active highlight in edit mode — "Save" makes it
+  // the obviously-safe way out (Cancel, next to it, discards instead). This
+  // only persists in-app; only Save As… downloads a file.
+  editLsBtn.textContent=isLsEditMode?'✎ Save':'✎ Edit';
   if(isLsEditMode)editLsBtn.classList.add('active');
-  editLsBtn.title=isLsEditMode?'Exit edit mode':'Edit this lead sheet';
+  editLsBtn.title=isLsEditMode?'Save changes and exit edit mode':'Edit this lead sheet';
   editLsBtn.addEventListener('click',()=>{
     document.querySelectorAll('.ls-bar.ls-editing').forEach(c=>c.dispatchEvent(new Event('blur',{bubbles:true})));
+    if (!isLsEditMode) {
+      // Entering edit mode — snapshot the whole song (header fields + chart)
+      // so Cancel can fully revert everything, including per-bar edits.
+      _lsEditSnapshot = JSON.parse(JSON.stringify(song));
+    } else {
+      _lsEditSnapshot = null;   // saving — changes are already persisted live
+    }
     isLsEditMode=!isLsEditMode;
     renderIRealSong(song);
   });
+
+  let cancelLsBtn = null;
+  if (isLsEditMode) {
+    cancelLsBtn = document.createElement('button');
+    cancelLsBtn.textContent = '✕ Cancel';
+    cancelLsBtn.title = 'Discard all changes made since entering edit mode';
+    cancelLsBtn.addEventListener('click', () => {
+      document.querySelectorAll('.ls-bar.ls-editing').forEach(c=>c.dispatchEvent(new Event('blur',{bubbles:true})));
+      if (_lsEditSnapshot) {
+        Object.keys(song).forEach(k => { if (!(k in _lsEditSnapshot)) delete song[k]; });
+        Object.assign(song, JSON.parse(JSON.stringify(_lsEditSnapshot)));
+        saveSongs();
+        buildSongList(document.getElementById('search-input').value);
+      }
+      _lsEditSnapshot = null;
+      isLsEditMode = false;
+      renderIRealSong(song);
+    });
+  }
 
   const saveBtn=document.createElement('button');saveBtn.textContent='⬇ Save As…';
   saveBtn.title='Download this lead sheet as a .mslead file';
@@ -15603,6 +15709,7 @@ function renderIRealSong(song){
 
   irealTb.appendChild(newBtn);
   irealTb.appendChild(editLsBtn);
+  if (cancelLsBtn) irealTb.appendChild(cancelLsBtn);
   irealTb.appendChild(saveBtn);
   irealTb.appendChild(urlBtn);
   irealTb.appendChild(pubLsBtn);
