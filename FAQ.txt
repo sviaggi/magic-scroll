@@ -15,8 +15,11 @@ A: My bad! Tell me which and I’ll fix it. Overall I had to hand-program about 
 Q: Can you make it so we can download songs directly from Ultimate Guitar/Musescore/Other services?
 A: I’d really like to, but then I would run into this unfortunate issue called That’s Illegal and They’ll Get Me. Nobody can stop you from copy/pasting things in from there and circulating your collections, though! If you’re savvy, there’s always a way. 
 
+Q: Can I make an account so my songs are all saved between my different devices?
+A: No! I don't have the programming know-how to give people secure logins and I wouldn't trust anything I programmed to keep your passwords safe. Trust me, it's better this way... I don't want to be responsible for a data breach and let database management ruin what is otherwise a pretty good tool! 
+
 Q: Why isn’t [Feature] included?
-A: I threw this together over the course of a few commutes and one spirited weekend. I’m not a programmer and my job is in a different field entirely. If a feature is feasible/would improve UX enough I’ll find time to make it happen.
+A: I threw this together over the course of about a month. I’m not a programmer and my job is in a different field entirely. If a feature is feasible/would improve UX enough I’ll find time to make it happen.
 
 
 Credits: 
