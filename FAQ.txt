@@ -34,7 +34,7 @@ Default tunes are by Jay Ungar and my dear friend Corwin Zekley (check out their
 
 Special thanks to our Anonymouse Angel Investor for providing the needed funds to bring this app to the app store! Additional thanks to the actual geniuses at Technimo who managed to make lead sheets such an accessible text-only format for iReal Pro (A much better app than this one which is definitely worth the sticker price if you have the money), The Session website for curating such a fine selection of traditional music and hilarious comment section arguments, and anyone who has ever uploaded chord sheets, tabs, or anything of the like to the internet. Thank you all for helping bring us together through the world of music.
 
-Beta testers: Chris Smit, Hulda Elira, Alex Smith, Oscar Law, Em Sollerman, Olly Andrews, with more to come until we hit a full release!
+Beta testers: Chris Smit, Ross Heitkamp, Hulda Elira, Alex Smith, Oscar Law, Em Sollerman, Olly Andrews, with more to come until we hit a full release!
 
 Magic Scroll was designed and programmed by Spencer “Sunny” California, given freely to the people without charge. All of the art/images were also by Spencer/Sunny, given reluctantly to the people also without charge. This project is dedicated to my mother Kristina, who is part of the reason I got into music and entirely the reason I became the person I am. 
 
