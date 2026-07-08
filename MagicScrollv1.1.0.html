@@ -284,8 +284,22 @@
     top: 0;
     z-index: 100;
     box-shadow: 0 2px 20px rgba(0,0,0,0.6);
-    transition: background 0.2s, border-color 0.2s;
+    transition: background 0.2s, border-color 0.2s, transform 0.25s ease, margin-bottom 0.25s ease;
   }
+  /* Auto-hide on scroll (mobile only — see _topbarScrollHide script). Sliding
+     it up AND pulling the content below up by the same amount (negative
+     margin) so no blank gap is left where the bar used to sit. */
+  @media (max-width: 520px) {
+    #topbar.scroll-hidden {
+      transform: translateY(-100%);
+      margin-bottom: calc(-1 * var(--topbar-h, 60px));
+    }
+  }
+
+  /* Desktop: invisible wrapper — Library/Music/Settings render as plain flex
+     items of #topbar exactly as before. Mobile reorg (below) switches this
+     to a real flex row so the three can be centred as one cluster. */
+  #topbar-left-cluster { display: contents; }
 
   .app-title {
     font-family: var(--font-ui);
@@ -1736,32 +1750,6 @@
       tab-size: 2;
     }
 
-    /* Settings panels + metro panel: full-screen overlay below topbar on mobile */
-    .settings-panel {
-      position: fixed !important;
-      top: 48px !important;          /* JS overrides with exact topbar height */
-      left: 0 !important; right: 0 !important;
-      width: 100% !important; max-width: 100% !important;
-      height: calc(100vh - 48px) !important;  /* JS overrides too */
-      max-height: none !important;
-      border-radius: 0 !important;
-      overflow-y: auto !important;
-      z-index: 610 !important;
-      box-shadow: none !important;
-    }
-    /* Metro panel: uses position:absolute inside topbar; override to fixed overlay */
-    #metro-panel.open {
-      position: fixed !important;
-      top: 48px !important;
-      left: 0 !important; right: 0 !important;
-      width: 100% !important;
-      height: calc(100vh - 48px) !important;
-      max-height: none !important;
-      border-radius: 0 !important;
-      overflow-y: auto !important;
-      z-index: 610 !important;
-    }
-
     /* Chord diagram grid: single column on very narrow screens */
     .chord-diagram-grid {
       grid-template-columns: repeat(3, 1fr);
@@ -1778,6 +1766,158 @@
     /* Edit split: stack vertically */
     #edit-split { flex-direction: column !important; }
     #edit-split > * { width: 100% !important; }
+  }
+
+  /* ── MOBILE TOPBAR REORG (narrow portrait phones only) ───────────────────
+     Consolidates the topbar into a row of full-width "tabs": Library /
+     Chords / Options / Autoscroll. Gated on body.topbar-mobile (set
+     by JS once it has actually relocated the Chords/Options controls
+     into their dropdown bodies) rather than the media query alone, so
+     there's never a flash of the layout applying before the real elements
+     have been moved. */
+  body.topbar-mobile #topbar {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    column-gap: 4px;
+  }
+  body.topbar-mobile #topbar > .app-title,
+  body.topbar-mobile #topbar > .sep { display: none; }
+  /* "Hide" is redundant now that the topbar auto-hides on scroll. */
+  body.topbar-mobile #btn-topbar-collapse { display: none; }
+  /* Library / Chords / Options stay sized to their own content so the
+     Autoscroll control (between Chords and Options) gets the rest of the
+     topbar's width — it needs the room far more than three short labels do. */
+  body.topbar-mobile #btn-sidebar,
+  body.topbar-mobile .topbar-cat-trigger {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  body.topbar-mobile .topbar-toggle-label { display: none; }
+  body.topbar-mobile #topbar-scroll-group {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  body.topbar-mobile #topbar-scroll-group .ctrl-label { display: none; }
+  body.topbar-mobile #topbar-scroll-group #btn-scroll { flex: 0 0 auto; }
+  body.topbar-mobile #topbar-scroll-group #scroll-speed {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* Dropdown bodies for the Chords/Options triggers — size to their
+     content instead of filling the screen; capped by max-height with
+     scrolling as a safety net for very tall content. */
+  .topbar-cat-panel {
+    display: none;
+    position: fixed;
+    left: 0; right: 0;
+    width: 100%;
+    z-index: 610;
+    background: var(--c-chrome-bg);
+    border-top: 1px solid var(--c-chrome-border);
+    border-bottom: 1px solid var(--c-chrome-border);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    box-sizing: border-box;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  }
+  .topbar-cat-panel.open { display: block; }   /* JS sets top only; height is content-driven */
+  .topbar-cat-panel-inner {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 10px;
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .topbar-cat-panel-inner .ctrl-group { flex-wrap: wrap; }
+  .topbar-cat-panel-inner .settings-btn { position: static; }
+  /* Rows: Key+Simplify full width; Metronome & Tuner share a row. */
+  #music-menu-content > #topbar-key-group,
+  #music-menu-content > #btn-diagrams {
+    flex: 1 1 100%;
+  }
+  /* Within the Key row, "Simplify chords" grows to soak up whatever width
+     the Key label/transpose buttons/display aren't using. flex-basis:0%
+     (rather than auto) so the browser distributes ALL free space into it
+     instead of just sizing to its own text first. */
+  #topbar-key-group #btn-transpose-down,
+  #topbar-key-group #key-display,
+  #topbar-key-group #btn-transpose-up,
+  #topbar-key-group #btn-transpose-reset,
+  #topbar-key-group .ctrl-label {
+    flex: 0 0 auto !important;
+  }
+  #topbar-key-group #btn-simplify {
+    flex: 1 1 0% !important;
+    min-width: 90px;
+  }
+  #music-menu-content > #metronome-wrap,
+  #music-menu-content > #tuner-wrap {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 0;
+  }
+  /* The wrapper AND the button inside it both need to grow, or the button
+     stays small inside a wider-but-empty wrapper (same fix as Themes/Print). */
+  #music-menu-content > #metronome-wrap #btn-metro-toggle,
+  #music-menu-content > #tuner-wrap #btn-tuner-toggle {
+    flex: 1 1 auto !important;
+    width: 100%;
+  }
+  /* Row: Size, Themes & Print share one row in Options — Size stays
+     sized to its own content (just a label + short dropdown); Themes and
+     Print split whatever width is left over. The wrapper AND the button
+     inside it both need to grow, or the button stays small inside a
+     wider-but-empty wrapper. */
+  #settings-menu-content > #topbar-size-group {
+    flex: 0 0 auto !important;
+  }
+  #settings-menu-content > #theme-settings-wrap,
+  #settings-menu-content > #print-settings-wrap {
+    flex: 1 1 0% !important;
+    min-width: 0;
+  }
+  #settings-menu-content > #theme-settings-wrap #btn-theme-settings,
+  #settings-menu-content > #print-settings-wrap #btn-print-open {
+    flex: 1 1 auto !important;
+    width: 100%;
+  }
+  /* Metronome/Tuner/Themes/Print panels open ON TOP of the still-open
+     Chords/Options panel behind them (higher z-index), sized to
+     their own content (see openSettingsPanel / metro-panel toggle JS —
+     the old "fill the screen on mobile" branch has been removed). */
+  body.topbar-mobile .settings-panel.open,
+  body.topbar-mobile #metro-panel.open {
+    z-index: 620;
+  }
+  /* Chord Diagrams: instead of the generic full-bottom-sheet mobile
+     treatment, layer it over the still-open Chords tab starting just
+     below the "Chord Diagrams" button (JS sets top/max-height) — this
+     keeps the Key row visible/usable behind it while picking a capo. */
+  body.topbar-mobile #diagram-panel {
+    bottom: auto !important;
+    top: 0;                 /* JS overrides with the button's actual position */
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    transform: none !important;
+    height: auto !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--c-chrome-border);
+    z-index: 620;
   }
 
   /* ── SETTINGS PANELS (Theme & Font) ─────────────────────────────────────── */
@@ -2456,7 +2596,11 @@
   /* Chord symbols above the staff, hidden via "Hide Chords" */
   #abc-notation.abc-chords-hidden text.abcjs-chord { display: none; }
   /* Letter-name labels injected under each note by "Note Names" */
-  .note-name-label { font-family: var(--font-mono); user-select: none; pointer-events: none; }
+  /* Deliberately NOT var(--font-mono)/var(--font-chord) — those map to the
+     Valeson "ExtBla" (extra-black) display font, which reads as a bold blob
+     at the small size these labels need. Plain sans-serif at normal weight
+     stays crisp and legible under each note. */
+  .note-name-label { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-weight: 400; user-select: none; pointer-events: none; }
 
   /* ── iReal Lead Sheet ───────────────────────────────────────── */
   #ireal-song-card{padding:16px 4px 20px;width:100%;max-width:820px;box-sizing:border-box;
@@ -2827,9 +2971,12 @@
 <div id="topbar">
   <span class="app-title"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
   <span class="sep">|</span>
-  <button id="btn-sidebar" title="Library">☰ Library</button>
+  <div id="topbar-left-cluster">
+    <button id="btn-sidebar" title="Library">☰ Library</button>
+    <button id="btn-music-menu" class="topbar-cat-trigger" title="Key, chords &amp; ear-training tools" style="display:none;">🎵 Chords</button>
+  </div>
   <span class="sep">|</span>
-  <div class="ctrl-group">
+  <div class="ctrl-group" id="topbar-key-group">
     <span class="ctrl-label">Key</span>
     <button id="btn-transpose-down" title="Transpose down one semitone">♭−</button>
     <span class="transpose-val" id="key-display" title="Detected key — click ♭/♯ to transpose">?</span>
@@ -2838,7 +2985,7 @@
     <button id="btn-simplify" title="Simplify all chords to root form" style="margin-left:4px;">Simplify chords</button>
   </div>
   <span class="sep">|</span>
-  <div class="ctrl-group">
+  <div class="ctrl-group" id="topbar-size-group">
     <span class="ctrl-label">Size</span>
     <select id="font-size-sel">
       <option value="fs-xs">XS</option>
@@ -2922,11 +3069,12 @@
     </div>
   </div>
   <span class="sep">|</span>
-  <div class="ctrl-group">
+  <div class="ctrl-group" id="topbar-scroll-group">
     <span class="ctrl-label">Scroll</span>
     <input type="range" id="scroll-speed" min="1" max="10" value="3" title="Scroll speed">
     <button id="btn-scroll" aria-pressed="false">▶ Auto</button>
   </div>
+  <button id="btn-settings-menu" class="topbar-cat-trigger" title="Size, theme &amp; print" style="display:none;">⚙ Options</button>
   <span class="sep">|</span>
   <span class="sep">|</span>
   <button id="btn-diagrams" aria-pressed="false">Chord Diagrams</button>
@@ -3097,9 +3245,20 @@
       </div>
     </div>
   </div>
+  <!-- Mobile-only dropdown bodies. On desktop these stay empty and hidden;
+       _topbarMobileSync() physically relocates the real Music/Settings
+       controls into them (and back out again) as the viewport crosses the
+       narrow-portrait breakpoint, so there's only ever one copy of each
+       control/listener. -->
+  <div class="topbar-cat-panel" id="music-menu-panel">
+    <div class="topbar-cat-panel-inner" id="music-menu-content"></div>
+  </div>
+  <div class="topbar-cat-panel" id="settings-menu-panel">
+    <div class="topbar-cat-panel-inner" id="settings-menu-content"></div>
+  </div>
   <button id="btn-topbar-collapse" title="Hide controls (click ▼ strip to restore)">▲ hide</button>
 </div>
-<button id="topbar-toggle" title="Show controls (tap to restore)">▼ Magic Scroll</button>
+<button id="topbar-toggle" title="Show controls (tap to restore)">▼ <span class="topbar-toggle-label">Magic Scroll</span></button>
 
 <div id="layout">
   <div id="sidebar">
@@ -4130,21 +4289,8 @@ function openSettingsPanel(panel, triggerEl) {
     var ph = panel.offsetHeight || 200;
     var left = tr.left;
     var top  = tr.bottom + 6;
-    if (window.innerWidth <= 520) {
-      // Mobile: fill the full viewport below the topbar.
-      // Use setProperty with 'important' so inline beats the CSS fallback values.
-      var tb = document.getElementById('topbar');
-      var tbH = tb ? Math.ceil(tb.getBoundingClientRect().bottom) : 48;
-      var pxH = (window.innerHeight - tbH) + 'px';
-      panel.style.setProperty('top',       tbH + 'px',  'important');
-      panel.style.setProperty('left',      '0',         'important');
-      panel.style.setProperty('right',     '0',         'important');
-      panel.style.setProperty('width',     '100%',      'important');
-      panel.style.setProperty('max-width', '100%',      'important');
-      panel.style.setProperty('height',    pxH,         'important');
-      panel.style.setProperty('max-height','none',      'important');
-      return;  // skip desktop positioning
-    }
+    // Sized to content on every breakpoint (mobile no longer forces a
+    // full-screen panel) — just keep it clamped within the viewport.
     if (left + pw > window.innerWidth  - 8) left = window.innerWidth  - pw - 8;
     if (left < 8) left = 8;
     if (top  + ph > window.innerHeight - 8) top  = tr.top - ph - 6;
@@ -4391,15 +4537,28 @@ document.addEventListener('click', function() {
   });
 });
 document.addEventListener('click', e => {
-  const wraps = ['theme-settings-wrap', 'print-settings-wrap', 'metronome-wrap', 'tuner-wrap'];
+  const wraps = ['theme-settings-wrap', 'print-settings-wrap', 'metronome-wrap', 'tuner-wrap',
+                 'btn-music-menu', 'btn-settings-menu'];
   const inWrap  = wraps.some(id => document.getElementById(id)?.contains(e.target));
-  const inPanel = Array.from(document.querySelectorAll('.settings-panel.open'))
+  const inPanel = Array.from(document.querySelectorAll('.settings-panel.open, .topbar-cat-panel.open'))
                        .some(p => p.contains(e.target));
   const mp = document.getElementById('metro-panel');
   const inMetro = mp?.classList.contains('open') && mp.contains(e.target);
-  if (inWrap || inPanel || inMetro) return;
+  // Chord Diagrams (opened from within the mobile Chords tab) isn't a
+  // .settings-panel/.topbar-cat-panel — protect it explicitly so picking a
+  // capo/instrument inside it doesn't read as an "outside" click and close
+  // the still-open Chords tab behind it.
+  const dp = document.getElementById('diagram-panel');
+  const inDiagrams = dp?.classList.contains('visible') && dp.contains(e.target);
+  if (inWrap || inPanel || inMetro || inDiagrams) return;
+  // Truly outside every panel/dropdown — close everything.
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.topbar-cat-panel').forEach(p => p.classList.remove('open'));
   mp?.classList.remove('open');
+  if (dp?.classList.contains('visible')) {
+    dp.classList.remove('visible');
+    document.getElementById('btn-diagrams')?.setAttribute('aria-pressed', 'false');
+  }
 });
 
 // ── BACKGROUND IMAGE FILE PICKER ─────────────────────────────────────────────
@@ -10346,6 +10505,15 @@ document.getElementById('btn-diagrams').addEventListener('click',()=>{
   const open = panel.classList.contains('visible');
   document.getElementById('btn-diagrams').setAttribute('aria-pressed', open ? 'true' : 'false');
   if(open){
+    if (document.body.classList.contains('topbar-mobile')) {
+      // Position just below the "Chord Diagrams" button (inside the still-
+      // open Chords tab) instead of the generic full-bottom-sheet layout,
+      // so the Key row above it stays visible/usable.
+      const r = document.getElementById('btn-diagrams').getBoundingClientRect();
+      const top = Math.ceil(r.bottom + 8);
+      panel.style.setProperty('top', top + 'px', 'important');
+      panel.style.setProperty('max-height', Math.max(160, window.innerHeight - top - 12) + 'px', 'important');
+    }
     if(!_diagDisclaimerShown){ const d=document.getElementById('diag-disclaimer'); if(d) d.style.display='block'; _diagDisclaimerShown=true; }
     else { hideDiagDisclaimer(); }
     renderDiagrams();
@@ -10935,6 +11103,139 @@ document.querySelector('.app-title').addEventListener('click', e => {
 
 // restore collapsed state from last session
 if (localStorage.getItem('ug_topbar_collapsed')) setTopbarCollapsed(true);
+
+// ── MOBILE TOPBAR REORG (narrow portrait phones) ────────────────────────────
+// Consolidates the topbar into a row of full-width tabs: Library / Chords /
+// Options / Autoscroll. This physically relocates the SAME control elements
+// (never copies — that would mean duplicate ids and double-wired listeners)
+// into two dropdown bodies, and moves them back to their normal desktop
+// position the moment the viewport is no longer narrow-portrait.
+var _topbarMobileMQ = window.matchMedia('(max-width: 520px) and (orientation: portrait)');
+var _TOPBAR_MUSIC_IDS    = ['topbar-key-group', 'btn-diagrams', 'metronome-wrap', 'tuner-wrap'];
+var _TOPBAR_SETTINGS_IDS = ['topbar-size-group', 'theme-settings-wrap', 'print-settings-wrap'];
+var _topbarHomes = null;   // id → {parent, next} — original desktop position, captured once
+
+function _topbarCaptureHomes() {
+  if (_topbarHomes) return;
+  _topbarHomes = {};
+  _TOPBAR_MUSIC_IDS.concat(_TOPBAR_SETTINGS_IDS).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) _topbarHomes[id] = { parent: el.parentNode, next: el.nextSibling };
+  });
+}
+function _topbarApplyMobile() {
+  _topbarCaptureHomes();
+  var musicHost    = document.getElementById('music-menu-content');
+  var settingsHost = document.getElementById('settings-menu-content');
+  _TOPBAR_MUSIC_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && musicHost) musicHost.appendChild(el);
+  });
+  _TOPBAR_SETTINGS_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && settingsHost) settingsHost.appendChild(el);
+  });
+  document.body.classList.add('topbar-mobile');
+}
+function _topbarRestoreDesktop() {
+  if (_topbarHomes) {
+    Object.keys(_topbarHomes).forEach(function(id) {
+      var el = document.getElementById(id);
+      var home = _topbarHomes[id];
+      if (el && home && home.parent) home.parent.insertBefore(el, home.next);
+    });
+  }
+  document.body.classList.remove('topbar-mobile');
+  document.querySelectorAll('.topbar-cat-panel').forEach(function(p){ p.classList.remove('open'); });
+}
+function _topbarSyncMode(e) {
+  var isMobile = e ? e.matches : _topbarMobileMQ.matches;
+  if (isMobile) _topbarApplyMobile(); else _topbarRestoreDesktop();
+}
+_topbarSyncMode();
+if (_topbarMobileMQ.addEventListener) _topbarMobileMQ.addEventListener('change', _topbarSyncMode);
+else if (_topbarMobileMQ.addListener) _topbarMobileMQ.addListener(_topbarSyncMode);   // older Safari
+
+// Chords / Options dropdown triggers — panel sizes to its own content
+// (max-height + scroll is the safety net; see .topbar-cat-panel CSS), so we
+// only need to position its top edge just below the topbar.
+function _topbarCatToggle(panelId) {
+  var panel = document.getElementById(panelId);
+  if (!panel) return;
+  var wasOpen = panel.classList.contains('open');
+  document.querySelectorAll('.topbar-cat-panel, .settings-panel').forEach(function(p){ p.classList.remove('open'); });
+  var mp = document.getElementById('metro-panel'); if (mp) mp.classList.remove('open');
+  // Chord Diagrams lives inside the Chords tab but isn't a .settings-panel —
+  // close it too whenever Chords/Options are toggled (same as Metronome/Tuner).
+  var dp = document.getElementById('diagram-panel');
+  if (dp && dp.classList.contains('visible')) {
+    dp.classList.remove('visible');
+    var db = document.getElementById('btn-diagrams'); if (db) db.setAttribute('aria-pressed', 'false');
+  }
+  if (wasOpen) return;
+  panel.classList.add('open');
+  var tb  = document.getElementById('topbar');
+  var tbH = tb ? Math.ceil(tb.getBoundingClientRect().bottom) : 48;
+  panel.style.setProperty('top', tbH + 'px', 'important');
+}
+document.getElementById('btn-music-menu').addEventListener('click', function() { _topbarCatToggle('music-menu-panel'); });
+document.getElementById('btn-settings-menu').addEventListener('click', function() { _topbarCatToggle('settings-menu-panel'); });
+
+// ── AUTO-HIDE TOPBAR ON SCROLL (mobile) ─────────────────────────────────────
+// Scrolling down tucks the topbar away for more reading room; scrolling back
+// up brings it straight back. Autoscroll's own programmatic window.scrollBy()
+// doesn't count as "the user scrolled" — otherwise the bar would vanish the
+// instant Auto is pressed.
+(function() {
+  var mq = window.matchMedia('(max-width: 520px)');
+  var topbar = document.getElementById('topbar');
+  if (!topbar) return;
+  var lastY = window.scrollY || 0;
+  var hidden = false;
+  const HIDE_AT = 8;   // px of movement before reacting — ignores jitter/rubber-banding
+
+  function updateTopbarHeightVar() {
+    document.documentElement.style.setProperty('--topbar-h', topbar.getBoundingClientRect().height + 'px');
+  }
+  updateTopbarHeightVar();
+  window.addEventListener('resize', updateTopbarHeightVar);
+
+  function setHidden(next) {
+    if (hidden === next) return;
+    hidden = next;
+    topbar.classList.toggle('scroll-hidden', hidden);
+  }
+
+  window.addEventListener('scroll', function() {
+    if (!mq.matches) return;
+    var y = window.scrollY || document.documentElement.scrollTop || 0;
+    if (typeof isScrolling !== 'undefined' && isScrolling) {
+      // Autoscroll is driving this — don't react, but keep the baseline
+      // current so the next real (user) scroll compares against here.
+      lastY = y;
+      return;
+    }
+    // Don't yank the bar away while a dropdown/panel opened from it is open.
+    if (document.querySelector('.settings-panel.open, .topbar-cat-panel.open, #metro-panel.open')) {
+      lastY = y;
+      return;
+    }
+    var dy = y - lastY;
+    if (Math.abs(dy) < HIDE_AT) return;
+    if (dy > 0 && y > 40) setHidden(true);        // scrolling down, past the very top
+    else if (dy < 0) setHidden(false);            // scrolling up
+    lastY = y;
+  }, { passive: true });
+
+  // The manual ▲hide/▼restore feature (setTopbarCollapsed) uses display:none,
+  // which already overrides any transform/margin — but clear our class too
+  // so the bar doesn't reappear mid-transition-frozen the next time it's
+  // restored, and so it starts from a clean slate either way.
+  ['btn-topbar-collapse', 'topbar-toggle'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function() { setHidden(false); });
+  });
+})();
 
 // ── CONTACT TAB — bottom-left info panel, click to open/close ──────────────
 // ── Contact panel — FAQ lazy-loaded from FAQ.txt ─────────────────────────
@@ -12180,26 +12481,17 @@ document.getElementById('btn-metro-toggle').addEventListener('click', e => {
   panel.classList.toggle('open', !isOpen);
   if (!isOpen && window.innerWidth <= 520 && panel.parentElement !== document.body) document.body.appendChild(panel);  // escape topbar overflow clipping on mobile
   document.getElementById('btn-metro-toggle').setAttribute('aria-pressed', isOpen ? 'false' : 'true');
-  // Position panel via same logic as openSettingsPanel
+  // Position panel via same logic as openSettingsPanel — sized to content
+  // on every breakpoint, just clamped within the viewport near the trigger.
   if (!isOpen) {
-    var tb2 = document.getElementById('topbar');
     var tr2 = e.currentTarget.getBoundingClientRect();
-    if (window.innerWidth <= 520) {
-      var tbH2 = tb2 ? Math.ceil(tb2.getBoundingClientRect().bottom) : 48;
-      panel.style.setProperty('top',    tbH2 + 'px',                     'important');
-      panel.style.setProperty('left',   '0',                             'important');
-      panel.style.setProperty('right',  '0',                             'important');
-      panel.style.setProperty('width',  '100%',                          'important');
-      panel.style.setProperty('height', (window.innerHeight-tbH2)+'px',  'important');
-    } else {
-      var pw2 = panel.offsetWidth || 260;
-      var left2 = Math.max(8, Math.min(tr2.left, window.innerWidth - pw2 - 8));
-      panel.style.setProperty('top',  (tr2.bottom + 6) + 'px', 'important');
-      panel.style.setProperty('left', left2 + 'px',            'important');
-      panel.style.removeProperty('right');
-      panel.style.removeProperty('width');
-      panel.style.removeProperty('height');
-    }
+    var pw2 = panel.offsetWidth || 260;
+    var left2 = Math.max(8, Math.min(tr2.left, window.innerWidth - pw2 - 8));
+    panel.style.setProperty('top',  (tr2.bottom + 6) + 'px', 'important');
+    panel.style.setProperty('left', left2 + 'px',            'important');
+    panel.style.removeProperty('right');
+    panel.style.removeProperty('width');
+    panel.style.removeProperty('height');
   }
 });
 // Close when clicking outside
@@ -12469,7 +12761,7 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
     try {
       _vo = ABCJS.renderAbc(tmp, blk, {
         staffwidth: 680, scale: 1.0, oneSvgPerLine: true,
-        paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 24 : 14),
+        paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 34 : 14),
         visualTranspose: transposeAmount,
       });
     } catch (e) { /* fall through; tmp may still hold a render */ }
@@ -12504,7 +12796,7 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#1a1208 !important; }
   svg line { stroke:#1a1208 !important; }
   .wt-tab { color:#1a1208 !important; }
-  .note-name-label { font-family:${_pf.chord}; fill:#1a1208 !important; }
+  .note-name-label { font-family:-apple-system,'Segoe UI',Arial,sans-serif; font-weight:400; fill:#1a1208 !important; }
   /* Chord symbols in the chord font (colour stays print ink, per spec). */
   text.abc-chord-sym, text.abc-chord-sym tspan { font-family:${_pf.chord} !important; }
   ${_chordsHidden ? 'text.abcjs-chord{display:none;}' : ''}
@@ -13826,7 +14118,7 @@ function renderABCSong(song) {
       responsive: 'resize', add_classes: true,
       staffwidth: _abcStaffW,
       wrap: _abcWrap || undefined,
-      paddingbottom: _wtActive ? 110 : 20,
+      paddingbottom: _wtActive ? 110 : (_notesActive ? 34 : 20),
       paddingtop: 15,
       scale: _wtActive ? 1.3 : 1.0,  // 1.3 spreads staves ~1.5x further apart
       visualTranspose: _abcEffectiveTr(i),
@@ -14957,7 +15249,8 @@ function _injectNoteNames(notDiv, tuneIdx, blockSrc) {
         t.setAttribute('x', bb.x + bb.width / 2);
         t.setAttribute('y', bb.y + bb.height + 9);
         t.setAttribute('text-anchor', 'middle');
-        t.setAttribute('font-size', '7.5');
+        t.setAttribute('font-size', '11');
+        t.setAttribute('font-weight', '400');
         t.setAttribute('fill', 'currentColor');
         t.classList.add('note-name-label');
         t.textContent = _noteNameFor(midiSeq[i]);
@@ -14995,7 +15288,8 @@ function _injectNoteNamesPrint(svgs, blockSrc) {
         t.setAttribute('x', bb.x + bb.width / 2);
         t.setAttribute('y', bb.y + bb.height + 9);
         t.setAttribute('text-anchor', 'middle');
-        t.setAttribute('font-size', '7.5');
+        t.setAttribute('font-size', '11');
+        t.setAttribute('font-weight', '400');
         t.setAttribute('fill', 'currentColor');
         t.classList.add('note-name-label');
         t.textContent = _noteNameFor(midi);
