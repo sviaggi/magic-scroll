@@ -791,22 +791,23 @@
      line (not just the first). That's what a hand-rolled absolute-position
      offset can't do: it only knows about the block's first line, so wrapped
      continuation lines had no reserved space and the chord clashed into the
-     line above. Ruby also keeps neighbouring chords from overlapping
-     horizontally, since the browser widens a ruby unit to fit its annotation
-     rather than letting it overhang into the next word. */
+     line above. When a chord label is wider than the syllable it's tagged to,
+     ruby-align:start keeps the base flush against whatever text precedes it
+     (so e.g. "W" + a ruby based on "hen" never shows a gap splitting "When"
+     apart) and lets the extra annotation width simply hang over the start of
+     the next word instead — a harmless visual overlap, not a layout gap. */
   .precision-line {
     margin: 0.55em 0;
   }
   .precision-line ruby {
     ruby-position: over;
-    ruby-align: center;
+    ruby-align: start;
   }
   .precision-line rt {
     font-size: 1em;      /* cancel the UA default ~50% shrink for ruby text */
     line-height: 1;
     text-align: center;
-    ruby-align: center;  /* keep primary/secondary "C (D)" capo text tight instead
-                             of the UA default space-around stretching it out */
+    ruby-align: start;   /* base flush-left — see .precision-line ruby comment above */
   }
 
   /* Interactive precision canvas (editor) — same layout, plus click affordances */
@@ -4746,6 +4747,82 @@ function buildPrecisionLineEl(line, opts) {
   return el;
 }
 
+// ── PRECISION-LINE CHORD-COLLISION REFLOW ───────────────────────────────────
+// Native <ruby>/<rt> layout always reserves max(base_width, rt_width) as the
+// column width. With ruby-align:start, whichever of base/rt is WIDER fills
+// (and defines) that whole column, so when a chord label is wider than the
+// word under it, the leftover space sits after the word, pushing the next
+// bit of the line rightward even though nothing would actually collide.
+// This pass measures real rendered widths after layout and cancels out that
+// leftover space with a negative margin — but only as much as is safe: a
+// chord should only "make room for itself" when the NEXT chord label is
+// genuinely too close, matching the rule "chords can overlap the following
+// word unless the next chord would clash with this one."
+function _rectOfNode(node) {
+  if (!node) return null;
+  if (node.nodeType === 1) return node.getBoundingClientRect();
+  try {
+    const r = document.createRange();
+    r.selectNodeContents(node);
+    return r.getBoundingClientRect();
+  } catch (e) { return null; }
+}
+function reflowPrecisionOverlaps(container) {
+  if (!container || !container.querySelectorAll) return;
+  const lines = container.querySelectorAll('.precision-line');
+  const BUFFER = 3; // px of breathing room to keep between two adjacent chord labels
+  lines.forEach(lineEl => {
+    const rubies = Array.prototype.slice.call(lineEl.querySelectorAll(':scope > ruby'));
+    // Reset before measuring — a stale margin from a previous pass (e.g. before
+    // a resize) would corrupt this pass's rect measurements.
+    rubies.forEach(r => { r.style.marginRight = ''; });
+    for (let i = 0; i < rubies.length; i++) {
+      const ruby = rubies[i];
+      const base = ruby.firstChild; // base is always appended before the <rt> — see buildPrecisionLineEl
+      if (!base) continue;
+      const rubyRect = ruby.getBoundingClientRect();
+      const baseRect = _rectOfNode(base);
+      if (!baseRect) continue;
+      // How much empty space sits after the base word, before the ruby box's
+      // OWN right edge? Measured directly from rendered rects rather than
+      // inferred from rt/base widths, so it's correct regardless of exactly
+      // how the browser's ruby layout distributes the extra space (ruby-align
+      // support and its exact behaviour varies across browsers/versions —
+      // some split leftover space on both sides instead of putting it all
+      // after the base, even with ruby-align:start set).
+      const trailingGap = rubyRect.right - baseRect.right;
+      if (trailingGap <= 0.5) continue;   // nothing wasted after this word — nothing to reclaim
+      const next = rubies[i + 1];
+      let allowed = trailingGap;   // last chord on the line: safe to reclaim all of it
+      if (next) {
+        const sameLine = Math.abs(next.getBoundingClientRect().top - rubyRect.top) < 4;
+        if (sameLine) {
+          const r = document.createRange();
+          r.setStartAfter(ruby);
+          r.setEndBefore(next);
+          const between = r.getBoundingClientRect().width;
+          allowed = Math.max(0, Math.min(trailingGap, between - BUFFER));
+        }
+        // wrapped to a different visual row — full trailing gap is safe to reclaim
+      }
+      if (allowed > 0.5) ruby.style.marginRight = (-allowed) + 'px';
+    }
+  });
+}
+// Debounced re-run on resize — text reflow changes which words/chords are
+// adjacent, so the pass needs to run again with fresh measurements.
+let _reflowPrecisionT = null;
+function _scheduleReflowPrecision(container) {
+  clearTimeout(_reflowPrecisionT);
+  _reflowPrecisionT = setTimeout(() => reflowPrecisionOverlaps(container), 120);
+}
+window.addEventListener('resize', () => {
+  const tc = document.getElementById('tab-content');
+  if (tc && tc.querySelector('.precision-line')) _scheduleReflowPrecision(tc);
+  const canvas = document.getElementById('precision-canvas');
+  if (canvas && canvas.classList.contains('visible')) _scheduleReflowPrecision(canvas);
+});
+
 // Chord symbols embedded in ABC sheet music are "..." annotations (e.g. "G"c).
 // Pull out the ones that are real chords (skip ^_<>@ position annotations) and
 // transpose them so the Diagrams panel works for tunes too.
@@ -5054,6 +5131,8 @@ function renderTabContent() {
 
   // Fit any tab blocks to the screen width (uniform, independent of view size).
   if (tc.querySelector('.tab-block')) requestAnimationFrame(_fitTabBlocks);
+  // Collapse chord-label spacing that isn't actually needed (see reflowPrecisionOverlaps).
+  if (tc.querySelector('.precision-line')) requestAnimationFrame(() => reflowPrecisionOverlaps(tc));
 }
 
 // ── HTML PARSING — for files exported with 'ug export' ─────────────────────
@@ -5152,8 +5231,8 @@ function detectKey(songText) {
       while ((m = INLINE_CHORD_RE.exec(line))) {
         const content = _inlineMatchContent(m);
         if (!isChordToken(content)) continue;   // [Verse] etc — not a chord
-        const rm = cleanToken(content).match(/^([A-G][b#]?)(m)?/);
-        if (rm) chords.push({ root: rm[1], minor: !!rm[2] });
+        const rm = cleanToken(content).match(/^([A-G][b#]?)(m(?!aj))?(.*)$/);
+        if (rm) chords.push({ root: rm[1], minor: !!rm[2], dom7: !rm[2] && /^(7|9|11|13)(?!\d)/.test(rm[3] || '') });
         if (chords.length >= 10) break;
       }
       if (chords.length >= 10) break;
@@ -5164,8 +5243,8 @@ function detectKey(songText) {
     for (const tok of display.split(/\s+/).filter(Boolean)) {
       if (!isChordToken(tok)) continue;
       const name = cleanToken(tok);
-      const m = name.match(/^([A-G][b#]?)(m)?/);
-      if (m) chords.push({ root: m[1], minor: !!m[2] });
+      const m = name.match(/^([A-G][b#]?)(m(?!aj))?(.*)$/);
+      if (m) chords.push({ root: m[1], minor: !!m[2], dom7: !m[2] && /^(7|9|11|13)(?!\d)/.test(m[3] || '') });
       if (chords.length >= 10) break;
     }
     if (chords.length >= 10) break;
@@ -5177,11 +5256,24 @@ function detectKey(songText) {
 // detector above and the lead-sheet detector below.
 function scoreKeyFromChords(chords) {
   if (!chords || chords.length < 2) return null;
+  // Structural cue: a dominant-7th chord resolving up a perfect 4th (i.e. down
+  // a 5th) into the next chord is classic V7→I motion. Raw chord-frequency
+  // scoring alone can misidentify the dominant as the tonic in a repeating
+  // ii-V-I-vi vamp (e.g. Dm7-G7-C-G7-Am, where G recurs as often as C) since
+  // I and V carry similar base weights. This bonus rewards whichever root is
+  // actually being resolved TO, which is a much stronger tonic signal.
+  const resolutionBonus = {};
+  for (let i = 0; i < chords.length - 1; i++) {
+    const a = chords[i], b = chords[i + 1];
+    if (!a.dom7) continue;
+    const iv = ((noteToIdx(b.root) - noteToIdx(a.root)) % 12 + 12) % 12;
+    if (iv === 5) resolutionBonus[b.root] = (resolutionBonus[b.root] || 0) + 2.2;
+  }
   let bestKey = null, bestScore = 0;
   for (let ri = 0; ri < 12; ri++) {
     const noteName = CHROMATIC[ri];
     // Score as major key
-    let maj = 0;
+    let maj = resolutionBonus[noteName] || 0;
     for (const ch of chords) {
       const interval = ((noteToIdx(ch.root) - ri + 12) % 12);
       const deg = MAJOR_SCALE.indexOf(interval);
@@ -5193,8 +5285,9 @@ function scoreKeyFromChords(chords) {
     }
     if (maj > bestScore) { bestScore = maj; bestKey = noteName; }
 
-    // Score as minor key (root is minor tonic)
-    let min = 0;
+    // Score as minor key (root is minor tonic) — dominant 7ths resolve to a
+    // minor tonic just as often (e.g. E7 → Am), so the same bonus applies.
+    let min = resolutionBonus[noteName] || 0;
     for (const ch of chords) {
       const interval = ((noteToIdx(ch.root) - ri + 12) % 12);
       const deg = MINOR_SCALE.indexOf(interval);
@@ -5219,7 +5312,8 @@ function iRealChordsForKey(chart) {
       if (!/^[A-G][b#]?$/.test(root)) return;
       const q = ch.qual || '';
       const minor = /^(-|m(?!aj))/.test(q);
-      out.push({ root, minor });
+      const dom7 = !minor && /^(7|9|11|13)(?!\d)/.test(q);
+      out.push({ root, minor, dom7 });
     });
   });
   return out;
@@ -10937,12 +11031,17 @@ function persistCurrentEdits() {
   song.key         = document.getElementById('edit-key').value.trim();
   song.timeSig     = document.getElementById('edit-time-sig').value.trim();
   song.tab_content = document.getElementById('song-editor').value;
+  // If the user cleared the Key field, re-run auto-detection right away
+  // instead of waiting for the next time the song is opened — this is how a
+  // wrong stored key gets corrected.
+  if (!song.key) song.key = detectSongKey(song) || null;
   const dt = document.getElementById('display-title'); if (dt) dt.textContent = song.title || 'Untitled';
   const da = document.getElementById('display-artist'); if (da) da.textContent = song.artist || '';
   saveSongs();
   buildSongList(document.getElementById('search-input').value);
   hasUnsavedChanges = false;
   setSaveStatus('saved');
+  updateKeyDisplay();
 }
 
 function updateEditorPreview() {
@@ -10979,6 +11078,7 @@ function updateEditorPreview() {
   });
   tc.innerHTML = '';
   tc.appendChild(frag);
+  if (tc.querySelector('.precision-line')) requestAnimationFrame(() => reflowPrecisionOverlaps(tc));
 }
 
 // ── PRECISION-CHORD EDITOR — click a word/syllable to tag a chord to it ────
@@ -11107,6 +11207,7 @@ function renderPrecisionCanvas() {
   });
   canvas.innerHTML = '';
   canvas.appendChild(frag);
+  requestAnimationFrame(() => reflowPrecisionOverlaps(canvas));
 }
 
 function togglePrecisionMode() {
@@ -11471,6 +11572,11 @@ function _editTransposeText(delta) {
     const _dp = document.getElementById('diagram-panel');
     if (_dp && _dp.classList.contains('visible') && typeof renderDiagrams === 'function') renderDiagrams();
   }
+  // Setting ta.value programmatically doesn't fire an 'input' event, so the
+  // Add Chords (precision) canvas — which only redraws when explicitly told
+  // to — was silently left showing the pre-transpose chords. Rebuild it here
+  // so a permanent transpose actually shows up while that view is active.
+  if (_precisionMode && typeof renderPrecisionCanvas === 'function') renderPrecisionCanvas();
   try { ta.setSelectionRange(0, 0); } catch (e) {}
   ta.focus({ preventScroll: true });
 }
@@ -11536,12 +11642,16 @@ function saveCurrentEdits() {
   song.key         = document.getElementById('edit-key').value.trim();
   song.timeSig     = document.getElementById('edit-time-sig').value.trim();
   song.tab_content = document.getElementById('song-editor').value;
+  // Same auto-correction as persistCurrentEdits(): an emptied Key field means
+  // re-detect now rather than leaving the song keyless until next open.
+  if (!song.key) song.key = detectSongKey(song) || null;
   document.getElementById('display-title').textContent  = song.title  || 'Untitled';
   document.getElementById('display-artist').textContent = song.artist || '';
   saveSongs();
   buildSongList(document.getElementById('search-input').value);
   hasUnsavedChanges = false;
   setSaveStatus('saved');
+  updateKeyDisplay();
   downloadSong(song);   // write to disk, not just localStorage
 }
 
@@ -12175,6 +12285,55 @@ function _printRich(s) {
 // real WebKit context (@capgo/capacitor-pdf-generator → WKWebView, full fidelity)
 // and print THAT — fonts, columns and SVG all survive. Falls back to printHtml if
 // the PDF generator isn't installed, and to a print window on desktop.
+// Self-contained JS source (as a string) that reproduces reflowPrecisionOverlaps
+// inside the standalone print document/window, which has no access to this
+// page's globals. Runs once fonts are ready so width measurements are accurate,
+// then again shortly before print (fonts.ready can resolve slightly early).
+function _printReflowScript() {
+  return `
+    function _rectOfNode(node){
+      if(!node) return null;
+      if(node.nodeType===1) return node.getBoundingClientRect();
+      try{ var r=document.createRange(); r.selectNodeContents(node); return r.getBoundingClientRect(); }
+      catch(e){ return null; }
+    }
+    function _reflowPrecision(){
+      document.querySelectorAll('.pl-precision').forEach(function(lineEl){
+        var rubies = Array.prototype.slice.call(lineEl.querySelectorAll(':scope > ruby'));
+        rubies.forEach(function(r){ r.style.marginRight = ''; });
+        var BUFFER = 3;
+        for (var i = 0; i < rubies.length; i++) {
+          var ruby = rubies[i];
+          var base = ruby.firstChild;
+          if (!base) continue;
+          var rubyRect = ruby.getBoundingClientRect();
+          var baseRect = _rectOfNode(base);
+          if (!baseRect) continue;
+          var trailingGap = rubyRect.right - baseRect.right;
+          if (trailingGap <= 0.5) continue;
+          var next = rubies[i + 1];
+          var allowed = trailingGap;
+          if (next) {
+            var sameLine = Math.abs(next.getBoundingClientRect().top - rubyRect.top) < 4;
+            if (sameLine) {
+              var r = document.createRange();
+              r.setStartAfter(ruby); r.setEndBefore(next);
+              var between = r.getBoundingClientRect().width;
+              allowed = Math.max(0, Math.min(trailingGap, between - BUFFER));
+            }
+          }
+          if (allowed > 0.5) ruby.style.marginRight = (-allowed) + 'px';
+        }
+      });
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(_reflowPrecision).catch(function(){});
+    }
+    window.addEventListener('load', _reflowPrecision);
+    setTimeout(_reflowPrecision, 50);
+    setTimeout(_reflowPrecision, 300);
+  `;
+}
 async function _emitPrintDoc(html, jobName) {
   var P = (window.Capacitor && window.Capacitor.Plugins) || {};
   if (_isNativeApp() && P.PdfGenerator && P.Printer) {
@@ -12535,8 +12694,8 @@ ${body}
   .pl-ct{font-weight:bold;font-family:${chordFont};color:${chordColor};}
   .pl-lyric{white-space:pre-wrap;line-height:1.5;margin-bottom:1pt;}
   .pl-precision{white-space:pre-wrap;line-height:1.5;margin:6pt 0;page-break-inside:avoid;}
-  .pl-precision ruby{ruby-position:over;ruby-align:center;}
-  .pl-precision rt{font-size:1em;line-height:1;text-align:center;ruby-align:center;}
+  .pl-precision ruby{ruby-position:over;ruby-align:start;}
+  .pl-precision rt{font-size:1em;line-height:1;text-align:center;ruby-align:start;}
   .pd-diagrams{display:flex;flex-wrap:wrap;gap:8px;margin-top:12pt;padding-top:8pt;border-top:1px solid #ccc;}
   .pd-diag{display:flex;flex-direction:column;align-items:center;gap:3px;}
   .pd-name{font-family:${chordFont};font-size:8pt;font-weight:bold;color:${chordColor};}
@@ -12658,6 +12817,7 @@ ${body}
   <div class="pd-content">${linesHtml}</div>
   ${diagHtml}
 </div>
+<script>${_printReflowScript()}<\/script>
 </body></html>`;
   _emitPrintDoc(_printHTML, song.title);
 });
