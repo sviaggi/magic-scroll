@@ -2684,8 +2684,11 @@
     font-size:1rem;line-height:1;padding:0;opacity:0;transition:opacity 0.12s;
     display:flex;align-items:center;justify-content:center;z-index:2;}
   .ls-bar.ls-editing .ls-kebab-btn,.ls-bar.ls-menu-open .ls-kebab-btn{opacity:1;}
-  /* In edit mode the bars are interactive: pointer cursor + always-visible kebab. */
-  #ireal-song-card.ls-edit-mode .ls-bar{cursor:pointer;}
+  /* In edit mode the bars are interactive: pointer cursor + always-visible kebab.
+     user-select:none so a slightly-dragged click doesn't select the chord text
+     instead of opening the bar for editing — that stray selection was making
+     the cell feel unclickable anywhere except a tiny "safe" top strip. */
+  #ireal-song-card.ls-edit-mode .ls-bar{cursor:pointer;-webkit-user-select:none;user-select:none;}
   #ireal-song-card.ls-edit-mode .ls-bar:hover{background:rgba(127,127,127,0.10);}
   #ireal-song-card.ls-edit-mode .ls-kebab-btn{opacity:0.5;}
   #ireal-song-card.ls-edit-mode .ls-bar:hover .ls-kebab-btn{opacity:1;}
@@ -2722,18 +2725,38 @@
   .ls-chord-unit{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;vertical-align:top;flex-shrink:0;color:var(--c-notation-ink);}
   .ls-chord-unit svg{display:block;}
   /* editable lead-sheet header (edit mode) */
-  .ls-edit-header{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin:2px 2px 10px;}
+  /* Named grid areas (rather than relying on DOM append order): row2 is one
+     compact flex row holding Style (select only), BPM+Time Sig, and a
+     shrunk Transpose control all side by side; the Custom style name box
+     (only shown when "Custom…" is picked) gets its own full-width row below
+     it, and the editing-hint notice spans the full width at the bottom. */
+  .ls-edit-header{display:grid;grid-template-columns:1fr 1fr;
+    grid-template-areas:"title artist" "row2 row2" "styleCustom styleCustom" "hint hint";
+    gap:8px 10px;margin:2px 2px 10px;}
+  .ls-edit-header>.ls-field-title{grid-area:title;}
+  .ls-edit-header>.ls-field-artist{grid-area:artist;}
+  .ls-edit-header>.ls-row2{grid-area:row2;}
+  .ls-edit-header>.ls-style-custom-field{grid-area:styleCustom;}
+  .ls-edit-header>.ls-edit-hint{grid-area:hint;}
   .ls-ef{display:flex;flex-direction:column;gap:3px;min-width:0;}
-  .ls-ef.bpm{max-width:110px;}
-  .ls-ef.timesig{max-width:110px;}
+  .ls-ef.bpm{max-width:80px;}
+  .ls-ef.timesig{max-width:80px;}
   .ls-ef.ls-transpose-field{gap:3px;}
   /* BPM + Time Signature share one grid cell, side by side */
-  .ls-ef-split{display:flex;gap:8px;min-width:0;}
+  .ls-ef-split{display:flex;gap:8px;min-width:0;flex:0 0 auto;}
   .ls-ef-lbl{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--c-card-meta);}
-  .ls-edit-header input{background:var(--c-chrome-bg2);border:1px solid var(--c-chrome-border);
+  .ls-edit-header input, .ls-edit-header select{background:var(--c-chrome-bg2);border:1px solid var(--c-chrome-border);
     color:var(--c-chrome-text);font-family:var(--font-chord);font-size:0.9rem;padding:6px 8px;
     border-radius:3px;outline:none;width:100%;box-sizing:border-box;}
-  .ls-edit-header input:focus{border-color:var(--c-accent);}
+  .ls-edit-header input:focus, .ls-edit-header select:focus{border-color:var(--c-accent);}
+  .ls-style-custom-field{display:flex;align-items:flex-start;min-width:0;}
+  /* Compact row: Style select flexes to fill leftover space; BPM/Time Sig and
+     Transpose stay fixed-width and shrink their own controls to fit. */
+  .ls-row2{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;min-width:0;}
+  .ls-row2>.ls-style-select-field{flex:1 1 110px;min-width:80px;}
+  .ls-row2>.ls-transpose-field{flex:0 0 auto;max-width:100px;}
+  .ls-row2>.ls-transpose-field .edit-transpose-btns button{
+    padding:5px 6px;font-size:0.78rem;}
   /* notes / lyrics annotation area */
   .ls-notes-wrap{margin-top:20px;}
   .ls-notes-label{font-size:0.68rem;font-weight:bold;text-transform:uppercase;letter-spacing:0.07em;
@@ -3650,12 +3673,6 @@ Another lyric line
                border:1px solid var(--c-chrome-border);border-radius:3px;
                padding:6px 8px;box-sizing:border-box;"></textarea>
       <div id="ns-ireal-status" style="font-size:0.68rem;color:var(--c-chrome-muted);margin-top:3px;min-height:1em;"></div>
-      <p style="font-size:0.68rem;color:var(--c-chrome-muted);margin:8px 0 0;
-                background:var(--c-chrome-bg3);padding:7px 9px;border-radius:3px;
-                border-left:3px solid var(--c-accent);line-height:1.45;">
-        <strong>ℹ Lead Sheets</strong> — import, display, transposition, chord simplification,
-        editing, lyrics, and backing-track playback are all functional.
-      </p>
     </div>
     <div class="modal-actions">
       <button id="btn-ns-cancel">Cancel</button>
@@ -3829,26 +3846,32 @@ K: Emin
     // intro text is the body, with a clean title/artist.
     var _welcomeBody = `**Hello and welcome to Magic Scroll!**
 
-I'm Spencer, I'm the developer of this app. Thank you for giving it a try!
+I'm Spencer, I'm the developer of this app (Friends call me Sunny! Either way I'm still the developer of the app). Thank you for giving it a try!
 
-Magic Scroll is a platform for anyone interested in making music *(from hobbyists to songwriters)* to format and share the songs they want to play, however they want to play them. It's totally ad-free, so no subscriptions, pop-ups, or anything of that ilk can bother you when you just want to share some tunes with your band or strum a little bit with your ukulele group.
+Magic Scroll is a platform for anyone interested in making music, *from hobbyists to songwriters,* to format and share the songs they want to play, however they want to play them. It's totally _ad-free,_ so _no subscriptions,_ _pop-ups,_ or _premium features_ can bother you when you just want to share some tunes with your band or strum a little bit with your ukulele group.
 
-If you want to get started, you can access the "Library" sidebar to add your own music, search for new ones, or organise the music you already have! If you're at a loss for what to try, check out our pre-made collections full of traditional tunes and folk bangers! If that's not your speed, then you can add your own music in and enjoy playing without pop-ups, ads, or in-app purchases!
+If you want to get started, you can access the "Library" sidebar to add your own music, search for new ones, or organise the music you already have! If you're at a loss for what to try, check out our pre-made collections full of traditional tunes and folk bangers!
 
-Magic Scroll is compatible with song/chord charts (see Worth the Weight), lead sheets (see When The Saints Go Marching In), and sheet music (see Wizard's Walk or Weary Wayfarer). You can write music directly into here or copy/paste in things from your own collection/other websites, and enjoy features like auto-scroll, transcription, chord diagrams across countless instruments, and printing in case you want to make physical copies.
+***Overview video:***
+[yt: https://youtu.be/eID9Tp92eRk]
 
-Chord sheets are usually formatted by tagging each chord to the exact word or syllable it belongs to — click **Add Chords** above the editor, then click a word to drop a chord right on it. No more fussing with spaces and tabs to keep everything lined up:
+***Songs:***
+[yt: https://youtu.be/aXqtNrwVVNg]
+
+***Sheet Music:***
+[yt: https://youtu.be/uJOzaeuv6uY]
+
+***Lead Sheets:***
+[yt: https://youtu.be/7n-SbnVfS3E]
+
+What you're looking at right now is technically a song/chord sheet. These are usually formatted by tagging each chord to the exact word or syllable it belongs to — click **Add Chords** above the editor, then click a word to drop a chord right on it:
+
 [C]Here are [F]some examples of [G]lyrics I could [Am]type
 [Am9]Here are [Dm11sus4]some needlessly overwrought [Gmaj7add9]chords
 
-(Classic two-line chord sheets, with the chords on their own line above the lyrics, still work too — Add Chords will even convert one to the tagged format for you automatically.)
+(Classic two-line chord sheets, with the chords on their own line above the lyrics, still work too. The "Add Chords" button will even convert one to the tagged format for you automatically.)
 
 You can transpose these chords with the buttons available in the top bar, as well as simplify more difficult chords depending on your skill level. These options work across all types of music, so your sheet music and lead sheets can be transposed and simplified as well. If you're not interested in playing guitar, you can select chord diagrams for plenty of other instruments and tuning systems!
-
-In the song text editor, there are a few rich text options such as bolding, underlining, and italics if you feel those would help readers when they're playing the song! Add two asterisks on each side of a line for **Boldness**, one asterisk on each side for *Italics*, and one underscore for _Underlines_. You can also embed videos, if that'll help people figure out how to play the music... Here's a short film I made about a year ago:
-[yt: https://youtu.be/Nd2pXWlviRc]
-
-If you'd like to share your music with the world, you have a few options! Magic Scroll works entirely with text-based files, so the first and easiest is simply to save the song in an easily-accessible location on your device and send it to a friend via a messaging app or email. You can also export whole folders with the drop-down menu, which will give you a .json file you can send and share the exact same way. Finally, you can upload things to our cloud storage. **Publishing a song is final, as there's no way to make new versions or take the old ones down,** so I would advise only doing it for songs you know are finished and have as much information in them as people will need to play them. For sharing incomplete/WIP songs with a small group of friends or bandmates, the other options will be much better.
 
 Finally, if you have any questions, comments, concerns, or requests, you can always just ask me! My contact detail is available in the tab on the bottom left corner, as well as the FAQ and credits.
 
@@ -4538,7 +4561,7 @@ document.addEventListener('click', function() {
 });
 document.addEventListener('click', e => {
   const wraps = ['theme-settings-wrap', 'print-settings-wrap', 'metronome-wrap', 'tuner-wrap',
-                 'btn-music-menu', 'btn-settings-menu'];
+                 'btn-music-menu', 'btn-settings-menu', 'btn-diagrams', 'btn-simplify'];
   const inWrap  = wraps.some(id => document.getElementById(id)?.contains(e.target));
   const inPanel = Array.from(document.querySelectorAll('.settings-panel.open, .topbar-cat-panel.open'))
                        .some(p => p.contains(e.target));
@@ -4804,6 +4827,25 @@ function transposeText(text, s) {
   }).join('\n');
 }
 
+// Chord Diagrams ordering: groups a first-appearance-ordered, de-duplicated
+// chord list so slash-chord variants of the same root+quality stay together
+// (e.g. G, G/B, G/F#), while the GROUPS themselves stay ordered by when they
+// first appeared in the song — e.g. for Amazing Grace (G G7 C G / G G/B D D7
+// / G G7/B C G / G/F# Em G/D D7 G) this produces G G/B G/F# G/D G7 G7/B C D
+// D7 Em, rather than a plain alphabetical list.
+function _groupChordsByAppearance(list) {
+  const order = [];
+  const members = {};
+  list.forEach(ch => {
+    const fam = ch.split('/')[0];
+    if (!members[fam]) { members[fam] = []; order.push(fam); }
+    members[fam].push(ch);
+  });
+  const out = [];
+  order.forEach(fam => out.push(...members[fam]));
+  return out;
+}
+
 function extractChords(text) {
   const found = new Set();
   text.split('\n').forEach(line => {
@@ -4822,7 +4864,7 @@ function extractChords(text) {
       if (isChordToken(tok)) found.add(cleanToken(tok));
     });
   });
-  return [...found].sort();
+  return _groupChordsByAppearance([...found]);
 }
 
 // ── PRECISION CHORDS — chords tagged to an exact word/syllable ─────────────
@@ -5071,7 +5113,7 @@ function extractAbcChords(abcText, semis) {
     if (!isChordToken(t)) continue;
     found.add(semis ? transposeChordToken(t, semis) : t);
   }
-  return [...found].sort();
+  return _groupChordsByAppearance([...found]);
 }
 
 // ── RENDER TAB CONTENT ───────────────────────────────────────────────────────
@@ -5437,6 +5479,16 @@ function applySimplifiedView(on) {
     renderIRealSong(songs[currentIdx]);
   } else {
     renderTabContent();
+  }
+  // Keep an already-open Chord Diagrams tab in sync — no need to close and
+  // reopen it just to see the simplified/original chords. Also re-run on the
+  // next frame: on narrow/mobile layouts the song re-render above can still
+  // be reflowing when this fires, so a same-tick renderDiagrams() call can
+  // get overwritten a moment later — the rAF call is the one that sticks.
+  const dp = document.getElementById('diagram-panel');
+  if (dp && dp.classList.contains('visible')) {
+    renderDiagrams();
+    requestAnimationFrame(() => { if (dp.classList.contains('visible')) renderDiagrams(); });
   }
 }
 
@@ -6165,6 +6217,12 @@ function _songPassesFilter(song) {
       if (!rs.some(function(r){ return !_libFilterOff.has('sub:' + r); })) return false;
     } else if (_libFilterOff.has('sub:(Unspecified)')) return false;
   }
+  if (cat === 'Lead Sheets') {
+    var st = (song.style || '').trim();
+    if (st) {
+      if (_libFilterOff.has('style:' + st)) return false;
+    } else if (_libFilterOff.has('style:(Unspecified)')) return false;
+  }
   return true;
 }
 // Does a folder (recursively) contain any visible song under the current filter?
@@ -6185,12 +6243,17 @@ function _buildFilterPanel() {
   var panel = document.getElementById('filter-panel');
   if (!panel) return;
   var catsPresent = {}, rhythmsPresent = {}, sheetNoR = false;
+  var stylesPresent = {}, leadNoStyle = false;
   songs.forEach(function(s){
     var c = _songCategory(s); catsPresent[c] = 1;
     if (c === 'Sheet Music') {
       var rs = _songRhythms(s);
       if (rs.length) rs.forEach(function(r){ rhythmsPresent[r] = 1; });
       else sheetNoR = true;
+    }
+    if (c === 'Lead Sheets') {
+      var st = (s.style || '').trim();
+      if (st) stylesPresent[st] = 1; else leadNoStyle = true;
     }
   });
   panel.innerHTML = '';
@@ -6231,6 +6294,11 @@ function _buildFilterPanel() {
         _libFilterOff.delete('cat:Sheet Music');
         if (_cbByKey['cat:Sheet Music']) _cbByKey['cat:Sheet Music'].checked = true;
       }
+      // Same idea for a Lead Sheets style subtype.
+      if (cb.checked && key.indexOf('style:') === 0 && _libFilterOff.has('cat:Lead Sheets')) {
+        _libFilterOff.delete('cat:Lead Sheets');
+        if (_cbByKey['cat:Lead Sheets']) _cbByKey['cat:Lead Sheets'].checked = true;
+      }
       _refreshFilterBtn();
       buildSongList(document.getElementById('search-input').value);
     });
@@ -6247,6 +6315,10 @@ function _buildFilterPanel() {
     if (c === 'Sheet Music') {
       Object.keys(rhythmsPresent).sort().forEach(function(r){ row(r, 'sub:' + r, true); });
       if (sheetNoR) row('(Unspecified)', 'sub:(Unspecified)', true);
+    }
+    if (c === 'Lead Sheets') {
+      Object.keys(stylesPresent).sort().forEach(function(st){ row(st, 'style:' + st, true); });
+      if (leadNoStyle) row('(Unspecified)', 'style:(Unspecified)', true);
     }
   });
   if (!any) {
@@ -10260,7 +10332,7 @@ function extractIRealChordNames(chart) {
       }
     });
   });
-  return [...seen].sort();
+  return _groupChordsByAppearance([...seen]);
 }
 
 function renderDiagrams() {
@@ -10277,6 +10349,18 @@ function renderDiagrams() {
   } else {
     const raw=song.tab_content||song.content||song.tab||'';
     chords=extractChords(transposeText(raw,transposeAmount));
+  }
+  // Simplify Chords wasn't actually reflected here before — the extraction
+  // functions above always read the ORIGINAL chord names. Apply the same
+  // root-form simplification the lead sheet/tab view uses, then re-dedupe
+  // (simplifying can collapse distinct chords like Cmaj7/C6 down to the same
+  // "C"), keeping first-appearance order intact.
+  if (isSimplifiedView && typeof simplifyChord === 'function') {
+    const seen = new Set();
+    chords = chords.map(c => simplifyChord(c)).filter(c => {
+      if (seen.has(c)) return false;
+      seen.add(c); return true;
+    });
   }
   if(chords.length===0){grid.innerHTML='<p style="color:var(--c-chrome-muted);font-size:0.75rem;">No chords detected</p>';return;}
   // Instruments to draw per chord: the main one, plus the secondary if set and
@@ -15635,6 +15719,98 @@ function _styleDefaultBPM(style){
 }
 window._styleDefaultBPM = _styleDefaultBPM;   // expose for backing-track.js
 
+// Canonical iReal style presets, grouped exactly like iReal Pro's own style
+// picker, for the lead sheet edit page's Style dropdown. Names here match
+// (case-insensitively) the keys in _LEAD_STYLE_BPM above.
+const IREAL_STYLES = [
+  { group: 'Jazz', styles: ['Afro 12/8','Ballad','Ballad Double Time Feel','Ballad Even','Ballad Melodic',
+    'Ballad Swing','Blue Note','Bossa Nova','Bossa/Swing','Doo Doo Cats','Even 8ths','Even 8ths Open',
+    'Even 16ths','Guitar Trio','Gypsy Jazz','Latin','Latin/Swing','Long Notes','Medium Swing',
+    'Medium Up Swing','Medium Up Swing 2','New Orleans Swing','Second Line','Slow Swing','Swing 2/4',
+    'Trad Jazz','Up Tempo Swing','Up Tempo Swing 2'] },
+  { group: 'Latin', styles: ['Argentina: Tango','Brazil: Bossa Acoustic','Brazil: Samba','Cuba: Bolero',
+    'Cuba: Cha Cha Cha','Cuba: Son Montuno 2-3','Cuba: Son Montuno 3-2'] },
+  { group: 'Pop', styles: ['Bluegrass','Country','Disco','Funk','Glam Funk','House','Reggae','Rock',
+    'Rock 12/8','RnB','Shuffle','Slow Rock','Smooth','Soul','Virtual Funk'] },
+  { group: 'Blues', styles: ['Chicago Shuffle','Flat Tire','Funky','Gospel','Lucille','Mo-Slo','Muddy',
+    'Nola','Shout','Slo-Mo','Stax','Texas Rock'] },
+  { group: 'Brazilian', styles: ['Afoxe','Baiao','Bossa Ballad','Bossa Cha','Maracatu','Partido Alto',
+    'Samba','Samba Brush','Samba Fast','Samba Percussion'] },
+  { group: 'Salsa', styles: ['Cuba: Afro 6/8','Cuba: Comparsa','Cuba: Danzon','Cuba: Guajira',
+    'Cuba: Guaracha','Cuba: Mambo','Cuba: Mozambique','Cuba: Rumba Guaguanco','Cuba: Songo','Cuba: Timba',
+    'Dominican Republic: Merengue','Puerto Rico: Bomba','Puerto Rico: Plena'] }
+];
+window.IREAL_STYLES = IREAL_STYLES;
+
+// ── PER-STYLE BACKING-TRACK ARRANGEMENT ─────────────────────────────────────
+// Each lead sheet style picks a "feel" for each backing-track instrument
+// (a pattern name from backing-track.js's own per-instrument pattern list),
+// plus whether guitar plays at all. Unmatched/unset styles fall back to
+// GLOBAL_ARRANGEMENT_DEFAULT — today's original arrangement (guitar off).
+// Consumed by backing-track.js via window._styleArrangementFor().
+const GLOBAL_ARRANGEMENT_DEFAULT = {
+  drums:'Ballad', keys:'Comp', bass:'Walking', guitar:{pattern:'Arpeggio', enabled:false}
+};
+// Fallback per iReal category (used when a style isn't in the override table below).
+const _STYLE_ARR_CATEGORY_DEFAULT = {
+  jazz:      { drums:'Jazz',       keys:'Comp', bass:'Walking',     guitar:{pattern:'Comp',       enabled:false} },
+  latin:     { drums:'Latin',      keys:'Comp', bass:'Root–5',      guitar:{pattern:'Fingerpick', enabled:false} },
+  pop:       { drums:'Rock',       keys:'Comp', bass:'Root',        guitar:{pattern:'Strum',      enabled:true } },
+  blues:     { drums:'Rock',       keys:'Comp', bass:'Walking',     guitar:{pattern:'Comp',       enabled:true } },
+  brazilian: { drums:'Bossa Nova', keys:'Comp', bass:'Root–5',      guitar:{pattern:'Fingerpick', enabled:true } },
+  salsa:     { drums:'Latin',      keys:'Comp', bass:'Octave pump', guitar:{pattern:'Strum',      enabled:false} },
+};
+// Specific overrides (lowercase keys, matching _LEAD_STYLE_BPM's convention)
+// for styles where the category default would be musically wrong.
+const _STYLE_ARR_OVERRIDES = {
+  'ballad':                  { drums:'Ballad', keys:'Ballad roll', bass:'Root–5',  guitar:{pattern:'Fingerpick', enabled:false} },
+  'ballad even':             { drums:'Ballad', keys:'Ballad roll', bass:'Root–5',  guitar:{pattern:'Fingerpick', enabled:false} },
+  'ballad melodic':          { drums:'Ballad', keys:'Ballad roll', bass:'Root–5',  guitar:{pattern:'Fingerpick', enabled:false} },
+  'ballad swing':            { drums:'Ballad', keys:'Ballad roll', bass:'Walking', guitar:{pattern:'Comp',       enabled:false} },
+  'ballad double time feel': { drums:'Ballad', keys:'Ballad roll', bass:'Walking', guitar:{pattern:'Comp',       enabled:false} },
+  'bossa nova':              { drums:'Bossa Nova', keys:'Comp', bass:'Root–5', guitar:{pattern:'Fingerpick', enabled:true} },
+  'bossa/swing':             { drums:'Bossa Nova', keys:'Comp', bass:'Root–5', guitar:{pattern:'Fingerpick', enabled:true} },
+  'gypsy jazz':              { drums:'Jazz', keys:'Comp',    bass:'Walking', guitar:{pattern:'Comp',  enabled:true} },
+  'guitar trio':             { drums:'Jazz', keys:'Comp',    bass:'Walking', guitar:{pattern:'Comp',  enabled:true} },
+  'new orleans swing':       { drums:'Jazz', keys:'Comp',    bass:'Walking', guitar:{pattern:'Strum', enabled:true} },
+  'second line':             { drums:'Jazz', keys:'Offbeat', bass:'Root',    guitar:{pattern:'Strum', enabled:true} },
+  'trad jazz':               { drums:'Jazz', keys:'Comp',    bass:'Walking', guitar:{pattern:'Strum', enabled:true} },
+  'bluegrass':               { drums:'Rock', keys:'Comp', bass:'Root', guitar:{pattern:'Strum', enabled:true} },
+  'country':                 { drums:'Rock', keys:'Comp', bass:'Root', guitar:{pattern:'Strum', enabled:true} },
+  'reggae':                  { drums:'Rock', keys:'Offbeat', bass:'Root',        guitar:{pattern:'Offbeat', enabled:true} },
+  'disco':                   { drums:'Rock', keys:'Comp',    bass:'Octave pump',guitar:{pattern:'Offbeat', enabled:true} },
+  'house':                   { drums:'Rock', keys:'Comp',    bass:'Octave pump',guitar:{pattern:'Offbeat', enabled:false} },
+  'funk':                    { drums:'Rock', keys:'Offbeat', bass:'Octave pump',guitar:{pattern:'Offbeat', enabled:true} },
+  'glam funk':               { drums:'Rock', keys:'Offbeat', bass:'Octave pump',guitar:{pattern:'Offbeat', enabled:true} },
+  'virtual funk':            { drums:'Rock', keys:'Offbeat', bass:'Octave pump',guitar:{pattern:'Offbeat', enabled:true} },
+  'smooth':                  { drums:'Rock', keys:'Comp', bass:'Root–5', guitar:{pattern:'Comp', enabled:false} },
+  'soul':                    { drums:'Rock', keys:'Comp', bass:'Root–5', guitar:{pattern:'Comp', enabled:false} },
+  'rnb':                     { drums:'Rock', keys:'Comp', bass:'Root–5', guitar:{pattern:'Comp', enabled:false} },
+  'shuffle':                 { drums:'Rock', keys:'Comp', bass:'Walking', guitar:{pattern:'Strum', enabled:true} },
+  'slow rock':               { drums:'Rock', keys:'Comp', bass:'Root',    guitar:{pattern:'Strum', enabled:true} },
+  'rock 12/8':               { drums:'Ballad', keys:'Comp', bass:'Root', guitar:{pattern:'Arpeggio', enabled:true} },
+  'cuba: guajira':           { drums:'Latin', keys:'Comp', bass:'Root–5', guitar:{pattern:'Fingerpick', enabled:true} },
+  'guajira':                 { drums:'Latin', keys:'Comp', bass:'Root–5', guitar:{pattern:'Fingerpick', enabled:true} },
+  'cuba: bolero':            { drums:'Ballad', keys:'Comp', bass:'Root–5', guitar:{pattern:'Fingerpick', enabled:true} },
+  'bolero':                  { drums:'Ballad', keys:'Comp', bass:'Root–5', guitar:{pattern:'Fingerpick', enabled:true} },
+};
+function _styleArrangementFor(style){
+  if(!style) return GLOBAL_ARRANGEMENT_DEFAULT;
+  var s=String(style).trim().toLowerCase().replace(/\|+$/,'').trim();
+  if(!s) return GLOBAL_ARRANGEMENT_DEFAULT;
+  if(_STYLE_ARR_OVERRIDES[s]) return _STYLE_ARR_OVERRIDES[s];
+  var ci=s.indexOf(':'), sub=ci>=0?s.slice(ci+1).trim():null;
+  if(sub && _STYLE_ARR_OVERRIDES[sub]) return _STYLE_ARR_OVERRIDES[sub];
+  for(var i=0;i<IREAL_STYLES.length;i++){
+    var grp=IREAL_STYLES[i];
+    if(grp.styles.some(function(name){ var n=name.toLowerCase(); return n===s||(sub&&n===sub); })){
+      return _STYLE_ARR_CATEGORY_DEFAULT[grp.group.toLowerCase()] || GLOBAL_ARRANGEMENT_DEFAULT;
+    }
+  }
+  return GLOBAL_ARRANGEMENT_DEFAULT;
+}
+window._styleArrangementFor = _styleArrangementFor;
+
 function parseIRealURL(raw){
   const data=decodeURIComponent(raw.replace(/^irealb:\/\/+/i,''));
   // Songs are separated by '==='. A leading marker or a trailing playlist-name
@@ -16153,16 +16329,53 @@ function renderIRealSong(song){
       inp.addEventListener('input',()=>onInput(inp.value));
       w.appendChild(lb);w.appendChild(inp);return w;
     };
+    // Style field: a dropdown of iReal preset styles (grouped like iReal's
+    // own picker), with a "Custom…" option at the top that reveals a free
+    // text input for anything not in the presets. Returned as two SEPARATE
+    // grid items (select+label, and the custom-name box) so the select can
+    // share a row with BPM/Time Sig while the custom box shares a row with
+    // Transpose — rather than one tall stacked field spanning both.
+    const _mkStyleField=(value, onInput)=>{
+      const w=document.createElement('label');w.className='ls-ef ls-style-select-field';
+      const lb=document.createElement('span');lb.className='ls-ef-lbl';lb.textContent='Style';
+      const sel=document.createElement('select');
+      const custOpt=document.createElement('option');custOpt.value='__custom__';custOpt.textContent='Custom…';
+      sel.appendChild(custOpt);
+      const allPresets=[];
+      (window.IREAL_STYLES||[]).forEach(grp=>{
+        const og=document.createElement('optgroup');og.label=grp.group;
+        grp.styles.forEach(s=>{
+          const o=document.createElement('option');o.value=s;o.textContent=s;og.appendChild(o);
+          allPresets.push(s);
+        });
+        sel.appendChild(og);
+      });
+      const wCust=document.createElement('div');wCust.className='ls-ef ls-style-custom-field';
+      const custInp=document.createElement('input');custInp.type='text';
+      custInp.placeholder='Custom style name';
+      wCust.appendChild(custInp);
+      const trimmed=String(value||'').trim();
+      const match=allPresets.find(s=>s.toLowerCase()===trimmed.toLowerCase());
+      if(match){ sel.value=match; custInp.style.display='none'; }
+      else { sel.value='__custom__'; custInp.value=trimmed; custInp.style.display=''; }
+      sel.addEventListener('change',()=>{
+        if(sel.value==='__custom__'){ custInp.style.display=''; custInp.focus(); onInput(custInp.value.trim()); }
+        else { custInp.style.display='none'; onInput(sel.value); }
+      });
+      custInp.addEventListener('input',()=>{ if(sel.value==='__custom__') onInput(custInp.value.trim()); });
+      w.appendChild(lb);w.appendChild(sel);
+      return {sel:w, custom:wCust};
+    };
     eh.appendChild(_mkField('Title', song.title||'', v=>{
       song.title=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
-    }, {placeholder:'Song title'}));
+    }, {placeholder:'Song title', cls:'ls-field-title'}));
     eh.appendChild(_mkField('Artist', song.artist||'', v=>{
       song.artist=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
-    }, {placeholder:'Composer / artist'}));
-    eh.appendChild(_mkField('Style', song.style||'', v=>{
+    }, {placeholder:'Composer / artist', cls:'ls-field-artist'}));
+    const _styleFields=_mkStyleField(song.style||'', v=>{
       song.style=v.trim(); saveSongs();
-    }, {placeholder:'e.g. Medium Swing'}));
-    // BPM + Time Signature share one grid cell (under Style, above Transpose).
+    });
+    // BPM + Time Signature share one cell within the compact row below.
     // Time Sig edits the chart's OPENING time signature (bars[0].timeChange);
     // per-bar time changes elsewhere in the piece still use each bar's ⋮ menu.
     const bpmTimeWrap=document.createElement('div');bpmTimeWrap.className='ls-ef-split';
@@ -16173,11 +16386,6 @@ function renderIRealSong(song){
       if(chart.bars&&chart.bars[0]) chart.bars[0].timeChange=v.trim()||null;
       saveSongs();
     }, {placeholder:'e.g. 4/4', cls:'timesig'}));
-    eh.appendChild(bpmTimeWrap);
-    // Row 3: editing hint (under Title/Artist) | permanent transpose (under Style/BPM)
-    const hint=document.createElement('div');hint.className='ls-edit-hint';
-    hint.textContent='Editing — change the title, author, style, BPM and time signature above; click a bar to change its chords, or use its ⋮ menu for barlines, mid-piece time changes, sections and inserting/deleting bars.';
-    eh.appendChild(hint);
     const trField=document.createElement('div');trField.className='ls-ef ls-transpose-field';
     const trLbl=document.createElement('span');trLbl.className='ls-ef-lbl';trLbl.textContent='Transpose';
     const trBtns=document.createElement('div');trBtns.className='edit-transpose-btns';
@@ -16189,7 +16397,18 @@ function renderIRealSong(song){
     trUp.addEventListener('click',()=>_lsTransposeChart(song,1));
     trBtns.appendChild(trDown);trBtns.appendChild(trUp);
     trField.appendChild(trLbl);trField.appendChild(trBtns);
-    eh.appendChild(trField);
+    // One compact row: Style select, BPM, Time Sig and Transpose all share the
+    // same line (Transpose's buttons are shrunk via .ls-row2 CSS to fit).
+    const row2=document.createElement('div');row2.className='ls-row2';
+    row2.appendChild(_styleFields.sel);
+    row2.appendChild(bpmTimeWrap);
+    row2.appendChild(trField);
+    eh.appendChild(row2);
+    eh.appendChild(_styleFields.custom);
+    // Editing hint notice — full width, at the bottom.
+    const hint=document.createElement('div');hint.className='ls-edit-hint';
+    hint.textContent='Editing — change the title, author, style, BPM and time signature above; click a bar to change its chords, or use its ⋮ menu for barlines, mid-piece time changes, sections and inserting/deleting bars.';
+    eh.appendChild(hint);
     cont.appendChild(eh);
   } else {
     hdr.appendChild(_titleEl);
@@ -16416,7 +16635,7 @@ function renderIRealSong(song){
 // ── BLANK LEAD SHEET FACTORY ──────────────────────────────────────────────────
 function _makeBlankChart() {
   var bars = [];
-  for (var i = 0; i < 32; i++) {
+  for (var i = 0; i < 16; i++) {
     bars.push({ chords:[], section:null, endingNum:null, timeChange:null,
                 openRepeat:false, closeRepeat:false,
                 sectionStart:false, sectionEnd:false, final:false });

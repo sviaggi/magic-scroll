@@ -602,7 +602,7 @@
       defaultPattern:'Arpeggio' },
   ];
   BT_INSTRUMENTS.forEach(function(inst) {
-    _bt_state[inst.id] = { enabled:true, pattern:inst.defaultPattern, volume:inst.defaultVol };
+    _bt_state[inst.id] = { enabled: inst.id !== 'guitar', pattern:inst.defaultPattern, volume:inst.defaultVol };
   });
 
   // Raw bars (no expansion) — used for UI display before playback starts
@@ -854,6 +854,40 @@
     }
   }
 
+  // Apply the current song's style-based instrument arrangement (pattern +
+  // guitar on/off per instrument), falling back to each instrument's own
+  // built-in default when the style resolver isn't available or returns
+  // nothing for a given instrument. Also refreshes the already-built bar UI
+  // (pattern <select>s + mute toggles) so it doesn't show stale state.
+  function _applyStyleArrangement(style) {
+    if (typeof window._styleArrangementFor !== 'function') return;
+    var arr = window._styleArrangementFor(style);
+    if (!arr) return;
+    BT_INSTRUMENTS.forEach(function(inst) {
+      var a = arr[inst.id], st = _bt_state[inst.id];
+      if (!a || !st) return;
+      if (inst.id === 'guitar') {
+        if (a.pattern) st.pattern = a.pattern;
+        if (typeof a.enabled === 'boolean') st.enabled = a.enabled;
+      } else if (typeof a === 'string') {
+        st.pattern = a;
+      }
+    });
+    _refreshBTBarUI();
+  }
+  function _refreshBTBarUI() {
+    BT_INSTRUMENTS.forEach(function(inst) {
+      var st = _bt_state[inst.id]; if (!st) return;
+      var sel = document.querySelector('.bt-pat-sel[data-id="' + inst.id + '"]');
+      if (sel) sel.value = st.pattern;
+      var btn = document.querySelector('.bt-inst-toggle[data-id="' + inst.id + '"]');
+      if (btn) {
+        btn.classList.toggle('active', !!st.enabled);
+        btn.title = (st.enabled ? 'Mute ' : 'Unmute ') + inst.label;
+      }
+    });
+  }
+
   function btOpenBar(song) {
     // Show the bar immediately — before any stop/reset that might throw
     var bar = document.getElementById('bt-bar');
@@ -865,7 +899,13 @@
     }
     setTimeout(_btAdjustBottomPad, 0);
     if (song && song !== _bt_song && _running) { try { btStop(); } catch(e) { console.error('[BT] btStop error:', e); } }
+    var _isNewSong = song && song !== _bt_song;
     if (song) _bt_song = song;
+    // Re-derive the instrument arrangement from this song's style whenever a
+    // (possibly different) song is opened — same spirit as the BPM fallback
+    // just below. Guitar's on/off state matters most here since it defaults
+    // to off globally but should follow the style for guitar-forward genres.
+    if (_isNewSong && _bt_song) _applyStyleArrangement(_bt_song.style);
     // Annotate each bar with its chart index so the tick highlights the right cell during repeats
     if (_bt_song && _bt_song.ireal_chart && _bt_song.ireal_chart.bars) {
       _bt_song.ireal_chart.bars.forEach(function(b, i) { if (b) b._chartIdx = i; });
@@ -941,6 +981,7 @@
       row.appendChild(lbl);
       var patSel = document.createElement('select');
       patSel.className = 'bt-ctrl-btn bt-pat-sel';
+      patSel.setAttribute('data-id', inst.id);
       inst.patterns.forEach(function(p) {
         var opt = document.createElement('option');
         opt.value = p; opt.textContent = p;
