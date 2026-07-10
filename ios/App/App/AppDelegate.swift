@@ -14,7 +14,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
-            print("[MagicScroll] AVAudioSession error: \(error)")
+            print("[MagicScroll] AVAudioSession error: (error)")
         }
         return true
     }

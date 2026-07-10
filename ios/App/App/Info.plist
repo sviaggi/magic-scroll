@@ -28,6 +28,8 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Magic Scroll uses the microphone for the instrument tuner.</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
@@ -46,10 +48,6 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
-	<key>UIStatusBarStyle</key>
-	<string>UIStatusBarStyleLightContent</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Magic Scroll uses the microphone for the instrument tuner.</string>
+  <true/>>
 </dict>
 </plist>
