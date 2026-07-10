@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Magic Scroll</string>
-    <string name="title_activity_main">Magic Scroll</string>
-    <string name="package_name">com.magicscroll.app</string>
-    <string name="custom_url_scheme">com.magicscroll.app</string>
-</resources>
