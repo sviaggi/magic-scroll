@@ -1,0 +1,14 @@
+[
+	{
+		"pkg": "@capacitor/status-bar",
+		"classpath": "com.capacitorjs.plugins.statusbar.StatusBarPlugin"
+	},
+	{
+		"pkg": "@capgo/capacitor-pdf-generator",
+		"classpath": "app.capgo.pdfgenerator.PdfGeneratorPlugin"
+	},
+	{
+		"pkg": "@capgo/capacitor-printer",
+		"classpath": "com.capgo.printer.PrinterPlugin"
+	}
+]
