@@ -1448,7 +1448,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-  .editor-field { display: flex; flex-direction: column; gap: 3px; }
+  .editor-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   /* Key + Time Signature share one grid cell — both are short values, so they
      sit side by side instead of each claiming a full row. */
   .editor-field-split { flex-direction: row; gap: 8px; }
@@ -1487,6 +1487,8 @@
     padding: 5px 8px;
     border-radius: 2px;
     outline: none;
+    width: 100%;
+    box-sizing: border-box;
   }
   .editor-field input:focus { border-color: var(--c-accent); }
   /* Permanent transpose bar between the ABC toolbar and the sheet-music textarea */
