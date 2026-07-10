@@ -2951,6 +2951,18 @@
     content: '✓';
     font-size: 0.65rem; color: var(--c-chrome-muted); flex-shrink: 0;
   }
+
+  /* iOS Safari force-zooms the page on focus of any text input/select/textarea
+     whose computed font-size is under 16px. That's the "forced zoom" users hit
+     when tapping a field — and since it's an accessibility auto-zoom (not the
+     viewport meta tag), it can't be turned off directly; the fix is to make
+     sure focused fields never render under 16px on touch devices, so iOS never
+     triggers it in the first place. Pinch-zoom itself is never disabled in
+     this app (no maximum-scale/user-scalable in the viewport meta tag), so
+     once this stops firing, normal pinch in/out keeps working everywhere. */
+  @media (pointer: coarse) {
+    input, select, textarea { font-size: 16px !important; }
+  }
 </style>
 
 <script src="abcjs-basic.js"></script>
