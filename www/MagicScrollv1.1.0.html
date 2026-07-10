@@ -6401,10 +6401,12 @@ function buildSongList(query) {
       + '<button class="folder-menu-item folder-menu-danger" data-action="delete">✕ Delete</button>'
       + '</div>';
 
-    row.querySelector('.folder-icon').addEventListener('click', () => {
+    row.querySelector('.folder-icon').addEventListener('click', (e) => {
+      e.stopPropagation();
       f.collapsed = !f.collapsed; saveFolders(); buildSongList('');
     });
-    row.querySelector('.folder-name').addEventListener('click', () => {
+    row.querySelector('.folder-name').addEventListener('click', (e) => {
+      e.stopPropagation();
       f.collapsed = !f.collapsed; saveFolders(); buildSongList('');
     });
     var kebab = row.querySelector('.folder-kebab');
@@ -11113,7 +11115,15 @@ document.getElementById('btn-sidebar').addEventListener('click', function() {
 document.addEventListener('click', function(e) {
   if (window.innerWidth > 520 || !document.body.classList.contains('sidebar-open')) return;
   const sb = document.getElementById('sidebar');
-  if (!sb.contains(e.target) && e.target.id !== 'btn-sidebar') {
+  // Use composedPath() (captured at dispatch time) rather than sb.contains(e.target):
+  // some in-sidebar clicks (e.g. folder expand/collapse) rebuild the list DOM
+  // synchronously in their own handler, which detaches e.target from the document
+  // before this bubbled listener runs. sb.contains() on a detached node is always
+  // false, which used to misread an inside click as "outside" and close the panel.
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const clickedInside = path.length ? path.includes(sb) : sb.contains(e.target);
+  const clickedToggle = path.length ? path.some(el => el && el.id === 'btn-sidebar') : e.target.id === 'btn-sidebar';
+  if (!clickedInside && !clickedToggle) {
     document.body.classList.remove('sidebar-open');
   }
 });
@@ -11127,28 +11137,55 @@ if (window.innerWidth <= 520) {
 // fewer. Debounced; ignores pure height changes (e.g. the iOS keyboard).
 (function() {
   let _lastW = window.innerWidth, _reflowT = null;
+  // While a text field is focused, iOS/WKWebView can fire 'resize' with a
+  // transiently different window.innerWidth as part of its focus-zoom /
+  // keyboard-avoidance dance (not just a height change like the plain
+  // keyboard case this function already ignored). That was making sheet
+  // music / lead sheets / tab blocks silently re-render mid-edit (e.g.
+  // while typing in the ABC editor), which reads as "other UI changing
+  // size" whenever the user taps into a field. Skip reflow entirely while
+  // an editable field has focus, then catch up once it's blurred.
+  function _fieldFocused() {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+  }
+  function _doReflow() {
+    if (currentIdx < 0 || !songs[currentIdx]) return;
+    const s = songs[currentIdx];
+    if (s._source === 'abc' && document.getElementById('abc-song-card').style.display !== 'none'
+        && typeof renderABCSong === 'function') {
+      renderABCSong(s);
+    } else if (s._source === 'ireal' && document.getElementById('ireal-song-card').style.display !== 'none'
+        && typeof renderIRealSong === 'function') {
+      renderIRealSong(s);
+      if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+    } else if (typeof _fitTabBlocks === 'function'
+        && document.getElementById('tab-content').querySelector('.tab-block')) {
+      _fitTabBlocks();   // re-scale tab blocks to the new width
+    }
+  }
   function _reflowOnResize() {
+    if (_fieldFocused()) return;         // skip — likely focus-zoom/keyboard noise, not a real resize
     if (window.innerWidth === _lastW) return;   // width unchanged → skip
     _lastW = window.innerWidth;
     clearTimeout(_reflowT);
-    _reflowT = setTimeout(function() {
-      if (currentIdx < 0 || !songs[currentIdx]) return;
-      const s = songs[currentIdx];
-      if (s._source === 'abc' && document.getElementById('abc-song-card').style.display !== 'none'
-          && typeof renderABCSong === 'function') {
-        renderABCSong(s);
-      } else if (s._source === 'ireal' && document.getElementById('ireal-song-card').style.display !== 'none'
-          && typeof renderIRealSong === 'function') {
-        renderIRealSong(s);
-        if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
-      } else if (typeof _fitTabBlocks === 'function'
-          && document.getElementById('tab-content').querySelector('.tab-block')) {
-        _fitTabBlocks();   // re-scale tab blocks to the new width
-      }
-    }, 250);
+    _reflowT = setTimeout(_doReflow, 250);
   }
   window.addEventListener('resize', _reflowOnResize);
   window.addEventListener('orientationchange', _reflowOnResize);
+  // Catch up once a field blurs, in case the true width changed while we were
+  // ignoring resize events (e.g. the user rotated the phone mid-edit).
+  document.addEventListener('focusout', function() {
+    setTimeout(function() {
+      if (_fieldFocused()) return;   // focus moved straight to another field
+      if (window.innerWidth === _lastW) return;
+      _lastW = window.innerWidth;
+      clearTimeout(_reflowT);
+      _reflowT = setTimeout(_doReflow, 250);
+    }, 300);   // let iOS finish settling the viewport after the keyboard closes
+  }, true);
 })();
 
 // Native status bar: make the system info (clock/battery/Wi-Fi) overlay the top
