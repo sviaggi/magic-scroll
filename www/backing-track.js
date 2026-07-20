@@ -948,18 +948,34 @@
   function _buildBTBar() {
     // Inject mobile layout styles once — guarantees correct layout regardless
     // of whether the HTML file is served fresh or from a stale SW cache.
+    // Kept as an exact mirror of the #bt-bar mobile rules in the main
+    // stylesheet's @media (max-width:620px) block — a previous version of
+    // this injected block had drifted out of sync with those rules (missing
+    // justify-content, the #bt-player-controls .bt-row > * flex-share rule,
+    // and .bt-inst-toggles), and since this tag is appended to <head> (i.e.
+    // later in document order than the main stylesheet), any rule it *did*
+    // redeclare with different values silently won every tie. On a stale
+    // cache serving an older HTML missing some of these rules, that drift
+    // left instrument-toggle buttons and other controls with no mobile
+    // sizing at all — the bar fell back to its cramped desktop layout.
     if (!document.getElementById('_bt_mobile_css')) {
       var mstyle = document.createElement('style');
       mstyle.id = '_bt_mobile_css';
       mstyle.textContent =
         '@media (max-width:620px){' +
-          '#bt-bar{left:8px!important;right:8px!important;width:auto!important;transform:none!important;}' +
+          '#bt-bar{left:8px!important;right:8px!important;width:auto!important;transform:none!important;border-radius:6px!important;}' +
+          '#bt-inst-panel{border-radius:6px 6px 0 0!important;left:-1px!important;right:-1px!important;}' +
+          '#bt-player-inner{padding:8px 10px 6px!important;gap:4px!important;}' +
           '#bt-player-controls{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:4px!important;overflow:visible!important;flex-wrap:nowrap!important;}' +
-          '.bt-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:5px!important;width:100%!important;}' +
-          '.bt-flex-spacer{flex:1!important;min-width:0!important;}' +
+          '.bt-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:center!important;gap:6px!important;width:100%!important;}' +
+          '#bt-player-controls .bt-row > *{flex:1 1 0!important;min-width:0!important;text-align:center!important;}' +
+          '.bt-flex-spacer{display:none!important;}' +
           '#bt-status{display:none!important;}' +
-          '.bt-tempo-slider{width:52px!important;}' +
-          '.bt-vol-slider{width:40px!important;}' +
+          '.bt-tempo-slider{width:auto!important;}' +
+          '.bt-vol-slider{width:auto!important;}' +
+          '#bt-player-controls .bt-row-3 #bt-settings-btn{flex:0 0 auto!important;min-width:30px!important;}' +
+          '.bt-inst-toggles{display:flex!important;flex:1 1 auto!important;min-width:0!important;}' +
+          '.bt-inst-toggles .bt-inst-toggle{flex:1 1 0!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;padding-left:3px!important;padding-right:3px!important;}' +
         '}';
       document.head.appendChild(mstyle);
     }

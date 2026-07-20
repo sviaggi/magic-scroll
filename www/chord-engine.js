@@ -443,4 +443,12 @@
     return true;
   };
 
+  // Read-only-in-spirit reference to the string tunings table (MIDI pitch per
+  // string, keyed by instrument id — same ids used everywhere else: 'guitar',
+  // 'drop_d', 'mandolin', ..., and 'custom' once setCustomTuning has run).
+  // Exposed so other parts of the app (the tuner's Primary/Secondary Instrument
+  // modes) can look up a real instrument's actual strings instead of keeping a
+  // second, hand-maintained copy of this table in sync.
+  window.INSTRUMENT_TUNINGS = TUNINGS;
+
 })();
