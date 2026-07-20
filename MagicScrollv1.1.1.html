@@ -286,14 +286,14 @@
     box-shadow: 0 2px 20px rgba(0,0,0,0.6);
     transition: background 0.2s, border-color 0.2s, transform 0.25s ease, margin-bottom 0.25s ease;
   }
-  /* Auto-hide on scroll (mobile only — see _topbarScrollHide script). Sliding
-     it up AND pulling the content below up by the same amount (negative
-     margin) so no blank gap is left where the bar used to sit. */
-  @media (max-width: 520px) {
-    #topbar.scroll-hidden {
-      transform: translateY(-100%);
-      margin-bottom: calc(-1 * var(--topbar-h, 60px));
-    }
+  /* Auto-hide on scroll — down tucks the bar away, up brings it straight back
+     (see the scroll listener below), at any viewport width, the same way most
+     websites' headers behave. Sliding it up AND pulling the content below up
+     by the same amount (negative margin) so no blank gap is left where the
+     bar used to sit. */
+  #topbar.scroll-hidden {
+    transform: translateY(-100%);
+    margin-bottom: calc(-1 * var(--topbar-h, 60px));
   }
 
   /* Desktop: invisible wrapper — Library/Music/Settings render as plain flex
@@ -1841,11 +1841,12 @@
     column-gap: 4px;
   }
   /* On a widescreen the Library/Chords/Options/Autoscroll cluster no longer
-     needs to (and shouldn't) stretch edge-to-edge — center it so there isn't
-     a big dead strip of empty topbar on the right now that Autoscroll is
-     capped to a fixed width above. */
+     needs to (and shouldn't) stretch edge-to-edge. Left-justified (rather than
+     centered) so the topbar's controls always sit in the same place —
+     predictable regardless of window width or how much content is in the bar,
+     instead of shifting around a shrinking/growing centered cluster. */
   @media (min-width: 521px) {
-    body.topbar-mobile #topbar { justify-content: center; }
+    body.topbar-mobile #topbar { justify-content: flex-start; }
   }
   body.topbar-mobile #topbar > .app-title,
   body.topbar-mobile #topbar > .sep { display: none; }
@@ -4736,11 +4737,18 @@ document.addEventListener('click', e => {
   const dp = document.getElementById('diagram-panel');
   const inDiagrams = dp?.classList.contains('visible') && dp.contains(e.target);
   if (inWrap || inPanel || inMetro || inDiagrams) return;
-  // Truly outside every panel/dropdown — close everything.
+  // Truly outside every panel/dropdown — close everything except Chord
+  // Diagrams on widescreen. There, Diagrams is meant to behave as its own
+  // independent panel: closing the Chords tab (by clicking anywhere else on
+  // the page) should never also close Diagrams — only its own toggle/close
+  // button should. On narrow phone widths, Diagrams is nested inside the
+  // still-open Chords tab (no room for both side by side), so it keeps
+  // closing together with everything else there.
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('open'));
   document.querySelectorAll('.topbar-cat-panel').forEach(p => p.classList.remove('open'));
   mp?.classList.remove('open');
-  if (dp?.classList.contains('visible')) {
+  const isNarrow = window.innerWidth <= 520;
+  if (isNarrow && dp?.classList.contains('visible')) {
     dp.classList.remove('visible');
     document.getElementById('btn-diagrams')?.setAttribute('aria-pressed', 'false');
   }
@@ -4891,25 +4899,56 @@ function isAnnotationToken(tok) {
   return ANNOTATION_RE.test(tok) || ANNOTATION_RE.test(cleanToken(tok));
 }
 
-// ── ROUND-BRACKET CHORD MARKERS — e.g. "(G7 ////)" or "(Csus4 ↓↓↑↓↓)" ──────
+// ── ROUND-BRACKET CHORD MARKERS — e.g. "(G7 ////)", "(Csus4 ↓↓↑↓↓)",
+// "(F/////)" (strum glyphs glued straight onto the chord, no space), or
+// "(F-Bb-F-Bb-C)" (a hyphen-separated turnaround/walk-up sequence) ─────────
 // Round brackets are everywhere in ordinary lyrics/notes as plain asides —
-// "(repeat, end on F)" — so a round-bracket run is only ever treated as a
-// chord marker when its FIRST word is itself a real chord token, and
-// everything after that is nothing but strum-pattern glyphs (arrows, slashes,
-// dashes...). That combination rejects "(repeat, end on F)" outright (its
-// first word, "repeat", isn't a chord) while still accepting a genuine
-// chord+strum annotation. Square/curly brackets don't need this leniency —
-// they're only ever used to hold a bare chord name.
-const STRUM_SUFFIX_RE = /^[\s\/xX0-9.,\-–—↓↑]*$/;   // space / x X digits . , - – — ↓ ↑
-function _parenChordSplit(content) {
-  const m = (content || '').match(/^(\S+)([\s\S]*)$/);
-  if (!m) return null;
-  const [, first, rest] = m;
-  if (!isChordToken(first)) return null;
-  if (rest && !STRUM_SUFFIX_RE.test(rest)) return null;
-  return { chord: cleanToken(first), rest };
+// "(repeat, end on F)" — so content only counts as a chord annotation when it
+// can be fully accounted for as chord-prefixes interleaved with "connector"
+// runs (whitespace, slashes, digits, hyphens, dashes, x/X, arrows — never
+// plain letters). Walking the string this way (rather than requiring the
+// whole first word to be exactly one chord) is what lets a chord glued
+// directly to strum glyphs, or a whole run of hyphen-joined chords, both
+// parse correctly, while still rejecting "(repeat, end on F)" outright — its
+// very first characters ("repeat") are neither a chord prefix nor a
+// connector run, so the walk fails immediately. Square/curly brackets don't
+// need this leniency — they're only ever used to hold a single bare chord.
+const CHORD_PREFIX_RE = new RegExp(
+  '^[A-G][b#]?' +
+  '(?:' + CHORD_QUAL_SEG + '|[b#]?[0-9]{1,2})*' +
+  '(?:\\/[A-G][b#]?)?'
+);   // same as CHORD_TOKEN_RE but with no trailing $ — matches a chord at the START of a string, however much text follows
+const STRUM_CONNECTOR_RE = /[\s\/xX0-9.,\-–—↓↑]+/y;   // sticky — space / x X digits . , - – — ↓ ↑
+
+// Parses round-bracket content into { chords: [...names], parts: [{type,value},...] }
+// spanning the whole content, or null if any leftover text can't be
+// classified as either a chord prefix or a connector run.
+function _parseParenChordContent(content) {
+  content = content || '';
+  const parts = [];
+  let i = 0, foundChord = false;
+  while (i < content.length) {
+    const rest = content.slice(i);
+    const cm = CHORD_PREFIX_RE.exec(rest);
+    if (cm && cm[0].length > 0 && isChordToken(cm[0])) {
+      parts.push({ type: 'chord', value: cm[0] });
+      i += cm[0].length;
+      foundChord = true;
+      continue;
+    }
+    STRUM_CONNECTOR_RE.lastIndex = i;
+    const sm = STRUM_CONNECTOR_RE.exec(content);
+    if (sm && sm.index === i) {
+      parts.push({ type: 'text', value: sm[0] });
+      i += sm[0].length;
+      continue;
+    }
+    return null;   // hit something that's neither — not a chord annotation
+  }
+  if (!foundChord) return null;
+  return { parts, chords: parts.filter(p => p.type === 'chord').map(p => p.value) };
 }
-function _isRoundBracketChord(content) { return !!_parenChordSplit(content); }
+function _isRoundBracketChord(content) { return !!_parseParenChordContent(content); }
 
 // "/", "-", "--", ",", "\" are frequently used right up against a chord to
 // denote a pause, strum, or break (e.g. "G," "D-" "Am/" "G--"). Strip a run of
@@ -4976,9 +5015,10 @@ function transposeText(text, s) {
     if (lineHasInlineChords(line)) {
       return line.replace(INLINE_CHORD_RE, (full, curly, square, round) => {
         if (round !== undefined) {
-          const split = _parenChordSplit(round);
-          if (!split) return full;   // plain parenthetical text — leave untouched
-          return '(' + transposeChordToken(split.chord, s) + split.rest + ')';
+          const parsed = _parseParenChordContent(round);
+          if (!parsed) return full;   // plain parenthetical text — leave untouched
+          const rebuilt = parsed.parts.map(p => p.type === 'chord' ? transposeChordToken(p.value, s) : p.value).join('');
+          return '(' + rebuilt + ')';
         }
         const content = curly !== undefined ? curly : square;
         if (!isChordToken(content)) return full;   // [Verse] etc — leave untouched
@@ -5040,8 +5080,8 @@ function extractChords(text) {
       let m; INLINE_CHORD_RE.lastIndex = 0;
       while ((m = INLINE_CHORD_RE.exec(line))) {
         if (_inlineMatchIsRound(m)) {
-          const split = _parenChordSplit(m[3]);
-          if (split) found.add(split.chord);   // just the chord, not the strum suffix
+          const parsed = _parseParenChordContent(m[3]);
+          if (parsed) parsed.chords.forEach(c => found.add(c));
         } else if (isChordToken(_inlineMatchContent(m))) {
           found.add(_inlineMatchContent(m));
         }
@@ -5180,6 +5220,16 @@ function buildPrecisionLineEl(line, opts) {
     }
     return rt;
   }
+  function placeholderRuby(seg) {
+    // A chord with nothing to pair with (end of line, or another chord
+    // immediately follows with no lyric word between) -- give it a
+    // zero-width placeholder base purely so the browser has a box to anchor
+    // the <rt> chord label over, without adding any visible gap of its own.
+    const ruby = document.createElement('ruby');
+    ruby.appendChild(document.createTextNode('​'));
+    ruby.appendChild(chordRt(seg));
+    return ruby;
+  }
 
   let i = 0;
   while (i < segs.length) {
@@ -5189,20 +5239,53 @@ function buildPrecisionLineEl(line, opts) {
       i++;
       continue;
     }
-    // seg.type === 'chord' — pair with just the following WORD/syllable (the
+    // seg.type === 'chord' -- pair with just the following WORD/syllable (the
     // leading non-whitespace run of the next text segment), not the whole
-    // rest of the line. Fixes two things: (1) a chord at the very start of a
-    // line used to get the ENTIRE remaining lyric as its base, so centering
-    // put it in the middle of the line instead of over the first word; (2) a
-    // lone space between two back-to-back chords used to get swallowed as
-    // the first chord's base, squeezing the two chord labels together with
-    // no real gap. Leftover text (including pure whitespace) keeps flowing
-    // as ordinary text between/after the ruby elements.
-    const ruby = document.createElement('ruby');
-    const next = segs[i + 1];
+    // rest of the line. Fixes: (1) a chord at the very start of a line used
+    // to get the ENTIRE remaining lyric as its base, so centering put it in
+    // the middle of the line instead of over the first word; (2) a lone
+    // space between two back-to-back chords used to get swallowed as the
+    // first chord's base, squeezing the two chord labels together with no
+    // real gap; (3) a chord immediately followed by " word" (space then a
+    // real word) used to render the gap TWICE -- once as this chord's own
+    // placeholder space, once again when the untouched text segment got
+    // appended on the next loop iteration.
+    //
+    // Whitespace right after a marker plays one of two different roles, and
+    // they need opposite handling:
+    //   - "(Bb) heart" -- the space is just delimiter noise between the
+    //     marker and the word it's paired with; the REAL gap between the
+    //     previous word and "heart" was already emitted when the prior text
+    //     segment (ending in its own trailing space) was appended. Emitting
+    //     this one too would double it up, so it's discarded here.
+    //   - "(F) (Bb)" -- the space has no word to attach to at all; it's the
+    //     only thing separating two chord labels, so it must be kept, and
+    //     kept AFTER this chord's ruby (where it sits in the raw text), not
+    //     before -- otherwise the gap ends up on the wrong side of the label.
+    let next = segs[i + 1];
+    if (next && next.type === 'text') {
+      const wsMatch = next.value.match(/^\s+/);
+      if (wsMatch && wsMatch[0].length === next.value.length) {
+        el.appendChild(placeholderRuby(seg));
+        el.appendChild(textNode({ value: wsMatch[0], rawStart: next.rawStart, rawEnd: next.rawEnd }));
+        segs.splice(i + 1, 1);
+        i += 1;
+        continue;
+      }
+      if (wsMatch) {
+        next = {
+          type: 'text',
+          value: next.value.slice(wsMatch[0].length),
+          rawStart: next.rawStart + wsMatch[0].length,
+          rawEnd: next.rawEnd
+        };
+        segs[i + 1] = next;
+      }
+    }
     const wordMatch = (next && next.type === 'text') ? next.value.match(/^\S+/) : null;
     if (wordMatch) {
       const wordLen = wordMatch[0].length;
+      const ruby = document.createElement('ruby');
       ruby.appendChild(textNode({ value: wordMatch[0], rawStart: next.rawStart }));
       ruby.appendChild(chordRt(seg));
       el.appendChild(ruby);
@@ -5219,11 +5302,9 @@ function buildPrecisionLineEl(line, opts) {
       }
       continue;
     } else {
-      ruby.appendChild(document.createTextNode(' '));
+      el.appendChild(placeholderRuby(seg));
       i += 1;
     }
-    ruby.appendChild(chordRt(seg));
-    el.appendChild(ruby);
   }
   return el;
 }
@@ -5530,9 +5611,10 @@ function renderTabContent() {
       if (lineHasInlineChords(line)) {
         return line.replace(INLINE_CHORD_RE, (full, curly, square, round) => {
           if (round !== undefined) {
-            const split = _parenChordSplit(round);
-            if (!split) return full;
-            return '(' + simplifyChord(split.chord) + split.rest + ')';
+            const parsed = _parseParenChordContent(round);
+            if (!parsed) return full;
+            const rebuilt = parsed.parts.map(p => p.type === 'chord' ? simplifyChord(p.value) : p.value).join('');
+            return '(' + rebuilt + ')';
           }
           const content = curly !== undefined ? curly : square;
           if (!isChordToken(content)) return full;
@@ -5729,9 +5811,18 @@ function detectKey(songText) {
       let m; INLINE_CHORD_RE.lastIndex = 0;
       while ((m = INLINE_CHORD_RE.exec(line))) {
         if (!_inlineContentIsChord(m)) continue;   // [Verse] etc — not a chord
-        const content = _inlineMatchIsRound(m) ? _parenChordSplit(m[3]).chord : _inlineMatchContent(m);
-        const rm = cleanToken(content).match(/^([A-G][b#]?)(m(?!aj))?(.*)$/);
-        if (rm) chords.push({ root: rm[1], minor: !!rm[2], dom7: !rm[2] && /^(7|9|11|13)(?!\d)/.test(rm[3] || '') });
+        let contents;
+        if (_inlineMatchIsRound(m)) {
+          const parsed = _parseParenChordContent(m[3]);
+          contents = parsed ? parsed.chords : [];
+        } else {
+          contents = [_inlineMatchContent(m)];
+        }
+        for (const content of contents) {
+          const rm = cleanToken(content).match(/^([A-G][b#]?)(m(?!aj))?(.*)$/);
+          if (rm) chords.push({ root: rm[1], minor: !!rm[2], dom7: !rm[2] && /^(7|9|11|13)(?!\d)/.test(rm[3] || '') });
+          if (chords.length >= 10) break;
+        }
         if (chords.length >= 10) break;
       }
       if (chords.length >= 10) break;
@@ -11583,9 +11674,12 @@ function _topbarCatToggle(panelId) {
   document.querySelectorAll('.topbar-cat-panel, .settings-panel').forEach(function(p){ p.classList.remove('open'); });
   var mp = document.getElementById('metro-panel'); if (mp) mp.classList.remove('open');
   // Chord Diagrams lives inside the Chords tab but isn't a .settings-panel —
-  // close it too whenever Chords/Options are toggled (same as Metronome/Tuner).
+  // on narrow phone widths it's nested inside the Chords tab (no room for
+  // both at once), so it still closes together with it there. On widescreen
+  // it's its own independent panel and should stay open regardless of the
+  // Chords/Options tab being toggled/closed (same as Metronome/Tuner).
   var dp = document.getElementById('diagram-panel');
-  if (dp && dp.classList.contains('visible')) {
+  if (window.innerWidth <= 520 && dp && dp.classList.contains('visible')) {
     dp.classList.remove('visible');
     var db = document.getElementById('btn-diagrams'); if (db) db.setAttribute('aria-pressed', 'false');
   }
@@ -11615,13 +11709,13 @@ function _topbarCatToggle(panelId) {
 document.getElementById('btn-music-menu').addEventListener('click', function() { _topbarCatToggle('music-menu-panel'); });
 document.getElementById('btn-settings-menu').addEventListener('click', function() { _topbarCatToggle('settings-menu-panel'); });
 
-// ── AUTO-HIDE TOPBAR ON SCROLL (mobile) ─────────────────────────────────────
+// ── AUTO-HIDE TOPBAR ON SCROLL (all widths) ─────────────────────────────────
 // Scrolling down tucks the topbar away for more reading room; scrolling back
-// up brings it straight back. Autoscroll's own programmatic window.scrollBy()
-// doesn't count as "the user scrolled" — otherwise the bar would vanish the
-// instant Auto is pressed.
+// up brings it straight back — the same behaviour on widescreen/web as on
+// mobile now, matching how most websites' headers behave. Autoscroll's own
+// programmatic window.scrollBy() doesn't count as "the user scrolled" —
+// otherwise the bar would vanish the instant Auto is pressed.
 (function() {
-  var mq = window.matchMedia('(max-width: 520px)');
   var topbar = document.getElementById('topbar');
   if (!topbar) return;
   var lastY = window.scrollY || 0;
@@ -11641,7 +11735,6 @@ document.getElementById('btn-settings-menu').addEventListener('click', function(
   }
 
   window.addEventListener('scroll', function() {
-    if (!mq.matches) return;
     var y = window.scrollY || document.documentElement.scrollTop || 0;
     if (typeof isScrolling !== 'undefined' && isScrolling) {
       // Autoscroll is driving this — don't react, but keep the baseline
@@ -16551,9 +16644,10 @@ function _renderNotesView(text, container){
       if(lineHasInlineChords(line)){
         return line.replace(INLINE_CHORD_RE, (full, curly, square, round) => {
           if (round !== undefined) {
-            const split = _parenChordSplit(round);
-            if (!split) return full;
-            return '(' + simplifyChord(split.chord) + split.rest + ')';
+            const parsed = _parseParenChordContent(round);
+            if (!parsed) return full;
+            const rebuilt = parsed.parts.map(p => p.type === 'chord' ? simplifyChord(p.value) : p.value).join('');
+            return '(' + rebuilt + ')';
           }
           const content = curly !== undefined ? curly : square;
           if (!isChordToken(content)) return full;
