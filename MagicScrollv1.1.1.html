@@ -429,6 +429,19 @@
     align-items: center;
     gap: 4px;
   }
+  /* All four controls in the search row (input + 3 buttons) are pinned to the
+     same explicit height so they line up exactly regardless of whether their
+     content is text (which gets its box height from font line-height) or an
+     icon like #btn-filter's inline <svg> (which has no line-height of its
+     own) — mixing the two without a shared height leaves the icon button a
+     few px shorter/taller than its text siblings. */
+  #sidebar-search input,
+  #sidebar-search button {
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
   #sidebar-search input {
     flex: 1;
     background: var(--c-chrome-bg3);
@@ -440,17 +453,26 @@
     border-radius: 2px;
     outline: none;
     min-width: 0;
+    justify-content: flex-start;   /* keep typed text left-aligned, unlike the icon buttons */
   }
   #sidebar-search input:focus { border-color: var(--c-accent); }
   #sidebar-search input::placeholder { color: var(--c-chrome-muted); }
   #btn-search-clear {
     font-size: 0.65rem;
     padding: 3px 5px;
-    display: none;   /* shown only when search has content */
+    display: none;   /* shown only when search has content — overrides the shared display:inline-flex above */
     flex-shrink: 0;
   }
-  #btn-filter { font-size: 0.72rem; padding: 3px 6px; flex-shrink: 0; display: inline-flex; align-items: center; }
+  #btn-filter { font-size: 0.72rem; padding: 3px 6px; flex-shrink: 0; }
   #btn-filter.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
+  #btn-select-random {
+    display: block;
+    width: auto;
+    margin: 0 8px 6px;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+    text-align: center;
+  }
   .filter-panel {
     position: fixed; z-index: 960; display: none;
     background: var(--c-chrome-bg2); border: 1px solid var(--c-chrome-border);
@@ -1054,6 +1076,9 @@
   body.ui-xs #sidebar { width: 160px; min-width: 160px; }
   body.ui-xs #sidebar-header span { font-size: 0.58rem; }
   body.ui-xs #sidebar-search input { font-size: 0.68rem; padding: 3px 5px; }
+  body.ui-xs #sidebar-search input,
+  body.ui-xs #sidebar-search button { height: 24px; }
+  body.ui-xs #btn-select-random { font-size: 0.66rem; padding: 5px 7px; }
   body.ui-xs .s-title { font-size: 0.72rem; }
   body.ui-xs .s-artist { font-size: 0.6rem; }
   body.ui-xs #drop-zone { font-size: 0.6rem; padding: 7px 6px; }
@@ -3475,6 +3500,7 @@
       <button id="btn-filter" title="Filter library by type"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 2h14l-5.5 6.5V14l-3 1V8.5z"/></svg></button>
       <button id="btn-online-toggle" title="Online search is on — click to disable">☁</button>
     </div>
+    <button id="btn-select-random" title="Open a random song from your library">🎲 Select Random</button>
     <div id="song-list"></div>
     <div id="bulk-bar">
       <span id="bulk-count">0 selected</span>
@@ -7068,7 +7094,7 @@ function buildSongList(query) {
   list.innerHTML = '';
   const q = (query || '').trim();
 
-  document.getElementById('btn-search-clear').style.display = q ? 'block' : 'none';
+  document.getElementById('btn-search-clear').style.display = q ? 'inline-flex' : 'none';
 
   // helper: case-insensitive title sort comparator — favourited songs always
   // sort before non-favourited ones (in every list this is used for: search
@@ -7253,6 +7279,31 @@ document.getElementById('btn-search-clear').addEventListener('click', () => {
   document.getElementById('search-input').value = '';
   clearOnlineResults();
   buildSongList('');
+});
+
+// ── Select Random: open a random song from the LOCAL library only ──────────
+// `songs` is always the local library array — online search results live in
+// a separate results panel and never get pushed into it — so picking an
+// index into `songs` naturally excludes online results with no extra check.
+document.getElementById('btn-select-random').addEventListener('click', () => {
+  if (!songs.length) {
+    if (typeof showToast === 'function') showToast('Your library is empty — add a song first.');
+    return;
+  }
+  let idx = Math.floor(Math.random() * songs.length);
+  // Prefer a different song than the one already open, when there's a choice.
+  for (let tries = 0; tries < 20 && songs.length > 1 && idx === currentIdx; tries++) {
+    idx = Math.floor(Math.random() * songs.length);
+  }
+  // Clear any active search text so the picked song is actually visible
+  // (and highlighted as .active) in the sidebar list, not hidden by a
+  // stale filter that happens not to match it.
+  document.getElementById('search-input').value = '';
+  clearOnlineResults();
+  buildSongList('');
+  renderSong(idx);
+  const row = document.querySelector('.song-item[data-song-idx="' + idx + '"]');
+  if (row) row.scrollIntoView({ block: 'nearest' });
 });
 
 // ── Filter button: open/close the type-filter dropdown ────────────────────────
