@@ -3993,6 +3993,10 @@ I hope you enjoy using your magic scroll!"></textarea>
   <div class="ctx-item" data-rt="underline"><u>U</u>&nbsp; Underline</div>
   <div class="ctx-separator"></div>
   <div class="ctx-item" data-rt="embed">⧉&nbsp; Embed…</div>
+  <div class="ctx-separator"></div>
+  <div class="ctx-label">Line</div>
+  <div class="ctx-item" data-rt="mark-chord">♪&nbsp; Mark as chord line</div>
+  <div class="ctx-item" data-rt="mark-lyric">Aa&nbsp; Mark as lyric line</div>
 </div>
 
 <div id="chord-hover-tooltip"></div>
@@ -5515,6 +5519,27 @@ function _rectOfNode(node) {
     return r.getBoundingClientRect();
   } catch (e) { return null; }
 }
+// Measures the FULL base of a ruby — everything except the trailing <rt>.
+// The base isn't always a single node: a word containing markdown (e.g. the
+// chord-paired word being "*Modern") gets split by _renderMarkdownSegment
+// into several sibling nodes (a plain text run plus an <em>/<strong>/<u>),
+// all appended directly into the <ruby> alongside the <rt>. Measuring only
+// ruby.firstChild in that case (the old behaviour) captures just the first
+// fragment — e.g. only "(" — and treats the rest of the real word as
+// "wasted trailing space" to reclaim, producing a wildly oversized negative
+// margin that yanks the ruby left into whatever precedes it, overlapping
+// text. Spanning a Range across every child except the last (always the
+// <rt> — see buildPrecisionLineEl) measures the base's true rendered width
+// regardless of how many nodes it's split across.
+function _rubyBaseRect(ruby) {
+  if (!ruby || ruby.childNodes.length < 2) return null;
+  try {
+    const r = document.createRange();
+    r.setStart(ruby, 0);
+    r.setEndBefore(ruby.lastChild);
+    return r.getBoundingClientRect();
+  } catch (e) { return null; }
+}
 function reflowPrecisionOverlaps(container) {
   if (!container || !container.querySelectorAll) return;
   const lines = container.querySelectorAll('.precision-line');
@@ -5526,10 +5551,8 @@ function reflowPrecisionOverlaps(container) {
     rubies.forEach(r => { r.style.marginRight = ''; });
     for (let i = 0; i < rubies.length; i++) {
       const ruby = rubies[i];
-      const base = ruby.firstChild; // base is always appended before the <rt> — see buildPrecisionLineEl
-      if (!base) continue;
       const rubyRect = ruby.getBoundingClientRect();
-      const baseRect = _rectOfNode(base);
+      const baseRect = _rubyBaseRect(ruby);
       if (!baseRect) continue;
       // How much empty space sits after the base word, before the ruby box's
       // OWN right edge? Measured directly from rendered rects rather than
@@ -12817,11 +12840,40 @@ function rtEmbed(ta) {
   }
   rtInsertAtCursor(snippet, ta);
 }
+// Force the line(s) touched by the current selection (just the current line
+// if it's a plain cursor, every line the selection spans if there's a
+// range) to render as a chord line or a lyric line — the same !/~ prefix
+// convention lineIsChordLine already honours ('!' = forced chord line, '~'
+// = forced lyric line), just applied from the right-click menu instead of
+// typing the marker by hand. Existing !/~ markers are replaced, not
+// stacked, and blank lines are left alone (a bare "!" on an empty line adds
+// nothing but clutter).
+function rtSetLineMarker(kind, ta) {
+  ta = _rtTarget(ta);
+  if (!ta) return;
+  const marker = kind === 'chord' ? '!' : '~';
+  const val = ta.value;
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  const lineStart = val.lastIndexOf('\n', s - 1) + 1;
+  let lineEnd = val.indexOf('\n', e);
+  if (lineEnd === -1) lineEnd = val.length;
+  const block = val.slice(lineStart, lineEnd);
+  const newBlock = block.split('\n')
+    .map(line => line.trim() === '' ? line : marker + line.replace(/^[!~]/, ''))
+    .join('\n');
+  ta.value = val.slice(0, lineStart) + newBlock + val.slice(lineEnd);
+  ta.focus({ preventScroll: true });
+  ta.selectionStart = lineStart;
+  ta.selectionEnd   = lineStart + newBlock.length;
+  ta.dispatchEvent(new Event('input'));
+}
 function rtApply(kind, ta) {
-  if (kind === 'bold')           rtWrapSelection('**', '**', ta);
-  else if (kind === 'italic')    rtWrapSelection('*', '*', ta);
-  else if (kind === 'underline') rtWrapSelection('_', '_', ta);
-  else if (kind === 'embed')     rtEmbed(ta);
+  if (kind === 'bold')             rtWrapSelection('**', '**', ta);
+  else if (kind === 'italic')      rtWrapSelection('*', '*', ta);
+  else if (kind === 'underline')   rtWrapSelection('_', '_', ta);
+  else if (kind === 'embed')       rtEmbed(ta);
+  else if (kind === 'mark-chord')  rtSetLineMarker('chord', ta);
+  else if (kind === 'mark-lyric')  rtSetLineMarker('lyric', ta);
 }
 // Wires up a standalone "Add Chords" (precision) toggle for a textarea other
 // than the main song editor — currently just the lead-sheet notes editor.
@@ -12896,7 +12948,7 @@ function closeRtCtx() { rtCtxMenu.classList.remove('open'); }
 document.getElementById('song-editor').addEventListener('contextmenu', function(e) {
   e.preventDefault();
   closeRtCtx();
-  const menuW = 190, menuH = 170;
+  const menuW = 190, menuH = 260;   // taller now with the Line section added below Format
   rtCtxMenu.style.left = Math.min(e.clientX, window.innerWidth  - menuW - 8) + 'px';
   rtCtxMenu.style.top  = Math.min(e.clientY, window.innerHeight - menuH - 8) + 'px';
   rtCtxMenu.classList.add('open');
@@ -13770,18 +13822,21 @@ async function _renderAbcBlockForPrint(abcText, staffW) {
   document.body.appendChild(tmp);
   try {
     ABCJS.renderAbc(tmp, abcText, {
+      responsive: 'resize', add_classes: true,
       staffwidth: staffW,
       // Embedded notation is informationally sparse next to the lyrics
-      // around it — render it small (matching the app's own XS view ratio)
-      // instead of scaling up to fill the page/column.
-      scale: 0.72,
+      // around it — render it small (roughly a quarter of a normal read,
+      // down from the already-reduced XS-view ratio) instead of scaling up
+      // to fill the page/column.
+      scale: 0.18,
       paddingtop: 4, paddingbottom: 4,
       visualTranspose: transposeAmount || 0,
     });
     // Mark any chord symbols ("A"/"Dm" above notes) so the print stylesheet's
     // .pl-abc-embed text.abc-chord-sym rule can give them the chord font +
     // colour instead of plain notation ink — same class the live view and
-    // the dedicated ABC-song print path use for this.
+    // the dedicated ABC-song print path use for this. add_classes:true above
+    // matches every other working call site of ABCJS.renderAbc in this file.
     if (typeof _wireAbcChordDiagrams === 'function') _wireAbcChordDiagrams(tmp);
   } catch (e) {}
   // Two frames so layout settles before we read the SVG back out, matching
@@ -13813,6 +13868,16 @@ function _printReflowScript() {
       try{ var r=document.createRange(); r.selectNodeContents(node); return r.getBoundingClientRect(); }
       catch(e){ return null; }
     }
+    // See _rubyBaseRect in the main app script for why this can't just be
+    // ruby.firstChild — a chord-paired word containing markdown (e.g.
+    // "*Modern") is split into multiple sibling nodes inside the <ruby>, and
+    // measuring only the first one produces a huge bogus negative margin
+    // that overlaps the ruby into whatever precedes it.
+    function _rubyBaseRect(ruby){
+      if (!ruby || ruby.childNodes.length < 2) return null;
+      try{ var r=document.createRange(); r.setStart(ruby,0); r.setEndBefore(ruby.lastChild); return r.getBoundingClientRect(); }
+      catch(e){ return null; }
+    }
     function _reflowPrecision(){
       document.querySelectorAll('.pl-precision').forEach(function(lineEl){
         var rubies = Array.prototype.slice.call(lineEl.querySelectorAll(':scope > ruby'));
@@ -13820,10 +13885,8 @@ function _printReflowScript() {
         var BUFFER = 3;
         for (var i = 0; i < rubies.length; i++) {
           var ruby = rubies[i];
-          var base = ruby.firstChild;
-          if (!base) continue;
           var rubyRect = ruby.getBoundingClientRect();
-          var baseRect = _rectOfNode(base);
+          var baseRect = _rubyBaseRect(ruby);
           if (!baseRect) continue;
           var trailingGap = rubyRect.right - baseRect.right;
           if (trailingGap <= 0.5) continue;
