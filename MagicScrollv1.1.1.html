@@ -3417,6 +3417,12 @@
         <input type="checkbox" id="pp-skip-chorus" checked
                style="width:auto;height:auto;accent-color:var(--c-accent);">
       </div>
+      <div class="settings-row">
+        <label>Condensed view</label>
+        <input type="checkbox" id="pp-condensed"
+               style="width:auto;height:auto;accent-color:var(--c-accent);">
+        <span style="font-size:0.65rem;color:var(--c-chrome-muted);">(chords inline in brackets, more per page)</span>
+      </div>
 
       <!-- Shown only for multi-tune ABC files -->
       <div id="pp-tune-row" class="settings-row" style="display:none">
@@ -5683,10 +5689,35 @@ function applyMarkup(line, lineEl) {
 // label (any note name, for alt tunings / bass / uke) then a pipe, then a run
 // of dashes/digits/technique characters. We also accept unlabelled lines that
 // are clearly fret runs (pipe + many dashes).
+// "Beat-grid" tab notation — one token per beat, space-separated, e.g.
+// "A|2 2 2 2 3 2 -" or "E|- - - - 5 4 3 0 0 0 0 0 -". Common for simple
+// strum/pluck patterns and short uke/bass riffs (only 1-2 strings shown)
+// where dense fret-per-character tab notation would be unreadable. A line
+// counts when: a string-letter+pipe header, at least 3 space-separated
+// tokens that are each a bare dash run, a short fret/technique number, or
+// x/X, with at least one dash token (a muted/rest beat) AND one numeric
+// token — a combination that essentially never occurs in ordinary lyrics or
+// a chord line. Tolerates at most one short bare-word aside (e.g. an
+// inline "or" pointing at an alternate line below) so a stray annotation
+// doesn't knock an otherwise-clean tab line out of its block.
+const _TAB_BEATGRID_TOK_RE = /^(?:-+|[0-9]{1,2}(?:[hpb\/\\~][0-9]{1,2})*|[xX])$/;
+function _isTabBeatGridLine(line) {
+  const m = /^[ \t]*[A-Ga-g][#b]?\s*\|\s*(.+)$/.exec(line);
+  if (!m) return false;
+  const toks = m[1].trim().split(/\s+/).filter(Boolean);
+  if (toks.length < 3) return false;
+  const validToks   = toks.filter(t => _TAB_BEATGRID_TOK_RE.test(t));
+  const invalidToks = toks.filter(t => !_TAB_BEATGRID_TOK_RE.test(t));
+  if (invalidToks.length > 1 || !invalidToks.every(t => /^[A-Za-z]{1,6}[:.]?$/.test(t))) return false;
+  const hasDash = validToks.some(t => /^-+$/.test(t));
+  const hasNum  = validToks.some(t => /[0-9]/.test(t));
+  return validToks.length >= 3 && hasDash && hasNum;
+}
 function _isTabLine(line){
   if (!line) return false;
   return (/^[ \t]*[A-Ga-g][#b]?\s*\|[-0-9hpb\/\\~xX().\s|]*$/.test(line) && /-{2,}/.test(line))
-      || (/\|[-0-9hpb\/\\~xX]{4,}/.test(line) && /-{3,}/.test(line));
+      || (/\|[-0-9hpb\/\\~xX]{4,}/.test(line) && /-{3,}/.test(line))
+      || _isTabBeatGridLine(line);
 }
 // Returns the human display type for a plaintext song based on its content.
 function _songContentType(song){
@@ -5816,7 +5847,14 @@ function _buildEmbeddedABCBlock(abcText, idx) {
   const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
   const staffW = Math.max(200, Math.round(_abcContent / _abcZoom));
   try {
-    ABCJS.renderAbc(notDiv.id, abcText, {
+    // Pass the element itself, not its id — at this point notDiv is still
+    // detached (it's built inside a DocumentFragment that only gets attached
+    // to the live document after every segment, ABC or text, has been built),
+    // so ABCJS.renderAbc('some-id', ...) would call getElementById on an id
+    // that doesn't exist in the document yet and silently render nothing.
+    // abcjs accepts either an id string or a direct element reference —
+    // using the reference sidesteps the attachment-order requirement.
+    ABCJS.renderAbc(notDiv, abcText, {
       responsive: 'resize', add_classes: true,
       staffwidth: staffW,
       wrap: { minSpacing: 1.6, maxSpacing: 2.7 },
@@ -13539,6 +13577,11 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
       _tuneRow.style.display = '';
     } else { _tuneRow.style.display = 'none'; }
   } else { _tuneRow.style.display = 'none'; }
+  // Default the print panel's Condensed view to whatever's active on screen
+  // right now, so print matches what you're already looking at unless you
+  // deliberately flip it for the printed copy.
+  const _ppCondensed = document.getElementById('pp-condensed');
+  if (_ppCondensed) _ppCondensed.checked = !!isBracketChordView;
   openSettingsPanel(pp, e.currentTarget);
 });
 
@@ -13618,6 +13661,91 @@ function _printRich(s) {
   return s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
           .replace(/\*([^*\n]+)\*/g,     '<em>$1</em>')
           .replace(/_([^_\n]+)_/g,        '<u>$1</u>');
+}
+
+// String-based twin of _renderMarkdownSegment (used live in
+// buildPrecisionLineEl/buildBracketLineEl) — streams **/_/* -> <strong>/<em>/<u>
+// state across every text segment of a chord-tagged print line via a shared
+// `state` object, so a bold/italic/underline run that opens before a chord
+// marker and closes after it still renders correctly on both sides instead of
+// each segment being scanned independently (which leaves the raw delimiter
+// characters unmatched on whichever side of the chord they land on). Chord
+// segments themselves are never passed through this — callers only use it on
+// the text segments, same division of labour as the live DOM version.
+function _printRichStateful(text, state) {
+  var out = '';
+  var stack = [];   // [{key, tag}], innermost last
+  function openTag(key, tag) { out += '<' + tag + '>'; stack.push({ key: key, tag: tag }); state[key] = true; }
+  if (state.bold)      openTag('bold', 'strong');
+  if (state.italic)    openTag('italic', 'em');
+  if (state.underline) openTag('underline', 'u');
+  var buf = '';
+  function flush() { if (buf) { out += escapeHtml(buf); buf = ''; } }
+  function toggle(key, tag) {
+    flush();
+    if (state[key]) {
+      var idx = -1;
+      for (var k = stack.length - 1; k >= 0; k--) { if (stack[k].key === key) { idx = k; break; } }
+      if (idx !== -1) {
+        for (var k2 = stack.length - 1; k2 >= idx; k2--) { out += '</' + stack[k2].tag + '>'; }
+        stack.length = idx;
+      }
+      state[key] = false;
+    } else {
+      openTag(key, tag);
+    }
+  }
+  var i = 0;
+  while (i < text.length) {
+    if (text[i] === '*' && text[i + 1] === '*') { toggle('bold', 'strong'); i += 2; continue; }
+    if (text[i] === '*') { toggle('italic', 'em'); i += 1; continue; }
+    if (text[i] === '_') { toggle('underline', 'u'); i += 1; continue; }
+    buf += text[i]; i += 1;
+  }
+  flush();
+  // Unlike the live DOM version (buildPrecisionLineEl/_renderMarkdownSegment),
+  // where each call appends complete, self-contained elements to a shared
+  // parent, this builds a flat HTML STRING per call — so every tag opened in
+  // THIS segment (including ones re-opened above because `state` carried
+  // over from the previous segment) must be explicitly closed before
+  // returning, or the next segment's output starts nested inside it and the
+  // whole document's tag structure goes unbalanced. `state` itself is left
+  // exactly as toggle() last set it, so the NEXT call still knows to re-open
+  // the same tags — only the STRING gets closed here, not the tracked state.
+  for (var k3 = stack.length - 1; k3 >= 0; k3--) { out += '</' + stack[k3].tag + '>'; }
+  return out;
+}
+
+// Renders one embedded ABC tune (see _splitEmbeddedABC) into print-ready HTML
+// — an off-screen ABCJS render, grabbed as SVG markup, same technique the
+// dedicated ABC-song print path already uses. staffW is narrower when the
+// two-column layout is active so the notation actually fits a single column
+// instead of spanning/overflowing both; svg{max-width:100%} then handles any
+// further shrink-to-fit against the column's real rendered width.
+async function _renderAbcBlockForPrint(abcText, staffW) {
+  if (typeof ABCJS === 'undefined' || typeof ABCJS.renderAbc !== 'function') {
+    return '<div class="pl-abc-embed"><pre style="font-family:monospace;font-size:7pt;white-space:pre-wrap;">'
+      + escapeHtml(abcText) + '</pre></div>';
+  }
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:' + staffW + 'px;';
+  document.body.appendChild(tmp);
+  try {
+    ABCJS.renderAbc(tmp, abcText, {
+      staffwidth: staffW, scale: 1.0,
+      paddingtop: 4, paddingbottom: 4,
+      visualTranspose: transposeAmount || 0,
+    });
+  } catch (e) {}
+  // Two frames so layout settles before we read the SVG back out, matching
+  // the timing the dedicated ABC-song print path already relies on.
+  await new Promise(function(r) { requestAnimationFrame(function() { requestAnimationFrame(r); }); });
+  const svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
+  const html = svgs.length
+    ? '<div class="pl-abc-embed">' + svgs.map(function(s) { return s.outerHTML; }).join('') + '</div>'
+    : '';
+  if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
+  return html;
 }
 
 // Emit a print/PDF document.
@@ -13889,14 +14017,18 @@ ${body}
 
   // ── Build song content ──
   const rawSrc  = song.tab_content || song.content || song.tab || '';
-  const rawLines = transposeText(rawSrc, transposeAmount).split('\n');
   const skipChorus = document.getElementById('pp-skip-chorus').checked;
+  // Matches the on-screen "Condensed view" toggle (isBracketChordView) —
+  // defaulted from it when the panel opens, but overridable per print job.
+  const usePrintCondensed = document.getElementById('pp-condensed').checked;
 
   // Detect repeated chorus blocks (3+ lyric lines occurring more than once).
   // Uses lyric-only fingerprinting; chord lines may differ in whitespace.
   // Chorus collapse: groups lines into blank-line-separated sections, then
   // fingerprints each section by its LYRIC lines only (chord lines ignored).
   // Sections with 3+ lyric lines that repeat are replaced by '~ [Chorus]'.
+  // Run per TEXT segment (see below) rather than over the whole song, so an
+  // embedded ABC block never gets caught up in the section-splitting.
   function collapseRepeatedChoruses(lines) {
     if (!skipChorus) return lines;
     // Split into sections separated by blank lines
@@ -13925,9 +14057,6 @@ ${body}
   }
 
   let linesHtml = '';
-  // Pair each chord line with the lyric line below it (break-inside:avoid)
-  // so column breaks never split a chord from its lyric.
-  const pLines = collapseRepeatedChoruses(rawLines);
   function renderChordDiv(l) {
     var d = (l.startsWith('!') || l.startsWith('~')) ? l.slice(1) : l;
     var h = '<div class="pl-chord">';
@@ -13944,63 +14073,121 @@ ${body}
   }
   // Precision-tagged lines ([Chord]/{Chord} markers) print the same way they
   // display on screen: a native <ruby>/<rt> annotation above each word, not
-  // the raw bracketed text. Mirrors buildPrecisionLineEl but as an HTML string
-  // since the print document is built out-of-DOM.
+  // the raw bracketed text. Mirrors buildPrecisionLineEl (including its
+  // whitespace handling — a chord followed by "(Chord) word"-style spacing
+  // doesn't double up as a gap before AND the ruby column's own reserved
+  // spacing) and threads a shared markdown state across every text segment
+  // via _printRichStateful so **bold**/*italic*/_underline_ spanning a
+  // chord marker still renders correctly on both sides of it.
   function renderPrecisionDiv(l) {
     var segs = parsePrecisionLine(l);
     var h = '<div class="pl-precision">';
+    var mdState = { bold: false, italic: false, underline: false };
     var i = 0;
     while (i < segs.length) {
       var seg = segs[i];
-      if (seg.type === 'text') { h += _printRich(seg.value); i++; continue; }
-      // Pair with just the following word (leading non-whitespace run), not
-      // the whole rest of the line — mirrors buildPrecisionLineEl so print
-      // matches on-screen: a start-of-line chord sits over the first word
-      // instead of centering across the full line, and back-to-back chords
-      // keep a real gap instead of swallowing the space between them.
+      if (seg.type === 'text') { h += _printRichStateful(seg.value, mdState); i++; continue; }
       var next = segs[i + 1];
+      if (next && next.type === 'text') {
+        var wsMatch = next.value.match(/^\s+/);
+        if (wsMatch && wsMatch[0].length === next.value.length) {
+          h += '<ruby>​<rt class="pl-ct">' + escapeHtml(seg.value) + '</rt></ruby>';
+          h += _printRichStateful(wsMatch[0], mdState);
+          segs.splice(i + 1, 1);
+          i += 1;
+          continue;
+        }
+        if (wsMatch) {
+          next = { type: 'text', value: next.value.slice(wsMatch[0].length) };
+          segs[i + 1] = next;
+        }
+      }
       var wordMatch = (next && next.type === 'text') ? next.value.match(/^\S+/) : null;
-      h += '<ruby>';
       if (wordMatch) {
         var wordLen = wordMatch[0].length;
-        h += _printRich(wordMatch[0]);
+        h += '<ruby>' + _printRichStateful(wordMatch[0], mdState);
         if (wordLen < next.value.length) {
           segs[i + 1] = { type: 'text', value: next.value.slice(wordLen) };
           i += 1;
         } else {
           i += 2;
         }
+        h += '<rt class="pl-ct">' + escapeHtml(seg.value) + '</rt></ruby>';
       } else {
-        h += '&nbsp;'; i += 1;
+        h += '<ruby>​<rt class="pl-ct">' + escapeHtml(seg.value) + '</rt></ruby>';
+        i += 1;
       }
-      h += '<rt class="pl-ct">' + escapeHtml(seg.value) + '</rt></ruby>';
     }
     return h + '</div>';
   }
-  var blockEls = [];
-  for (var li = 0; li < pLines.length; li++) {
-    var line = pLines[li];
-    if (lineHasInlineChords(line)) {
-      blockEls.push(renderPrecisionDiv(line));
-    } else if (lineIsChordLine(line)) {
-      var nextLine = pLines[li + 1];
-      var hasLyric = nextLine !== undefined && !lineIsChordLine(nextLine) && !lineHasInlineChords(nextLine) && nextLine.trim() !== '';
-      if (hasLyric) {
-        blockEls.push('<div class="pl-pair">' + renderChordDiv(line) + renderLyricDiv(nextLine) + '</div>');
-        li++;  // consumed nextLine
-      } else {
-        blockEls.push(renderChordDiv(line));
+  // Condensed-view twin of renderPrecisionDiv — chords render inline in
+  // their original brackets instead of floating above the word, mirroring
+  // buildBracketLineEl. Same shared markdown state as above.
+  function renderBracketDiv(l) {
+    var segs = parsePrecisionLine(l);
+    var h = '<div class="pl-precision">';
+    var mdState = { bold: false, italic: false, underline: false };
+    for (var i = 0; i < segs.length; i++) {
+      var seg = segs[i];
+      if (seg.type === 'text') { h += _printRichStateful(seg.value, mdState); continue; }
+      var openCh = l[seg.rawStart];
+      if (openCh === '(') {
+        h += '<span class="pl-ct">' + escapeHtml(l.slice(seg.rawStart, seg.rawEnd)) + '</span>';
+        continue;
       }
-    } else {
-      blockEls.push(renderLyricDiv(line));
+      var closeCh = openCh === '{' ? '}' : ']';
+      h += escapeHtml(openCh) + '<span class="pl-ct">' + escapeHtml(seg.value) + '</span>' + escapeHtml(closeCh);
     }
+    return h + '</div>';
   }
+  function _buildBlockElsFromLines(pLines) {
+    var out = [];
+    for (var li = 0; li < pLines.length; li++) {
+      var line = pLines[li];
+      if (lineHasInlineChords(line)) {
+        out.push(usePrintCondensed ? renderBracketDiv(line) : renderPrecisionDiv(line));
+      } else if (lineIsChordLine(line)) {
+        var nextLine = pLines[li + 1];
+        var hasLyric = nextLine !== undefined && !lineIsChordLine(nextLine) && !lineHasInlineChords(nextLine) && nextLine.trim() !== '';
+        if (hasLyric) {
+          out.push('<div class="pl-pair">' + renderChordDiv(line) + renderLyricDiv(nextLine) + '</div>');
+          li++;  // consumed nextLine
+        } else {
+          out.push(renderChordDiv(line));
+        }
+      } else {
+        out.push(renderLyricDiv(line));
+      }
+    }
+    return out;
+  }
+
   // Two-column layout: WebKit ignores CSS `column-count` when printing/PDF-ing
   // (so iOS came out single-column), so split the blocks into two REAL side-by-side
   // flex columns, balanced by approximate height (a chord+lyric pair ≈ 2 lines).
   const _twoCol = multiCol;
+  // Embedded ABC notation (see _splitEmbeddedABC) renders as real sheet music,
+  // not raw ABC text — narrower when columns are on so it actually fits a
+  // single column instead of overflowing/spanning both.
+  const _abcPrintStaffW = _twoCol ? 300 : 640;
+  var blockEls = [];
+  const _segs = _splitEmbeddedABC(rawSrc);
+  for (var si = 0; si < _segs.length; si++) {
+    var seg = _segs[si];
+    if (seg.type === 'abc') {
+      var abcHtml = await _renderAbcBlockForPrint(seg.text, _abcPrintStaffW);
+      if (abcHtml) blockEls.push(abcHtml);
+      continue;
+    }
+    var segLines = transposeText(seg.text, transposeAmount).split('\n');
+    blockEls = blockEls.concat(_buildBlockElsFromLines(collapseRepeatedChoruses(segLines)));
+  }
+
   if (_twoCol) {
-    var _w = blockEls.map(function(h){ return h.indexOf('pl-pair') >= 0 ? 2 : 1; });
+    var _w = blockEls.map(function(h){
+      if (h.indexOf('pl-abc-embed') >= 0) return 4;
+      return h.indexOf('pl-pair') >= 0 ? 2 : 1;
+    });
     var _tot = _w.reduce(function(a,b){ return a + b; }, 0), _half = _tot / 2, _acc = 0, _split = blockEls.length;
     for (var _b = 0; _b < blockEls.length; _b++) { _acc += _w[_b]; if (_acc >= _half) { _split = _b + 1; break; } }
     linesHtml = '<div class="pd-col">' + blockEls.slice(0, _split).join('') + '</div>' +
@@ -14044,6 +14231,14 @@ ${body}
      (Valeson-ExtBla) has no distinct bold cut, so **bold** needs a text-stroke
      assist to actually read as bold in print/PDF output. */
   .pl-lyric strong, .pl-precision strong { font-weight:700; -webkit-text-stroke: 0.5pt currentColor; }
+  /* Embedded ABC notation block (see _splitEmbeddedABC/_renderAbcBlockForPrint)
+     — real sheet music, not raw ABC text. max-width:100% shrinks it to fit a
+     single column when the two-column layout is on. */
+  .pl-abc-embed { margin: 6pt 0; page-break-inside: avoid; break-inside: avoid; -webkit-column-break-inside: avoid; }
+  .pl-abc-embed svg { display:block; max-width:100%; height:auto; overflow:visible; }
+  .pl-abc-embed svg text, .pl-abc-embed svg path, .pl-abc-embed svg rect,
+  .pl-abc-embed svg ellipse, .pl-abc-embed svg polygon { fill:#1a1208 !important; }
+  .pl-abc-embed svg line { stroke:#1a1208 !important; }
   .pd-diagrams{display:flex;flex-wrap:wrap;gap:8px;margin-top:12pt;padding-top:8pt;border-top:1px solid #ccc;}
   .pd-diag{display:flex;flex-direction:column;align-items:center;gap:3px;}
   .pd-name{font-family:${chordFont};font-size:8pt;font-weight:bold;color:${chordColor};}
