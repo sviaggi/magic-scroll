@@ -2449,6 +2449,16 @@
   .embedded-abc-block svg polygon { fill: var(--c-notation-ink, #1a1208) !important; }
   .embedded-abc-block svg line    { stroke: var(--c-notation-ink, #1a1208) !important; }
   .embedded-abc-fallback { font-family: var(--font-mono); font-size: 0.82rem; white-space: pre-wrap; opacity: 0.8; }
+  /* Chord symbols above the notes (e.g. "A"/"Dm" in an intro riff) — marked
+     with .abc-chord-sym by _wireAbcChordDiagrams, same treatment as the
+     dedicated sheet-music view (#abc-notation) so they read as real chords
+     (chord font + colour) instead of plain notation-ink annotation text, and
+     get a pointer cursor for the hover/tap diagram wired on #tab-content. */
+  .embedded-abc-block svg text.abc-chord-sym,
+  .embedded-abc-block svg text.abc-chord-sym tspan { fill: var(--c-chord-text) !important; font-family: var(--font-chord) !important; }
+  .embedded-abc-block svg text.abc-chord-sym        { cursor: pointer; }
+  .embedded-abc-block svg text.abc-chord-sym:hover,
+  .embedded-abc-block svg text.abc-chord-sym:hover tspan { fill: var(--c-accent) !important; }
 
   /* ── BACKING TRACK BAR ──────────────────────────────────────────────────────
      Floating player panel for lead sheets — mirrors abc-player-bar.
@@ -4893,7 +4903,7 @@ const CHORD_TOKEN_RE = new RegExp(
 const PROSE_BLACKLIST = new Set([
   'an','as','at','be','by','do','go','if','in','is','it',
   'me','my','no','of','on','or','so','to','up','us','we',
-  'add','dim','and','are','but','can','did','for','get','got','had','has',
+  'add','dim','and','are','but','can','did','end','for','get','got','had','has',
   'her','him','his','how','its','let','may','not','now','off','old','one',
   'our','out','own','put','ran','run','say','see','set','she','six','ten',
   'the','two','use','was','who','why','yet','you',
@@ -5096,7 +5106,13 @@ function transposeText(text, s) {
         return transposed;
       } else if (forced) {
         // Partial token on a forced chord line: extract prefix, transpose it,
-        // reattach suffix — 'A7-9/E' +1 → 'A#7-9/E'
+        // reattach suffix — 'A7-9/E' +1 → 'A#7-9/E'. Skip whole ordinary
+        // words that happen to start with a note letter (e.g. "End") before
+        // even trying the prefix match — PROSE_BLACKLIST.has(m[1]...) below
+        // only catches the matched PREFIX ('e' out of "End"), which isn't
+        // itself a blacklisted word, so "End" would otherwise slip through
+        // as chord 'E' + leftover 'nd' and transpose to nonsense like 'Fnd'.
+        if (PROSE_BLACKLIST.has(tok.toLowerCase())) return tok;
         const m = tok.match(TPFX);
         if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
           return transposeChordToken(m[1], s) + tok.slice(m[1].length);
@@ -5870,6 +5886,14 @@ function _buildEmbeddedABCBlock(abcText, idx) {
         annotationfont: 'Palatino Linotype,Palatino,serif 10',
       },
     });
+    // Some embedded tunes carry chord symbols above the notes (e.g. "A"/"Dm"
+    // before a run of notes) — mark them the same way the dedicated
+    // sheet-music view does so they pick up chord-token font/colour (CSS,
+    // see .embedded-abc-block svg text.abc-chord-sym) and the shared
+    // #tab-content hover/tap listeners show a fingering diagram for them.
+    // visualTranspose above already shifts these symbols along with the
+    // notation, so they stay in sync with the rest of the song's transpose.
+    if (typeof _wireAbcChordDiagrams === 'function') _wireAbcChordDiagrams(notDiv);
   } catch (e) {
     notDiv.innerHTML = '';
     const pre = document.createElement('pre');
@@ -5899,6 +5923,14 @@ function renderChordLineInto(el, line) {
       el.appendChild(_chordTokenSpan(core));
       if (trail) el.appendChild(document.createTextNode(trail));
     } else if (isForced) {
+      // Skip whole ordinary words that happen to start with a note letter
+      // (e.g. "End") before trying the prefix match below — see the matching
+      // comment in transposeText's forced branch for why checking just the
+      // matched prefix ('e' out of "End") isn't enough on its own.
+      if (PROSE_BLACKLIST.has(part.toLowerCase())) {
+        el.appendChild(document.createTextNode(part));
+        return;
+      }
       const m = part.match(CPFX);
       if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
         el.appendChild(_chordTokenSpan(m[1]));
@@ -11236,24 +11268,30 @@ function positionTooltip(x, y) {
   });
 }
 
+// .abc-chord-sym covers chord symbols inside an embedded ABC block (see
+// _buildEmbeddedABCBlock/_wireAbcChordDiagrams) — those live inside
+// #tab-content (unlike the dedicated sheet-music view's #abc-notation,
+// which has its own separate listener below), so the same delegated
+// listeners that already handle .chord-token cover them too.
 document.getElementById('tab-content').addEventListener('mouseover', e => {
-  const span = e.target.closest && e.target.closest('.chord-token');
+  const span = e.target.closest && e.target.closest('.chord-token, .abc-chord-sym');
   if (span) showChordTooltip(span, e.clientX, e.clientY);
   else chordHoverEl.style.display = 'none';
 });
 document.getElementById('tab-content').addEventListener('mousemove', e => {
-  if (chordHoverEl.style.display === 'block' && e.target.closest('.chord-token'))
+  if (chordHoverEl.style.display === 'block' && e.target.closest('.chord-token, .abc-chord-sym'))
     positionTooltip(e.clientX, e.clientY);
 });
 document.getElementById('tab-content').addEventListener('mouseleave', () => {
   chordHoverEl.style.display = 'none';
 });
 // Tap on touch devices: show the diagram, auto-dismiss shortly after. Mirrors
-// the ABC-notation tap handler below — covers both classic chord-token spans
-// and the precision-chord floating labels (both share the .chord-token class).
+// the ABC-notation tap handler below — covers classic chord-token spans, the
+// precision-chord floating labels, and embedded-ABC chord symbols (all three
+// share/adopt the relevant class by the time they're in the DOM).
 let _tabChordTapT = null;
 document.getElementById('tab-content').addEventListener('click', e => {
-  const t = e.target.closest && e.target.closest('.chord-token');
+  const t = e.target.closest && e.target.closest('.chord-token, .abc-chord-sym');
   if (!t) return;
   showChordTooltip(t, e.clientX, e.clientY);
   clearTimeout(_tabChordTapT);
@@ -13732,10 +13770,19 @@ async function _renderAbcBlockForPrint(abcText, staffW) {
   document.body.appendChild(tmp);
   try {
     ABCJS.renderAbc(tmp, abcText, {
-      staffwidth: staffW, scale: 1.0,
+      staffwidth: staffW,
+      // Embedded notation is informationally sparse next to the lyrics
+      // around it — render it small (matching the app's own XS view ratio)
+      // instead of scaling up to fill the page/column.
+      scale: 0.72,
       paddingtop: 4, paddingbottom: 4,
       visualTranspose: transposeAmount || 0,
     });
+    // Mark any chord symbols ("A"/"Dm" above notes) so the print stylesheet's
+    // .pl-abc-embed text.abc-chord-sym rule can give them the chord font +
+    // colour instead of plain notation ink — same class the live view and
+    // the dedicated ABC-song print path use for this.
+    if (typeof _wireAbcChordDiagrams === 'function') _wireAbcChordDiagrams(tmp);
   } catch (e) {}
   // Two frames so layout settles before we read the SVG back out, matching
   // the timing the dedicated ABC-song print path already relies on.
@@ -13997,6 +14044,12 @@ ${body}
   const bgCSS = '';
 
   // ── Chord diagrams (primary instrument) ──
+  // Lives in the header now (see .pd-header below), sharing the row with
+  // title/artist instead of its own full-width strip at the bottom — that
+  // strip was pure dead weight below short songs and, worse, was exactly
+  // the content most likely to get sliced off by "Fit to one page"'s hard
+  // page-height clip on longer ones. Scaled down accordingly (was 0.9) since
+  // it only has a compact corner of the header to work with now.
   let diagHtml = '';
   if (includeDiagrams) {
     // Mirror the on-screen panel: transpose the chords, finger the shapes for the
@@ -14007,7 +14060,7 @@ ${body}
     let _cells = '';
     chords.forEach(name => {
       const shape = (typeof _fingering === 'function') ? _fingering(name, primaryCapo) : name;
-      const svg = renderChordDiagram(shape, diagInst, 0.9, '#1a1208');
+      const svg = renderChordDiagram(shape, diagInst, 0.45, '#1a1208');
       if (svg) _cells += '<div class="pd-diag"><div class="pd-name">' +
         escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+')</small>' : '') +
         '</div>' + svg + '</div>';
@@ -14167,9 +14220,12 @@ ${body}
   // flex columns, balanced by approximate height (a chord+lyric pair ≈ 2 lines).
   const _twoCol = multiCol;
   // Embedded ABC notation (see _splitEmbeddedABC) renders as real sheet music,
-  // not raw ABC text — narrower when columns are on so it actually fits a
-  // single column instead of overflowing/spanning both.
-  const _abcPrintStaffW = _twoCol ? 300 : 640;
+  // not raw ABC text. Kept small/compact (XS-view equivalent, see the scale
+  // option in _renderAbcBlockForPrint) rather than sized to fill the column —
+  // it's informationally sparse next to the surrounding lyrics, and staying
+  // narrow means it always fits a single column even when two-column layout
+  // is on, instead of overflowing or spanning both.
+  const _abcPrintStaffW = 260;
   var blockEls = [];
   const _segs = _splitEmbeddedABC(rawSrc);
   for (var si = 0; si < _segs.length; si++) {
@@ -14197,11 +14253,15 @@ ${body}
   }
 
   // ── Layout CSS ──
+  // Page margin lives entirely in #pd-wrap's padding (kept in one place, in
+  // sync with the "Fit to one page" height calc below, instead of the two
+  // independently-guessed values this used to be).
+  const _pdMarginV = 0.35, _pdMarginH = 0.45;   // inches
   const pageSize  = onePage
     ? '@page{size:8.5in 11in;margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}'
     : '@page{margin:0;} html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}';
   const scalingCSS = onePage
-    ? 'html,body{height:100%;} #pd-wrap{height:calc(11in - 1in);overflow:hidden;}'
+    ? 'html,body{height:100%;} #pd-wrap{height:calc(11in - ' + (_pdMarginV * 2) + 'in);overflow:hidden;}'
     : '';
 
   // ── Build the print document ──
@@ -14214,9 +14274,16 @@ ${body}
   ${scalingCSS}
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:${bodyFont};font-size:9pt;color:${textColor};${bgCSS}background-size:cover;background-attachment:local;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
-  #pd-wrap{padding:0.65in 0.75in;}
-  h1{font-family:${titleFont};font-size:18pt;font-weight:700;margin-bottom:2pt;}
-  h2{font-family:${titleFont};font-size:12pt;font-style:italic;font-weight:normal;margin-bottom:10pt;padding-bottom:6pt;border-bottom:1px solid #aaa;}
+  #pd-wrap{padding:${_pdMarginV}in ${_pdMarginH}in;}
+  /* Title/artist share this row with the chord-diagram strip (right-justified
+     into it) instead of the diagrams getting their own full-width block —
+     reclaims the dead space next to a short title, and keeps the diagrams
+     off the bottom of the page where "Fit to one page" is most likely to
+     clip them. */
+  .pd-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10pt;flex-wrap:wrap;margin-bottom:8pt;padding-bottom:6pt;border-bottom:1px solid #aaa;}
+  .pd-header-text{flex:1 1 auto;min-width:0;}
+  h1{font-family:${titleFont};font-size:16pt;font-weight:700;margin-bottom:2pt;}
+  h2{font-family:${titleFont};font-size:11pt;font-style:italic;font-weight:normal;}
   .pd-content{${_twoCol ? 'display:flex;gap:1.2em;align-items:flex-start;' : ''}}
   .pd-col{flex:1 1 0;min-width:0;}
   ${_twoCol ? '.pd-col:first-child{border-right:1px solid #ccc;padding-right:1.2em;}' : ''}
@@ -14239,9 +14306,14 @@ ${body}
   .pl-abc-embed svg text, .pl-abc-embed svg path, .pl-abc-embed svg rect,
   .pl-abc-embed svg ellipse, .pl-abc-embed svg polygon { fill:#1a1208 !important; }
   .pl-abc-embed svg line { stroke:#1a1208 !important; }
-  .pd-diagrams{display:flex;flex-wrap:wrap;gap:8px;margin-top:12pt;padding-top:8pt;border-top:1px solid #ccc;}
-  .pd-diag{display:flex;flex-direction:column;align-items:center;gap:3px;}
-  .pd-name{font-family:${chordFont};font-size:8pt;font-weight:bold;color:${chordColor};}
+  /* Chord symbols above the notes — marked .abc-chord-sym by
+     _wireAbcChordDiagrams — print in the chord font/colour instead of plain
+     notation ink, matching how they read as chords everywhere else. */
+  .pl-abc-embed svg text.abc-chord-sym,
+  .pl-abc-embed svg text.abc-chord-sym tspan { font-family:${chordFont} !important; fill:${chordColor} !important; }
+  .pd-diagrams{display:flex;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;gap:3pt 6pt;flex:0 1 auto;max-width:48%;}
+  .pd-diag{display:flex;flex-direction:column;align-items:center;gap:1pt;}
+  .pd-name{font-family:${chordFont};font-size:6pt;font-weight:bold;color:${chordColor};}
   svg{display:block;}
   /* ── TUNER PANEL ─────────────────────────────────────────────────────────────*/
   #tuner-panel { min-width: 280px; }
@@ -14369,10 +14441,14 @@ ${body}
 </style>
 </head><body>
 <div id="pd-wrap">
-  <h1>${escapeHtml(song.title || 'Untitled')}</h1>
-  <h2>${escapeHtml(song.artist || '')}</h2>
+  <div class="pd-header">
+    <div class="pd-header-text">
+      <h1>${escapeHtml(song.title || 'Untitled')}</h1>
+      <h2>${escapeHtml(song.artist || '')}</h2>
+    </div>
+    ${diagHtml}
+  </div>
   <div class="pd-content">${linesHtml}</div>
-  ${diagHtml}
 </div>
 <script>${_printReflowScript()}<\/script>
 </body></html>`;
