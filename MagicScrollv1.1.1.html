@@ -2427,6 +2427,29 @@
   #abc-notation svg polygon { fill: var(--c-notation-ink, #1a1208) !important; }
   #abc-notation svg line    { stroke: var(--c-notation-ink, #1a1208) !important; }
 
+  /* ── Embedded ABC block inside an ordinary song sheet ──────────────────────
+     A short passage of sheet-music notation (e.g. an intro riff) pasted
+     directly into a plain song's chords/lyrics, detected by _splitEmbeddedABC
+     and rendered inline via ABCJS alongside the surrounding text. Same ink
+     rules as the dedicated ABC view (#abc-notation) so it matches the theme;
+     bordered/inset so it reads as a distinct notation block, not lyrics. */
+  .embedded-abc-block {
+    overflow-x: auto;
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    background: var(--c-notation-bg, transparent);
+    border: 1px solid var(--c-card-border);
+    border-radius: 6px;
+    padding: 8px 6px 4px;
+    margin: 10px 0;
+  }
+  .embedded-abc-block svg text    { fill: var(--c-notation-ink, #1a1208) !important; }
+  .embedded-abc-block svg path,
+  .embedded-abc-block svg rect,
+  .embedded-abc-block svg ellipse,
+  .embedded-abc-block svg polygon { fill: var(--c-notation-ink, #1a1208) !important; }
+  .embedded-abc-block svg line    { stroke: var(--c-notation-ink, #1a1208) !important; }
+  .embedded-abc-fallback { font-family: var(--font-mono); font-size: 0.82rem; white-space: pre-wrap; opacity: 0.8; }
+
   /* ── BACKING TRACK BAR ──────────────────────────────────────────────────────
      Floating player panel for lead sheets — mirrors abc-player-bar.
      Fixed width so button state changes never resize the bar.
@@ -3548,6 +3571,7 @@
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites">⬇ Export monospace</button>
       </div>
       <span id="save-status"></span>
+      <button id="btn-chordview" title="Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)" style="margin-left:auto;">≡ Condensed view</button>
     </div>
     <div id="song-card">
       <div class="song-header">
@@ -3596,14 +3620,18 @@
         <textarea id="song-editor" spellcheck="false"
           placeholder="Paste or type your song here.
 
-Put chords on their own line above lyrics:
+[Verse]
+Type out your lyrics... take your time, get 'em right
+No columns, no rulers, no fuss is in sight
+Tap &quot;Add Chords&quot; above, and pick the right spot
+Over words, over space, over all, over thought
 
-Am         C
-This is a lyric line
-G           F
-Another lyric line
-
-[Verse], [Chorus] section headers work too."></textarea>
+[Chorus]
+[G]Like this, a chord [D] or a strum where you need[D]
+C                                D                                      Em                     G
+It'll format real pretty! Don't you think it looks clean?
+It's fast and it's simple, it's free, (there's no toll!)
+I hope you enjoy using your magic scroll!"></textarea>
         <div id="precision-hint" class="precision-hint">Click a word (or a spot inside it) to drop a chord there. Click an existing chord to edit or remove it.</div>
         <div id="precision-canvas" class="precision-canvas"></div>
       </div>
@@ -3800,9 +3828,7 @@ Another lyric line
       </div>
     </div>
     <div id="new-song-format">
-      Chord lines are auto-detected — put chords on their own line above lyrics:<br>
-      <code>Am&nbsp;&nbsp;&nbsp;&nbsp;C&nbsp;&nbsp;&nbsp;G</code><br>
-      <code>Here are the lyrics</code>
+      Just type your lyrics — the editor that opens has an <strong>Add Chords</strong> button, tap a word to drop a chord right on it. (Old two-line sheets with chords on their own line still paste in fine — they get converted automatically.)
     </div>
     <div id="ns-abc-section" style="display:none;">
       <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste ABC Notation below — title and composer are extracted automatically</label>
@@ -4867,14 +4893,28 @@ const PROSE_BLACKLIST = new Set([
   'the','two','use','was','who','why','yet','you',
 ]);
 
+// "N.C." / "NC" / "N.C" / "No Chord" / "None" (case-insensitive, optional
+// periods/spaces) — the standard "no chord" marker used to explicitly call
+// out a beat/bar where nothing is played. Treated as a real (just empty)
+// chord token everywhere a chord would be recognised — {NC}/[NC.]/[None]/
+// (N.C.) all count, it renders with normal chord-token styling instead of
+// falling through as plain lyric text, and it transposes/simplifies as a
+// no-op for free since those helpers already bail out on any token that
+// doesn't start with a note letter A-G.
+const NO_CHORD_RE = /^(?:N\.?\s*C\.?|No\s*Chord|None)$/i;
+const NO_CHORD_PREFIX_RE = /^(?:N\.?\s*C\.?|No\s*Chord|None)/i;   // prefix form for round-bracket parsing (see _parseParenChordContent)
+function isNoChordToken(tok) { return NO_CHORD_RE.test(cleanToken(tok)); }
+
 // Tokens allowed on a chord line that are not chords:
 //   x2 X3 ×4        repetition markers
 //   (x4) (4)        parenthesised repetition
 //   %               repeat-bar symbol
-//   N.C. N.C        no-chord marker
 //   [Intro] [Verse] section tags
 //   pure punctuation runs (pipes, brackets, dashes used as separators)
-const ANNOTATION_RE = /^(?:[xX×]\d+|\(\s*[xX×]?\d+\s*\)|\d+|%|N\.C\.?|\[[^\]]*\]|[\[\]()\-|\\.,*\/]+)$/;
+// (N.C./NC/None used to live here as a non-chord annotation — it's now a
+// real isChordToken() match instead, see NO_CHORD_RE above, so it renders
+// and behaves like any other chord rather than being specially skipped.)
+const ANNOTATION_RE = /^(?:[xX×]\d+|\(\s*[xX×]?\d+\s*\)|\d+|%|\[[^\]]*\]|[\[\]()\-|\\.,*\/]+)$/;
 
 // cleanToken: peel off parens to get the actual chord or annotation inside.
 // order of checks matters here — do the full-wrap case first or (F#) becomes ''
@@ -4891,6 +4931,7 @@ function cleanToken(tok) {
 function isChordToken(tok) {
   const t = cleanToken(tok);
   if (!t) return false;
+  if (NO_CHORD_RE.test(t)) return true;
   if (PROSE_BLACKLIST.has(t.toLowerCase())) return false;
   return CHORD_TOKEN_RE.test(t);
 }
@@ -4929,6 +4970,13 @@ function _parseParenChordContent(content) {
   let i = 0, foundChord = false;
   while (i < content.length) {
     const rest = content.slice(i);
+    const ncm = NO_CHORD_PREFIX_RE.exec(rest);
+    if (ncm && ncm[0].length > 0) {
+      parts.push({ type: 'chord', value: ncm[0] });
+      i += ncm[0].length;
+      foundChord = true;
+      continue;
+    }
     const cm = CHORD_PREFIX_RE.exec(rest);
     if (cm && cm[0].length > 0 && isChordToken(cm[0])) {
       parts.push({ type: 'chord', value: cm[0] });
@@ -5081,8 +5129,8 @@ function extractChords(text) {
       while ((m = INLINE_CHORD_RE.exec(line))) {
         if (_inlineMatchIsRound(m)) {
           const parsed = _parseParenChordContent(m[3]);
-          if (parsed) parsed.chords.forEach(c => found.add(c));
-        } else if (isChordToken(_inlineMatchContent(m))) {
+          if (parsed) parsed.chords.forEach(c => { if (!isNoChordToken(c)) found.add(c); });
+        } else if (isChordToken(_inlineMatchContent(m)) && !isNoChordToken(_inlineMatchContent(m))) {
           found.add(_inlineMatchContent(m));
         }
       }
@@ -5092,7 +5140,10 @@ function extractChords(text) {
     const expanded = splitPipeDelimited(line);
     const stripped = stripParenLyrics(expanded);
     stripped.trim().split(/\s+/).filter(Boolean).forEach(tok => {
-      if (isChordToken(tok)) found.add(cleanToken(tok));
+      // N.C./NC/None is a real chord token (see NO_CHORD_RE) but has no
+      // fingering — excluded here so it doesn't add an empty tile to the
+      // Chord Diagrams strip or the permanent-transpose target list.
+      if (isChordToken(tok) && !isNoChordToken(tok)) found.add(cleanToken(tok));
     });
   });
   return _groupChordsByAppearance([...found]);
@@ -5191,6 +5242,63 @@ function parsePrecisionLine(line) {
 // the raw line, and the <rt> itself carries data-raw-start/end/chord and
 // shows the raw untransposed tag (no capo/fingering substitution) since
 // that's what's actually being edited.
+// ── MARKDOWN WITHIN CHORD-TAGGED LINES ──────────────────────────────────────
+// buildPrecisionLineEl/buildBracketLineEl split a line into alternating
+// text/chord segments (parsePrecisionLine) and render each independently, so
+// a **bold**/*italic*/_underline_ span with a chord marker sitting in the
+// middle of it can't be recognised by a single regex pass the way applyMarkup
+// handles a whole chord-free line — each half of the split only ever sees ONE
+// of the pair of delimiters, so the formatting silently fails to apply and
+// the raw **/_/* characters show up literally instead.
+//
+// This streams the same three markers across every text segment on a line
+// via shared `state`, so formatting that opens before a chord and closes
+// after it stays applied on both sides of the chord — while the chord marker
+// itself, rendered separately by the caller, is never wrapped in any of
+// these tags at all (chords keep their own fixed chord-token styling
+// regardless of what markdown surrounds them in the source).
+function _newMarkdownState() { return { bold: false, italic: false, underline: false }; }
+
+function _renderMarkdownSegment(text, state) {
+  const frag = document.createDocumentFragment();
+  const stack = [];              // [{key, el}] — el is where new nodes currently go
+  let target = frag;
+  function open(key, tag) {
+    const el = document.createElement(tag);
+    target.appendChild(el);
+    stack.push({ key, el });
+    target = el;
+    state[key] = true;
+  }
+  // Re-establish whatever was already open when this segment started (e.g. a
+  // bold span that opened in an earlier segment, before an interposed chord).
+  if (state.bold)      open('bold', 'strong');
+  if (state.italic)    open('italic', 'em');
+  if (state.underline) open('underline', 'u');
+
+  let buf = '';
+  function flush() { if (buf) { target.appendChild(document.createTextNode(buf)); buf = ''; } }
+  function toggle(key, tag) {
+    flush();
+    if (state[key]) {
+      const idx = stack.map(s => s.key).lastIndexOf(key);
+      if (idx !== -1) { stack.length = idx; target = stack.length ? stack[stack.length - 1].el : frag; }
+      state[key] = false;
+    } else {
+      open(key, tag);
+    }
+  }
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '*' && text[i + 1] === '*') { toggle('bold', 'strong'); i += 2; continue; }
+    if (text[i] === '*') { toggle('italic', 'em'); i += 1; continue; }
+    if (text[i] === '_') { toggle('underline', 'u'); i += 1; continue; }
+    buf += text[i]; i += 1;
+  }
+  flush();
+  return frag;
+}
+
 function buildPrecisionLineEl(line, opts) {
   opts = opts || {};
   const el = document.createElement('div');
@@ -5198,9 +5306,14 @@ function buildPrecisionLineEl(line, opts) {
   if (opts.interactive) el.dataset.rawLine = line;
   const segs = parsePrecisionLine(line);
   if (segs.length === 0) { el.appendChild(document.createTextNode('​')); return el; }
+  // Tracks **/_/* open/close state across this line's text segments so
+  // formatting spanning a chord marker still renders on both sides of it
+  // (see _renderMarkdownSegment) — skipped in interactive mode, which shows
+  // raw text for precise click-targeting instead of formatted output.
+  const mdState = opts.interactive ? null : _newMarkdownState();
 
   function textNode(seg) {
-    if (!opts.interactive) return document.createTextNode(seg.value);
+    if (!opts.interactive) return _renderMarkdownSegment(seg.value, mdState);
     const span = document.createElement('span');
     span.className = 'txt-seg';
     span.dataset.rawStart = seg.rawStart;
@@ -5306,6 +5419,57 @@ function buildPrecisionLineEl(line, opts) {
       i += 1;
     }
   }
+  return el;
+}
+
+// ── BRACKET CHORD VIEW ───────────────────────────────────────────────────────
+// The compact alternative to buildPrecisionLineEl's ruby "chord floats above
+// the word" display: each {Chord}/[Chord]/(Chord ...) marker renders inline,
+// brackets and all, right where it sits in the text — same line-height as an
+// ordinary lyric line, no extra vertical space reserved for a floating label.
+// This is what the global "Chord View" toggle (isBracketChordView) switches
+// to; more compact means more of the song fits on screen at once.
+//
+// Text segments run through the same _renderMarkdownSegment streaming
+// tokenizer as buildPrecisionLineEl, so **bold**/*italic*/_underline_ spans
+// that cross a chord marker still render correctly on both sides of it, and
+// the two view modes stay consistent in what they support — only chord
+// POSITIONING differs between them.
+function buildBracketLineEl(line, opts) {
+  opts = opts || {};
+  const el = document.createElement('div');
+  if (opts.interactive) el.dataset.rawLine = line;
+  const segs = parsePrecisionLine(line);
+  if (segs.length === 0) { el.appendChild(document.createTextNode('​')); return el; }
+  // Same **/_/* streaming state as buildPrecisionLineEl — see
+  // _renderMarkdownSegment for why this can't just be a single regex pass.
+  const mdState = opts.interactive ? null : _newMarkdownState();
+  segs.forEach(seg => {
+    if (seg.type === 'text') {
+      el.appendChild(opts.interactive ? document.createTextNode(seg.value) : _renderMarkdownSegment(seg.value, mdState));
+      return;
+    }
+    const openCh = line[seg.rawStart];
+    if (openCh === '(') {
+      // Round-bracket strum/turnaround annotations carry extra non-chord text
+      // baked into their value (e.g. "G7 ////", "F-Bb-F-Bb-C") — show the
+      // whole thing verbatim rather than picking apart which pieces are
+      // chords for individual fingering conversion.
+      const chip = document.createElement('span');
+      chip.className = 'chord-token';
+      chip.textContent = line.slice(seg.rawStart, seg.rawEnd);
+      el.appendChild(chip);
+      return;
+    }
+    // {Chord} / [Chord] — a single bare chord name. Route it through
+    // _chordTokenSpan so capo/secondary-instrument fingering conversion
+    // matches what the ruby view already shows; only the literal bracket
+    // characters stay outside the styled span.
+    const closeCh = openCh === '{' ? '}' : ']';
+    el.appendChild(document.createTextNode(openCh));
+    el.appendChild(_chordTokenSpan(seg.value));
+    el.appendChild(document.createTextNode(closeCh));
+  });
   return el;
 }
 
@@ -5588,23 +5752,136 @@ function _chordTokenSpan(chordText) {
   return span;
 }
 
-function renderTabContent() {
-  if (currentIdx < 0) return;
-  const song = songs[currentIdx];
-  const tc = document.getElementById('tab-content');
-
-  if (song._source === 'html' && song.raw_html) {
-    tc.classList.add('html-mode');
-    tc.innerHTML = song.raw_html;
-    tc.querySelectorAll('script, style').forEach(el => el.remove());
-    return;
+// ── EMBEDDED ABC NOTATION — a tune transcribed as sheet music (e.g. a short
+// intro riff) pasted directly into an otherwise ordinary plain song, above or
+// between the regular chords/lyrics. An ABC tune always opens with an X:
+// (reference number) header field per the ABC standard — the same signal
+// _abcTuneBlocks uses to split a whole .abc file into tunes — so scanning a
+// larger document for that marker lets us carve just the tune's lines
+// (header fields + note body) out of the surrounding text. The tune runs
+// until a blank line, a new X: (a second embedded tune), or the end of the
+// content — matching how a user would naturally paste it in with a blank
+// line separating it from the lyrics that follow, exactly like the reference
+// "N.C. ... intro riff ABC block, blank line, then lyrics" layout this was
+// built against.
+function _splitEmbeddedABC(text) {
+  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  const segments = [];   // { type:'text'|'abc', text }
+  let curText = [];
+  function flushText() {
+    if (curText.length) { segments.push({ type: 'text', text: curText.join('\n') }); curText = []; }
   }
+  let i = 0;
+  while (i < lines.length) {
+    if (/^X:\s*\d/.test(lines[i])) {
+      flushText();
+      const abcLines = [lines[i]];
+      i++;
+      while (i < lines.length && lines[i].trim() !== '' && !/^X:\s*\d/.test(lines[i])) {
+        abcLines.push(lines[i]);
+        i++;
+      }
+      segments.push({ type: 'abc', text: abcLines.join('\n') });
+      continue;
+    }
+    curText.push(lines[i]);
+    i++;
+  }
+  flushText();
+  return segments;
+}
 
-  tc.classList.remove('html-mode');
-  const rawSrc = song.tab_content || song.content || song.tab || '';
+// Renders one embedded ABC tune into a container, matching the sizing logic
+// renderABCSong uses for the dedicated sheet-music view (minus the per-tune
+// UI/playback controls — this is a read-only inline block; the app's own
+// permanent transpose still applies via visualTranspose so it stays in sync
+// with the rest of the song). Falls back to a plain preformatted block if
+// ABCJS hasn't loaded, same as renderABCSong does.
+function _buildEmbeddedABCBlock(abcText, idx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'embedded-abc-block';
+  const notDiv = document.createElement('div');
+  notDiv.id = 'embedded-abc-notation-' + idx + '-' + (currentIdx >= 0 ? currentIdx : 0);
+  wrap.appendChild(notDiv);
+  if (typeof ABCJS === 'undefined' || typeof ABCJS.renderAbc !== 'function') {
+    const pre = document.createElement('pre');
+    pre.className = 'embedded-abc-fallback';
+    pre.textContent = abcText;
+    notDiv.appendChild(pre);
+    return wrap;
+  }
+  const _abcIsMobile = window.innerWidth <= 600;
+  const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
+  const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+  const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
+  const staffW = Math.max(200, Math.round(_abcContent / _abcZoom));
+  try {
+    ABCJS.renderAbc(notDiv.id, abcText, {
+      responsive: 'resize', add_classes: true,
+      staffwidth: staffW,
+      wrap: { minSpacing: 1.6, maxSpacing: 2.7 },
+      paddingbottom: 15, paddingtop: 10,
+      visualTranspose: transposeAmount || 0,
+      format: {
+        titlefont:    'Palatino Linotype,Palatino,serif 13',
+        subtitlefont: 'Palatino Linotype,Palatino,serif 11',
+        composerfont: 'Palatino Linotype,Palatino,serif 10',
+        tempofont:    'Palatino Linotype,Palatino,serif 9',
+        vocalfont:    'Palatino Linotype,Palatino,serif 10',
+        gchordfont:   'Palatino Linotype,Palatino,serif 13',
+        annotationfont: 'Palatino Linotype,Palatino,serif 10',
+      },
+    });
+  } catch (e) {
+    notDiv.innerHTML = '';
+    const pre = document.createElement('pre');
+    pre.className = 'embedded-abc-fallback';
+    pre.textContent = abcText;
+    notDiv.appendChild(pre);
+  }
+  return wrap;
+}
+
+// Renders chord/lyric line's parts (chord tokens + text) into `el`.
+const CPFX = /^([A-G][b#]?(?:maj|min|sus|add|aug|dim|mmaj|dom|m|M)?(?:[0-9]{1,2})?(?:[b#][0-9]{1,2})?(?:\/[A-G][b#]?)?)/;
+function renderChordLineInto(el, line) {
+  const isForced = line.startsWith('!');
+  const dispLine = (line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line;
+  dispLine.split(/(\s+)/).forEach(part => {
+    if (/^\s+$/.test(part)) {
+      el.appendChild(document.createTextNode(part));
+    } else if (isChordToken(part)) {
+      el.appendChild(_chordTokenSpan(part));
+    } else if (stripPausePunct(part) && stripPausePunct(part) !== part && isChordToken(stripPausePunct(part))) {
+      // e.g. "G," or "Am--" — a chord with a pause/strum marker stuck to it
+      const lead  = (part.match(/^[,\-\/\\]+/)  || [''])[0];
+      const trail = (part.match(/[,\-\/\\]+$/) || [''])[0];
+      const core  = part.slice(lead.length, part.length - trail.length);
+      if (lead)  el.appendChild(document.createTextNode(lead));
+      el.appendChild(_chordTokenSpan(core));
+      if (trail) el.appendChild(document.createTextNode(trail));
+    } else if (isForced) {
+      const m = part.match(CPFX);
+      if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
+        el.appendChild(_chordTokenSpan(m[1]));
+        el.appendChild(document.createTextNode(part.slice(m[1].length)));
+      } else { el.appendChild(document.createTextNode(part)); }
+    } else {
+      el.appendChild(document.createTextNode(part));
+    }
+  });
+}
+
+// Builds the normal chord/lyric/tab DocumentFragment for a chunk of plain
+// song text — this is the same per-line pipeline renderTabContent always
+// ran, factored out so it can run once per TEXT segment around any embedded
+// ABC blocks instead of once over the whole raw source (ABC notation lines
+// like `"A7"A2A2G4...` aren't chord/lyric syntax and must never pass through
+// transposeText or the chord-line classifier).
+function _buildPlainSongFragment(rawText) {
   // Keep markers intact through transposeText — it needs them to identify
   // forced chord/lyric lines. Markers are stripped per-line in the DOM loop.
-  let transposed = transposeText(rawSrc, transposeAmount);
+  let transposed = transposeText(rawText, transposeAmount);
   // if simplified view is active, reduce all chord tokens to root form for display only
   if (isSimplifiedView) {
     transposed = transposed.split('\n').map(line => {
@@ -5630,36 +5907,6 @@ function renderTabContent() {
     }).join('\n');
   }
 
-  // Renders a chord/lyric line's parts (chord tokens + text) into `el`.
-  const CPFX = /^([A-G][b#]?(?:maj|min|sus|add|aug|dim|mmaj|dom|m|M)?(?:[0-9]{1,2})?(?:[b#][0-9]{1,2})?(?:\/[A-G][b#]?)?)/;
-  function renderChordLineInto(el, line) {
-    const isForced = line.startsWith('!');
-    const dispLine = (line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line;
-    dispLine.split(/(\s+)/).forEach(part => {
-      if (/^\s+$/.test(part)) {
-        el.appendChild(document.createTextNode(part));
-      } else if (isChordToken(part)) {
-        el.appendChild(_chordTokenSpan(part));
-      } else if (stripPausePunct(part) && stripPausePunct(part) !== part && isChordToken(stripPausePunct(part))) {
-        // e.g. "G," or "Am--" — a chord with a pause/strum marker stuck to it
-        const lead  = (part.match(/^[,\-\/\\]+/)  || [''])[0];
-        const trail = (part.match(/[,\-\/\\]+$/) || [''])[0];
-        const core  = part.slice(lead.length, part.length - trail.length);
-        if (lead)  el.appendChild(document.createTextNode(lead));
-        el.appendChild(_chordTokenSpan(core));
-        if (trail) el.appendChild(document.createTextNode(trail));
-      } else if (isForced) {
-        const m = part.match(CPFX);
-        if (m && !PROSE_BLACKLIST.has(m[1].toLowerCase())) {
-          el.appendChild(_chordTokenSpan(m[1]));
-          el.appendChild(document.createTextNode(part.slice(m[1].length)));
-        } else { el.appendChild(document.createTextNode(part)); }
-      } else {
-        el.appendChild(document.createTextNode(part));
-      }
-    });
-  }
-
   const frag = document.createDocumentFragment();
   const lines = transposed.split('\n');
   let curBlock = null;   // active .tab-block (monospace) while inside a tab run
@@ -5681,7 +5928,7 @@ function renderTabContent() {
     }
     curBlock = null;
     if (lineHasInlineChords(line)) {
-      frag.appendChild(buildPrecisionLineEl(line));
+      frag.appendChild(isBracketChordView ? buildBracketLineEl(line) : buildPrecisionLineEl(line));
       return;
     }
     const lineEl = document.createElement('div');
@@ -5693,6 +5940,34 @@ function renderTabContent() {
       if (!populated && !lineEl.innerHTML) lineEl.textContent = dispLine;
     }
     frag.appendChild(lineEl);
+  });
+  return frag;
+}
+
+function renderTabContent() {
+  if (currentIdx < 0) return;
+  const song = songs[currentIdx];
+  const tc = document.getElementById('tab-content');
+
+  if (song._source === 'html' && song.raw_html) {
+    tc.classList.add('html-mode');
+    tc.innerHTML = song.raw_html;
+    tc.querySelectorAll('script, style').forEach(el => el.remove());
+    return;
+  }
+
+  tc.classList.remove('html-mode');
+  const rawSrc = song.tab_content || song.content || song.tab || '';
+
+  const frag = document.createDocumentFragment();
+  const segs = _splitEmbeddedABC(rawSrc);
+  let abcIdx = 0;
+  segs.forEach(seg => {
+    if (seg.type === 'abc') {
+      frag.appendChild(_buildEmbeddedABCBlock(seg.text, abcIdx++));
+    } else {
+      frag.appendChild(_buildPlainSongFragment(seg.text));
+    }
   });
 
   tc.classList.remove('tab-mode');
@@ -5760,6 +6035,37 @@ let isSimplifiedView = false;
 let isLsEditMode  = false;  // lead-sheet edit toggle
 let _lsEditSnapshot = null; // deep clone of the song at edit-mode entry, for Cancel
 let _lsEditSong   = null;   // tracks which song owns the current mode
+
+// Global "Chord View" toggle — switches every song/lead-sheet between the
+// ruby "chords float above the word" display (buildPrecisionLineEl) and the
+// compact inline "[Chord]" display (buildBracketLineEl). Deliberately a
+// single global rather than a per-song setting, and persisted to localStorage
+// (like line spacing) rather than reset on load — the whole point is that it
+// stays exactly as the user left it while they move between songs/lead
+// sheets, without having to re-toggle it every time they open something new.
+let isBracketChordView = false;
+
+function applyChordView(on) {
+  isBracketChordView = on;
+  const btn = document.getElementById('btn-chordview');
+  if (btn) {
+    btn.classList.toggle('active', on);
+    btn.title = on
+      ? 'Showing chords inline in [brackets] — click to float them above the words instead'
+      : 'Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)';
+  }
+  localStorage.setItem('ug_chordview', on ? '1' : '0');
+  // Re-render whichever view is active
+  if (currentIdx >= 0 && songs[currentIdx]._source === 'ireal') {
+    renderIRealSong(songs[currentIdx]);
+  } else if (currentIdx >= 0) {
+    renderTabContent();
+  }
+  // If the song editor's live preview is open, refresh it too.
+  if (typeof updateEditorPreview === 'function' && document.getElementById('tab-content-preview')) {
+    updateEditorPreview();
+  }
+}
 
 function applySimplifiedView(on) {
   isSimplifiedView = on;
@@ -11346,6 +11652,20 @@ document.getElementById('btn-simplify').addEventListener('click', () => {
   applySimplifiedView(!isSimplifiedView);
 });
 
+document.getElementById('btn-chordview').addEventListener('click', () => {
+  applyChordView(!isBracketChordView);
+});
+// Restore on load — this is a persistent global preference (see isBracketChordView),
+// not a per-session default, so it survives closing and reopening the app.
+(function(){
+  if (localStorage.getItem('ug_chordview') === '1') {
+    isBracketChordView = true;
+    const btn = document.getElementById('btn-chordview');
+    btn.classList.add('active');
+    btn.title = 'Showing chords inline in [brackets] — click to float them above the words instead';
+  }
+})();
+
 // ── MULTI-SELECT ──────────────────────────────────────────────────────────────
 let selectedSongs = new Set();
 
@@ -11956,29 +12276,39 @@ function updateEditorPreview() {
   document.getElementById('preview-artist').textContent = artist;
   const tc   = document.getElementById('tab-content-preview');
   const frag = document.createDocumentFragment();
-  raw.split('\n').forEach(line => {
-    if (lineHasInlineChords(line)) {
-      frag.appendChild(buildPrecisionLineEl(line));
-      return;
-    }
-    const el = document.createElement('div');
-    if (lineIsChordLine(line)) {
-      line.split(/(\s+)/).forEach(part => {
-        if (/^\s+$/.test(part)) {
-          el.appendChild(document.createTextNode(part));
-        } else if (isChordToken(part)) {
-          const sp = document.createElement('span');
-          sp.className = 'chord-token';
-          sp.textContent = part;
-          el.appendChild(sp);
-        } else {
-          el.appendChild(document.createTextNode(part));
-        }
-      });
-    } else {
-      el.textContent = line;
-    }
-    frag.appendChild(el);
+  function renderPlainLines(text) {
+    text.split('\n').forEach(line => {
+      if (lineHasInlineChords(line)) {
+        frag.appendChild(isBracketChordView ? buildBracketLineEl(line) : buildPrecisionLineEl(line));
+        return;
+      }
+      const el = document.createElement('div');
+      if (lineIsChordLine(line)) {
+        line.split(/(\s+)/).forEach(part => {
+          if (/^\s+$/.test(part)) {
+            el.appendChild(document.createTextNode(part));
+          } else if (isChordToken(part)) {
+            const sp = document.createElement('span');
+            sp.className = 'chord-token';
+            sp.textContent = part;
+            el.appendChild(sp);
+          } else {
+            el.appendChild(document.createTextNode(part));
+          }
+        });
+      } else {
+        el.textContent = line;
+      }
+      frag.appendChild(el);
+    });
+  }
+  // Embedded ABC blocks (see _splitEmbeddedABC) render live in the editor
+  // preview too, same as the read view, so a pasted sheet-music riff shows up
+  // as real notation while you're still editing the rest of the song.
+  let _pvAbcIdx = 0;
+  _splitEmbeddedABC(raw).forEach(seg => {
+    if (seg.type === 'abc') frag.appendChild(_buildEmbeddedABCBlock(seg.text, 'preview-' + (_pvAbcIdx++)));
+    else renderPlainLines(seg.text);
   });
   tc.innerHTML = '';
   tc.appendChild(frag);
@@ -13710,6 +14040,10 @@ ${body}
   .pl-precision{white-space:pre-wrap;line-height:1.5;margin:6pt 0;page-break-inside:avoid;}
   .pl-precision ruby{ruby-position:over;ruby-align:start;}
   .pl-precision rt{font-size:1em;line-height:1;text-align:center;ruby-align:start;}
+  /* Same single-weight-font problem as on screen: the default body/chord font
+     (Valeson-ExtBla) has no distinct bold cut, so **bold** needs a text-stroke
+     assist to actually read as bold in print/PDF output. */
+  .pl-lyric strong, .pl-precision strong { font-weight:700; -webkit-text-stroke: 0.5pt currentColor; }
   .pd-diagrams{display:flex;flex-wrap:wrap;gap:8px;margin-top:12pt;padding-top:8pt;border-top:1px solid #ccc;}
   .pd-diag{display:flex;flex-direction:column;align-items:center;gap:3px;}
   .pd-name{font-family:${chordFont};font-size:8pt;font-weight:bold;color:${chordColor};}
@@ -13808,11 +14142,25 @@ ${body}
   .tuner-close   { color:#ffaa22; }
   .tuner-off     { color:var(--c-chrome-text); opacity:0.6; }
   /* ── RICH TEXT MARKUP ────────────────────────────────────────────────────── */
-  .lyric-line strong { font-weight: 700; }
-  .lyric-line em     { font-style: italic; }
-  .lyric-line u      { text-decoration: underline; }
-  .lyric-line a      { color: var(--c-accent); text-decoration: underline; }
-  .lyric-line a:hover{ opacity: 0.8; }
+  /* Selectors here used to target a .lyric-line class that nothing in the
+     renderer actually applies (dead rule) — rescoped to the real song-body
+     containers (#tab-content covers plain songs + precision/bracket chord
+     view, #tab-content-preview is the live editor preview, .ls-notes-view is
+     the lead-sheet notes/lyrics read view).
+     The default body/chord font (Valeson-ExtBla) ships only one weight, so
+     font-weight:700 alone renders identically to regular text — there's no
+     bolder cut for the browser to switch to. Adding a thin text-stroke gives
+     **bold** a real visual difference even on single-weight display fonts,
+     while still using true bold when the active font (e.g. Courier Prime)
+     does have one. */
+  #tab-content strong, #tab-content-preview strong, .ls-notes-view strong {
+    font-weight: 700;
+    -webkit-text-stroke: 0.55px currentColor;
+  }
+  #tab-content em, #tab-content-preview em, .ls-notes-view em     { font-style: italic; }
+  #tab-content u, #tab-content-preview u, .ls-notes-view u        { text-decoration: underline; }
+  #tab-content a, #tab-content-preview a, .ls-notes-view a        { color: var(--c-accent); text-decoration: underline; }
+  #tab-content a:hover, #tab-content-preview a:hover, .ls-notes-view a:hover { opacity: 0.8; }
   .markup-yt-wrap { margin: 8px 0; }
   .markup-yt-thumb {
     display: inline-flex; align-items: center; gap: 8px;
@@ -16669,7 +17017,7 @@ function _renderNotesView(text, container){
     // Chords toggle look identical whether you're viewing a song or a lead
     // sheet's lyrics.
     if(lineHasInlineChords(line)){
-      container.appendChild(buildPrecisionLineEl(line));
+      container.appendChild(isBracketChordView ? buildBracketLineEl(line) : buildPrecisionLineEl(line));
       return;
     }
     const lineEl=document.createElement('div');
@@ -17194,10 +17542,23 @@ function renderIRealSong(song){
   saveMenu.appendChild(urlBtn);
   saveMenu.appendChild(pubLsBtn);
 
+  // Rebuilt every render (this whole toolbar is), so reflect current global
+  // state each time rather than needing a separate sync call.
+  const chordViewBtn=document.createElement('button');
+  chordViewBtn.id='btn-ls-chordview';
+  chordViewBtn.textContent='≡ Condensed view';
+  chordViewBtn.style.marginLeft='auto';
+  chordViewBtn.classList.toggle('active', isBracketChordView);
+  chordViewBtn.title = isBracketChordView
+    ? 'Showing chords inline in [brackets] — click to float them above the words instead'
+    : 'Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)';
+  chordViewBtn.addEventListener('click',()=>{ applyChordView(!isBracketChordView); });
+
   irealTb.appendChild(editLsBtn);
   if (cancelLsBtn) irealTb.appendChild(cancelLsBtn);
   irealTb.appendChild(saveMenuBtn);
   irealTb.appendChild(saveMenu);
+  irealTb.appendChild(chordViewBtn);
   _wireTbDropdown(saveMenuBtn, saveMenu);
 
 
