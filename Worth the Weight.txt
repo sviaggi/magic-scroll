@@ -1,6 +1,3 @@
-----------------------------------------------------------------------
-Song name: Worth the Weight  by  Spencer California
-----------------------------------------------------------------------
 ----------------------------------------------------
 Song name: Worth the Weight  by  Spencer California
 ----------------------------------------------------
@@ -25,6 +22,21 @@ Come al[G]ong with me, when your well runs dry
 Let me c[D]arry you, when the day grows late 
 After a[G]ll this time, you are…[A]
 Worth the weight [D]
+
+X:1
+M: 4/4
+L: 1/16
+K: D
+F2A2|
+B4F4E4F2E2|
+E2D4F6F2E2|
+FE3D4B,4A,2B,2|
+F4A4A4[Fd]2[Ae]2|
+[Bf]4[Fd]4E4F2E2|
+E2D4F6F2E2|
+FE3D4B,4z2B,D|
+B,4z2A,4F,2|
+E,4D,12|]
 
 R[D]inging through the trees, golden eagles croon 
 Over [G]fields and creeks where the garlic b[A]looms 
