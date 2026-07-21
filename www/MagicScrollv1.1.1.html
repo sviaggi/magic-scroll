@@ -735,6 +735,34 @@
   }
   #file-input { display: none; }
 
+  /* Pinned ("doesn't scroll") background image layer. A real position:fixed
+     box, NOT background-attachment:fixed on #main — background-attachment:
+     fixed is unreliable on mobile WebKit/Chrome for non-<body> elements: it's
+     frequently downgraded to plain scroll/local, and since #main has no
+     overflow of its own (the whole window scrolls, growing #main to the full
+     height of the song/library content), a "fixed" background there ends up
+     sized/stretched to cover that entire tall element instead of staying
+     pinned to one viewport's worth of space — hence the stretched,
+     low-resolution look on phones. position:fixed doesn't have that bug on
+     any platform, since it's a normal box, not a background-paint quirk.
+     Sits behind everything (z-index 0, first element in the document) and
+     ignores clicks; #main's own background-color is cleared to transparent
+     by JS whenever this layer holds an image, so the image shows through. */
+  #bg-layer-fixed {
+    position: fixed;
+    inset: 0;
+    /* Negative, not 0: a positioned element with z-index:0/auto would paint
+       ABOVE normal in-flow siblings like #layout/#main regardless of DOM
+       order (positioned content always stacks over non-positioned content
+       in the same context) — negative is what actually sits it behind them,
+       while staying above the page's own root background/canvas. */
+    z-index: -1;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center center;
+  }
+
   /* ── MAIN AREA ───────────────────────────────────────────────────────────── */
   #main {
     flex: 1;
@@ -3201,6 +3229,10 @@
 <script src="chord-engine.js"></script>
 </head>
 <body>
+<!-- Dedicated pinned-background layer — see #bg-layer-fixed CSS + applyTheme()/
+     applyBackground() for why this exists instead of background-attachment:fixed
+     directly on #main. -->
+<div id="bg-layer-fixed"></div>
 <div id="abc-player-bar" style="display:none" tabindex="-1">
   <div id="abc-player-inner">
     <div id="abc-player-controls">
@@ -4296,25 +4328,32 @@ function applyTheme(themeClass) {
   // wipe the old background before trying the new one, otherwise
   // a failed image load leaves the previous theme's image hanging around
   const main = document.getElementById('main');
+  const fixedLayer = document.getElementById('bg-layer-fixed');
   main.style.backgroundImage = '';
   main.style.backgroundSize = '';
   main.style.backgroundPosition = '';
   main.style.backgroundRepeat = '';
-  main.style.backgroundAttachment = '';
+  main.style.backgroundColor = '';
+  fixedLayer.style.backgroundImage = '';
 
   const exts = ['png', 'jpg', 'jpeg'];
   function tryNext(i) {
     if (i >= exts.length) return; // tried png, jpg, jpeg — nothing found, CSS colour wins
     const img = new Image();
     img.onload = () => {
-      // Default theme images always use full-width + fixed (viewport-pinned).
+      // Default theme images always use full-width + pinned-to-viewport. That
+      // goes on the dedicated #bg-layer-fixed div (position:fixed), NOT
+      // background-attachment:fixed on #main — see #bg-layer-fixed's CSS
+      // comment for why the direct approach stretches/pixelates on mobile.
+      // #main's own background-color is cleared so the layer shows through.
       // User-uploaded images in the theme panel use the panel's own scale/scroll settings.
       const main = document.getElementById('main');
-      main.style.backgroundImage      = 'url("' + img.src + '")';
-      main.style.backgroundSize       = 'cover';
-      main.style.backgroundRepeat     = 'no-repeat';
-      main.style.backgroundPosition   = 'center center';
-      main.style.backgroundAttachment = 'fixed';
+      const fixedLayer = document.getElementById('bg-layer-fixed');
+      main.style.backgroundColor      = 'transparent';
+      fixedLayer.style.backgroundImage    = 'url("' + img.src + '")';
+      fixedLayer.style.backgroundSize     = 'cover';
+      fixedLayer.style.backgroundRepeat   = 'no-repeat';
+      fixedLayer.style.backgroundPosition = 'center center';
     };
     img.onerror = () => tryNext(i + 1);
     img.src = stem + '.' + exts[i];
@@ -4435,10 +4474,9 @@ function applyColorPickerValues() {
 
   // background image
   const bgUrl = document.getElementById('sc-bg-image').value.trim(); // now a data-URL set by file picker
-  const main = document.getElementById('main');
   if (bgUrl) { applyBackground(bgUrl);
   } else if (!bgUrl && document.getElementById('sc-bg-image').dataset.cleared) {
-    main.style.backgroundImage = '';
+    applyBackground('');
   }
 }
 
@@ -4555,26 +4593,56 @@ function applyCustomTheme(vals) {
 // ── APPLY BACKGROUND IMAGE ───────────────────────────────────────────────────
 // Central function — all background-setting code routes through here.
 // Reads size and scroll preferences from panel selects (or localStorage fallback).
+//
+// Two different elements can end up holding the image, depending on the
+// user's "scrolls with page" choice:
+//   - scrollWith=true  → #main. #main has no overflow/scrolling of its own
+//     (the window scrolls), so a plain in-flow background here already
+//     moves with the page exactly like normal wallpaper — no mobile bug.
+//   - scrollWith=false → #bg-layer-fixed, a dedicated position:fixed div
+//     (see its CSS comment). background-attachment:fixed directly on #main
+//     is what used to be here, and it's unreliable on mobile WebKit/Chrome:
+//     often silently downgraded to scroll/local, and since #main grows to
+//     the full page height, the "fixed" image then gets stretched to cover
+//     that whole height instead of staying pinned to one viewport — the
+//     stretched, low-res look this function exists to avoid. A real
+//     position:fixed box doesn't have that bug on any platform.
+// Whichever element is used, the other is fully cleared so a stale image
+// never lingers there, and #main's background-color is reset appropriately
+// (transparent when the fixed layer is carrying the image, so it shows
+// through; restored otherwise so the CSS fallback colour still works).
 function applyBackground(dataUrl) {
   const main = document.getElementById('main');
-  if (!dataUrl) {
-    main.style.backgroundImage    = '';
-    main.style.backgroundSize     = '';
-    main.style.backgroundRepeat   = '';
-    main.style.backgroundPosition = '';
-    main.style.backgroundAttachment = '';
-    return;
-  }
+  const fixedLayer = document.getElementById('bg-layer-fixed');
+  main.style.backgroundImage    = '';
+  main.style.backgroundSize     = '';
+  main.style.backgroundRepeat   = '';
+  main.style.backgroundPosition = '';
+  main.style.backgroundColor    = '';
+  fixedLayer.style.backgroundImage    = '';
+  fixedLayer.style.backgroundSize     = '';
+  fixedLayer.style.backgroundRepeat   = '';
+  fixedLayer.style.backgroundPosition = '';
+  if (!dataUrl) return;
+
   const sizeEl   = document.getElementById('sc-bg-size');
   const scrollEl = document.getElementById('sc-bg-scroll');
   const size       = (sizeEl   && sizeEl.value)     ? sizeEl.value     : (localStorage.getItem('ms_bg_size')   || '500px');
   const scrollWith = scrollEl                        ? scrollEl.checked : (localStorage.getItem('ms_bg_scroll') !== '0');
+  const repeat = (size === 'cover' || size === '100%') ? 'no-repeat' : 'repeat';
 
-  main.style.backgroundImage      = 'url("' + dataUrl + '")';
-  main.style.backgroundRepeat     = (size === 'cover' || size === '100%') ? 'no-repeat' : 'repeat';
-  main.style.backgroundSize       = size;
-  main.style.backgroundPosition   = 'top left';
-  main.style.backgroundAttachment = scrollWith ? 'local' : 'fixed';
+  if (scrollWith) {
+    main.style.backgroundImage    = 'url("' + dataUrl + '")';
+    main.style.backgroundRepeat   = repeat;
+    main.style.backgroundSize     = size;
+    main.style.backgroundPosition = 'top left';
+  } else {
+    main.style.backgroundColor          = 'transparent';
+    fixedLayer.style.backgroundImage    = 'url("' + dataUrl + '")';
+    fixedLayer.style.backgroundRepeat   = repeat;
+    fixedLayer.style.backgroundSize     = size;
+    fixedLayer.style.backgroundPosition = 'top left';
+  }
 }
 
 // Wire up colour settings panel
