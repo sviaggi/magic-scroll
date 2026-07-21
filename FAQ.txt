@@ -4,13 +4,13 @@ Q: How do I add songs?
 A: Tap the "Songs" button and either click "New" to type/paste chord sheets directly or click-and-drag your .txt or .json files in there to add them!
 
 Q: How do I share songs between devices?
-A: Click the ... on the edge of a song folder and select "Export," then send that .json file to the other device! If you want to share your whole library, you can select "Export" at the bottom of the Songs menu and use that file as well. If your song is ready to publish, you can do that as well!
+A: You can save a song as a .txt file, or if you click the ... on the edge of a song folder and select "Export," it'll give you a .json of the whole folder to move between devices! If you want to share your whole library, you can select "Export" at the bottom of the Songs menu and use that file as well. If your song is ready to publish to our online library, you can do that as well!
 
 Q: Why are my chord diagrams showing the wrong instrument?
-A: By default, they show a guitar in E Standard. You can click the "Diagrams" button to change it to whatever you'd like!
+A: By default, they show a guitar in E Standard. You can click the "Diagrams" button under the "Chords" tab to change it to whatever you'd like!
 
 Q: Hey, I think this chord is wrong!
-A: My bad! Tell me which and I’ll fix it. Overall I had to hand-program about 155 chords across however many instruments and tunings we have… It was mind-numbing stuff. While I am unconscious of intentional error, I am nevertheless too sensible of my defects.
+A: My bad! Tell me which and I’ll fix it. Part of this project's scope creep resulted in writing an engine to find chords programmatically, occasionally substituting them for preferred/common voicings. I am unconscious of intentional error, but nevertheless too sensible of my defects.
 
 Q: Can you make it so we can download songs directly from Ultimate Guitar/Musescore/Other services?
 A: I’d really like to, but then I would run into this unfortunate issue called That’s Illegal and They’ll Get Me. Nobody can stop you from copy/pasting things in from there and circulating your collections, though! If you’re savvy, there’s always a way. 
@@ -19,7 +19,7 @@ Q: Can I make an account so my songs are all saved between my different devices?
 A: No! I don't have the programming know-how to give people secure logins and I wouldn't trust anything I programmed to keep your passwords safe. Trust me, it's better this way... I don't want to be responsible for a data breach and let database management ruin what is otherwise a pretty good tool! 
 
 Q: Why isn’t [Feature] included?
-A: I threw this together over the course of about a month. I’m not a programmer and my job is in a different field entirely. If a feature is feasible/would improve UX enough I’ll find time to make it happen.
+A: I threw this together over the course of about 2 months. I’m not a programmer and my job is in a different field entirely. If a feature is feasible/would improve UX enough I’ll find time to make it happen.
 
 
 Credits: 
