@@ -18282,25 +18282,61 @@ function _collabCurrentPayload(itemId, idx) {
   return _collabPayloadFromSong(itemId, song);
 }
 
+// Write a new value into a live <input>/<textarea> without losing the local
+// caret position — even when that element currently has focus. A naive
+// "skip this field entirely while it's focused" guard sounds safe but is
+// actually fatal for the main #song-editor textarea: entering edit mode
+// auto-focuses it (see setEditMode), so it stays focused for essentially the
+// whole time anyone is typing. Skipping focused fields meant remote edits to
+// the song body were *never* applied — the field you'd most want live
+// updates in was exactly the one permanently exempted. This still isn't
+// OT/CRDT (two people editing the exact same span at the exact same instant
+// can still race), but it does make edits actually show up live, and keeps
+// the local cursor anchored to whatever text didn't change around it.
+function _applyLiveTextValue(el, newValue) {
+  var oldValue = el.value;
+  newValue = newValue || '';
+  if (oldValue === newValue) return;
+  if (document.activeElement !== el || typeof el.selectionStart !== 'number') {
+    el.value = newValue;
+    return;
+  }
+  var selStart = el.selectionStart, selEnd = el.selectionEnd;
+  // Shared prefix/suffix between old and new text, so the caret can be
+  // re-anchored to the part of the text that's unchanged rather than being
+  // yanked to a fixed spot on every incoming update.
+  var maxPrefix = Math.min(oldValue.length, newValue.length);
+  var prefixLen = 0;
+  while (prefixLen < maxPrefix && oldValue[prefixLen] === newValue[prefixLen]) prefixLen++;
+  var maxSuffix = maxPrefix - prefixLen;
+  var suffixLen = 0;
+  while (suffixLen < maxSuffix &&
+         oldValue[oldValue.length - 1 - suffixLen] === newValue[newValue.length - 1 - suffixLen]) suffixLen++;
+  function mapPos(pos) {
+    if (pos <= prefixLen) return pos;                          // inside unchanged prefix
+    if (pos >= oldValue.length - suffixLen)                    // inside unchanged suffix
+      return newValue.length - (oldValue.length - pos);
+    return prefixLen;                                          // inside the changed span — anchor at its start
+  }
+  var newStart = mapPos(selStart), newEnd = mapPos(selEnd);
+  el.value = newValue;
+  try { el.setSelectionRange(newStart, newEnd); } catch (e) {}
+}
+
 // Apply incoming field values to the underlying song object and, if visible,
-// to the live edit-mode input elements — but skip any single field whose
-// input currently has focus, so we never clobber what the local user is
-// mid-typing. This is intentionally "last writer wins per unfocused field",
-// not full OT/CRDT — good enough for a handful of people editing a lyric
-// sheet together, not a general-purpose concurrent editor.
+// to the live edit-mode input elements. Every field is applied — including
+// ones with focus — via _applyLiveTextValue's cursor-preserving merge above.
 function _collabApplyFields(song, payload, alsoUpdateDom) {
   var map = [['title', 'edit-title'], ['artist', 'edit-artist'], ['key', 'edit-key'], ['timeSig', 'edit-time-sig']];
   map.forEach(function(pair) {
     var key = pair[0], elId = pair[1];
     var el = alsoUpdateDom ? document.getElementById(elId) : null;
-    if (el && document.activeElement === el) return;   // focused — don't clobber
     song[key] = payload[key];
-    if (el) el.value = payload[key] || '';
+    if (el) _applyLiveTextValue(el, payload[key] || '');
   });
   var ta = alsoUpdateDom ? document.getElementById('song-editor') : null;
-  if (ta && document.activeElement === ta) return;      // focused — don't clobber
   song.tab_content = payload.tab_content;
-  if (ta) ta.value = payload.tab_content || '';
+  if (ta) _applyLiveTextValue(ta, payload.tab_content || '');
 }
 
 function _teardownCollabChannel(itemId) {
