@@ -4278,7 +4278,7 @@ I hope you enjoy using your magic scroll!"></textarea>
         accounts, nothing to sign up for. When you end the session, the final version is
         saved for everyone who joined.
       </div>
-      <input type="text" id="collab-start-name-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name (e.g. Alex)">
+      <input type="text" id="collab-start-name-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name">
       <div class="pub-actions">
         <button id="collab-cancel-btn-1">Cancel</button>
         <button id="collab-start-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Start Collaborating</button>
@@ -4330,7 +4330,7 @@ I hope you enjoy using your magic scroll!"></textarea>
   <div class="pub-box" id="collab-username-box">
     <h3>Your Name</h3>
     <div class="pub-warning">Other people in this collaboration will see this name. It stays the same for every collaboration this session — you can change it again next time you open the app.</div>
-    <input type="text" id="collab-username-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="e.g. Alex">
+    <input type="text" id="collab-username-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name">
     <div class="pub-status" id="collab-username-status"></div>
     <div class="pub-actions">
       <button id="collab-username-cancel-btn">Cancel</button>
@@ -13853,13 +13853,59 @@ document.getElementById('song-editor').addEventListener('input', () => {
   if (song && song._collab && song._collab.active) _repositionAllRemoteCursors(song._collab.itemId);
 });
 
+// Runs the ordinary chord/lyric transposer (transposeText) everywhere in a
+// plain-text song EXCEPT inside embedded ABC notation blocks (see
+// _splitEmbeddedABC — a pasted-in tune starting with an X: reference field),
+// which get the ABC-specific transposer instead (_abcTransposeText, the same
+// engine the dedicated ABC song type's own permanent-transpose buttons use —
+// it rewrites the K: key header and every note pitch in the tune body).
+// Without this, an embedded riff's sheet music silently stayed in its
+// original key while the rest of the song's chords moved, since
+// transposeText has no concept of ABC note syntax and just leaves those
+// lines untouched.
+//
+// Scans line-by-line (mirroring _splitEmbeddedABC's own X:/blank-line
+// boundary rules) and splices each detected chunk's transposed lines back
+// into that EXACT index range of the original lines array, rather than
+// splitting into segments and rejoining them — _splitEmbeddedABC's segments
+// aren't safe for that: a blank-line separator between two segments only
+// contributes a single '\n' to whichever segment happens to swallow it, so
+// naively concatenating segment text back together silently drops one
+// blank line at every text/ABC seam (and would keep eating another one on
+// every subsequent transpose click). Splicing in place never touches
+// anything outside the exact range being replaced, so every separator stays
+// byte-for-byte intact regardless of how many times this runs.
+function _transposeSongTextWithEmbeddedAbc(text, n) {
+  if (!n) return text;
+  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    if (/^X:\s*\d/.test(lines[i])) {
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() !== '' && !/^X:\s*\d/.test(lines[j])) j++;
+      const transposedBlock = _abcTransposeText(lines.slice(i, j).join('\n'), n).split('\n');
+      lines.splice(i, j - i, ...transposedBlock);
+      i += transposedBlock.length;
+      continue;
+    }
+    let k = i;
+    while (k < lines.length && !/^X:\s*\d/.test(lines[k])) k++;
+    const transposedChunk = transposeText(lines.slice(i, k).join('\n'), n).split('\n');
+    lines.splice(i, k - i, ...transposedChunk);
+    i += transposedChunk.length;
+  }
+  return lines.join('\n');
+}
+
 // ── EDIT-MODE TRANSPOSE — permanently rewrites the chords in the editor text ──
 // Unlike the reading-view "Key/transpose" control (which only shifts the display),
 // this rewrites the actual chord tokens in the text so the change is saved.
 function _editTransposeText(delta) {
   const ta = document.getElementById('song-editor');
   if (!ta) return;
-  ta.value = transposeText(ta.value, delta);
+  ta.value = (typeof _transposeSongTextWithEmbeddedAbc === 'function' && typeof _abcTransposeText === 'function')
+    ? _transposeSongTextWithEmbeddedAbc(ta.value, delta)
+    : transposeText(ta.value, delta);
   // Keep the Key field in step with the shifted chords.
   const kf = document.getElementById('edit-key');
   if (kf && kf.value.trim()) {
@@ -13882,6 +13928,12 @@ function _editTransposeText(delta) {
   // to — was silently left showing the pre-transpose chords. Rebuild it here
   // so a permanent transpose actually shows up while that view is active.
   if (_precisionMode && typeof renderPrecisionCanvas === 'function') renderPrecisionCanvas();
+  // Same "no 'input' event fires" gap applies to live collaboration — that's
+  // also wired off #song-editor's 'input' listener (_scheduleCollabEditBroadcast),
+  // so without this, a collaborating peer wouldn't see a transpose click at
+  // all until the next explicit Save (_broadcastCollabSaved). Fire it
+  // explicitly so transpose behaves like every other live edit.
+  if (typeof _scheduleCollabEditBroadcast === 'function') _scheduleCollabEditBroadcast();
   try { ta.setSelectionRange(0, 0); } catch (e) {}
   ta.focus({ preventScroll: true });
 }
