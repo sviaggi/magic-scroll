@@ -473,7 +473,11 @@
   }
   #btn-filter { font-size: 0.72rem; padding: 3px 6px; flex-shrink: 0; }
   #btn-filter.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
-  #btn-select-random {
+  /* Join Collaboration sits directly beneath Select Random now (moved out of
+     #sidebar-footer down at the bottom of the panel) — sharing this rule
+     keeps them the same size/height rather than each getting its own
+     one-off sizing. */
+  #btn-select-random, #btn-join-collab {
     display: block;
     width: auto;
     margin: 0 8px 6px;
@@ -1043,6 +1047,30 @@
   }
   .ctx-item:hover { background: var(--c-chrome-bg3); color: var(--c-accent); }
   .ctx-item.danger:hover { color: var(--c-danger); }
+  /* "Colour ▸" — clicking it expands #ctx-color-submenu in place (below the
+     trigger, still inside the same dropdown) rather than closing the menu
+     or spawning a second floating popup — simplest thing that works well on
+     both mouse and touch. See the mousedown handler for why this item is
+     special-cased instead of going through rtApply like the others. */
+  .ctx-submenu-trigger { display: flex; justify-content: space-between; align-items: center; }
+  .ctx-caret { transition: transform 0.12s; opacity: 0.6; }
+  .ctx-submenu-trigger.open .ctx-caret { transform: rotate(90deg); }
+  .ctx-submenu {
+    display: none;
+    padding: 4px 14px 8px;
+    gap: 4px; flex-wrap: wrap; align-items: center;
+  }
+  .ctx-submenu.open { display: flex; }
+  .ctx-submenu .rt-color-swatch {
+    width: 20px; height: 20px; min-width: 20px; padding: 0;
+    border-radius: 3px; border: 1px solid var(--c-chrome-border); cursor: pointer;
+  }
+  .ctx-submenu .rt-color-swatch:hover { border-color: var(--c-chrome-text); }
+  .ctx-submenu #ctx-color-clear {
+    font-size: 0.68rem; padding: 2px 8px; margin-left: 2px;
+    background: none; border: 1px solid var(--c-chrome-border); border-radius: 3px;
+    color: var(--c-chrome-text); cursor: pointer;
+  }
   .ctx-separator { height: 1px; background: var(--c-chrome-border); margin: 3px 0; }
   .ctx-label {
     padding: 4px 14px 2px;
@@ -1137,7 +1165,7 @@
   body.ui-xs #sidebar-search input { font-size: 0.68rem; padding: 3px 5px; }
   body.ui-xs #sidebar-search input,
   body.ui-xs #sidebar-search button { height: 24px; }
-  body.ui-xs #btn-select-random { font-size: 0.66rem; padding: 5px 7px; }
+  body.ui-xs #btn-select-random, body.ui-xs #btn-join-collab { font-size: 0.66rem; padding: 5px 7px; }
   body.ui-xs .s-title { font-size: 0.72rem; }
   body.ui-xs .s-artist { font-size: 0.6rem; }
   body.ui-xs #drop-zone { font-size: 0.6rem; padding: 7px 6px; }
@@ -1552,6 +1580,12 @@
     font-size: 0.75rem; padding: 4px 10px; height: 30px;
     display: inline-flex; align-items: center; justify-content: center; line-height: 1;
   }
+  /* Condensed is a read-mode display option — it hides outright whenever
+     the song/lead-sheet editor is open (body.editing-song, toggled by
+     setEditMode), at every width, freeing up room for Collaborate in the
+     same toolbar. Collaborate itself is never hidden — it should be
+     startable/manageable at any time, editing or not. */
+  body.editing-song #btn-chordview { display: none; }
   #btn-edit-toggle.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
   #btn-ls-edit.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
   #btn-abc-edit.active { background: var(--c-accent); color: var(--c-chrome-bg); font-weight: bold; }
@@ -1688,6 +1722,60 @@
     transition: border-color 0.15s;
   }
   #song-editor:focus { border-color: var(--c-accent); }
+
+  /* ── LIVE REMOTE CURSORS (Collaborate) ────────────────────────────────────
+     #song-editor-wrap has no border/padding of its own, so its box is
+     exactly #song-editor's box (the overlay is position:absolute, so it
+     doesn't affect the wrapper's own size — only the textarea, a normal-flow
+     child, does). #remote-cursors-layer's inset:0 therefore lines up with
+     the textarea pixel-for-pixel without needing to track scroll or resize
+     separately. See _taCaretRect/_renderRemoteCursor for how each .remote-
+     cursor's left/top get computed (a hidden "mirror" div that copies
+     #song-editor's text-layout-affecting CSS so line-wrapping matches
+     exactly, then measures where a marker span lands). */
+  #song-editor-wrap { position: relative; }
+  #remote-cursors-layer {
+    position: absolute; inset: 0;
+    pointer-events: none;    /* never intercepts clicks/typing meant for the textarea underneath */
+    overflow: visible;
+    z-index: 5;
+  }
+  .remote-cursor {
+    position: absolute;
+    width: 2px;
+    /* height set inline per-cursor (matches the measured line height) */
+    pointer-events: auto;    /* re-enabled just on the cursor itself, so hover can reveal the name */
+    /* a little horizontal padding widens the actual hover hit-target beyond
+       the 2px visible bar, without changing what's drawn (see ::before) */
+    margin-left: -4px;
+    padding: 0 4px;
+  }
+  .remote-cursor::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--rc-color, var(--c-accent));
+    animation: remote-cursor-blink 1.1s steps(1) infinite;
+  }
+  @keyframes remote-cursor-blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.25; } }
+  .remote-cursor .remote-cursor-label {
+    position: absolute;
+    left: 4px; bottom: 100%;
+    margin-bottom: 2px;
+    background: var(--rc-color, var(--c-accent));
+    color: #fff;
+    font-family: var(--font-ui, sans-serif);
+    font-size: 0.65rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    padding: 1px 6px;
+    border-radius: 3px;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 0.12s, transform 0.12s;
+  }
+  .remote-cursor:hover .remote-cursor-label { opacity: 1; transform: translateY(0); }
 
   /* Preview — sits below the textarea, styled like the read-mode card */
   #preview-pane {
@@ -3226,14 +3314,19 @@
   .pub-actions { display: flex; gap: 8px; justify-content: flex-end; }
   .pub-status { font-size: 0.75rem; color: var(--c-chrome-muted); margin-top: 10px; text-align: center; min-height: 1em; }
   /* ── COLLABORATE MODAL ──────────────────────────────────────────────────── */
-  #collab-modal, #join-collab-modal {
+  #collab-modal, #join-collab-modal, #collab-username-modal {
     display: none;
     position: fixed; inset: 0; z-index: 900;
     background: rgba(0,0,0,0.55);
     align-items: center; justify-content: center;
     padding: 20px;
   }
-  #collab-modal.open, #join-collab-modal.open { display: flex; }
+  #collab-modal.open, #join-collab-modal.open, #collab-username-modal.open { display: flex; z-index: 950; }
+  #collab-username-input {
+    width: 100%; box-sizing: border-box; font-size: 1rem; padding: 8px 10px;
+    margin-top: 10px; border-radius: 4px; border: 1px solid var(--c-chrome-border);
+    background: var(--c-inset-ov); color: var(--c-chrome-text);
+  }
   #collab-code-display {
     font-family: var(--font-mono); font-size: 1.9rem; font-weight: bold;
     letter-spacing: 0.28em; text-align: center; color: var(--c-accent);
@@ -3677,6 +3770,7 @@
       <button id="btn-online-toggle" title="Online search is on — click to disable">☁</button>
     </div>
     <button id="btn-select-random" title="Open a random song from your library">🎲 Select Random</button>
+    <button id="btn-join-collab" title="Join a live collaboration using a code someone shared with you">🔗 Join Collaboration…</button>
     <div id="song-list"></div>
     <div id="bulk-bar">
       <span id="bulk-count">0 selected</span>
@@ -3698,7 +3792,6 @@
       <button id="btn-new-folder" title="Create a new folder to organise songs into">📁 Folder</button>
       <button id="btn-export-config" title="Save library to file · Shift+click for Save As">Export library</button>
       <button id="btn-collections" title="Browse and add song collections">📦 Collections</button>
-      <button id="btn-join-collab" title="Join a live collaboration using a code someone shared with you">🔗 Join Collaboration…</button>
     </div>
     <div id="sidebar-brand">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
@@ -3789,8 +3882,9 @@
         <button id="btn-publish-song" title="Publish this song to the online library">☁ Publish</button>
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites">⬇ Export monospace</button>
       </div>
+      <button id="btn-collaborate-toolbar" title="Start or manage a live collaboration on this song">🔗 Collaborate</button>
       <span id="save-status"></span>
-      <button id="btn-chordview" title="Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)" style="margin-left:auto;">≡ Condensed view</button>
+      <button id="btn-chordview" title="Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)" style="margin-left:auto;">≡ Condensed</button>
     </div>
     <div id="song-card">
       <div class="song-header">
@@ -3837,8 +3931,9 @@
           <button type="button" id="rt-embed" title="Embed a video or link">⧉ Embed…</button>
           <div id="rt-color-toolbar"></div>
         </div>
-        <textarea id="song-editor" class="fs-md" spellcheck="false"
-          placeholder="Paste or type your song here.
+        <div id="song-editor-wrap">
+          <textarea id="song-editor" class="fs-md" spellcheck="false"
+            placeholder="Paste or type your song here.
 
 [Verse]
 Type out your lyrics... take your time, get 'em right
@@ -3852,6 +3947,8 @@ C                                D                                      Em      
 It'll format real pretty! Don't you think it looks clean?
 It's fast and it's simple, it's free, (there's no toll!)
 I hope you enjoy using your magic scroll!"></textarea>
+          <div id="remote-cursors-layer"></div>
+        </div>
         <div id="precision-hint" class="precision-hint">Click a word (or a spot inside it) to drop a chord there. Click an existing chord to edit or remove it.</div>
         <div id="precision-canvas" class="precision-canvas"></div>
       </div>
@@ -4215,6 +4312,26 @@ I hope you enjoy using your magic scroll!"></textarea>
   </div>
 </div>
 
+<!-- ── COLLABORATION DISPLAY NAME MODAL ──────────────────────────────────────
+     Shown once per app session, the first time the user starts or joins a
+     collaboration (see _ensureCollabUsername) — never again this session
+     after that, no matter how many more collaborations they start/join.
+     Pre-filled with whatever name was saved last time (from localStorage),
+     so re-confirming is a single tap; only closing/reopening the app resets
+     the "already asked this session" flag. ─────────────────────────────── -->
+<div id="collab-username-modal">
+  <div class="pub-box" id="collab-username-box">
+    <h3>Your Name</h3>
+    <div class="pub-warning">Other people in this collaboration will see this name. It stays the same for every collaboration this session — you can change it again next time you open the app.</div>
+    <input type="text" id="collab-username-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="e.g. Alex">
+    <div class="pub-status" id="collab-username-status"></div>
+    <div class="pub-actions">
+      <button id="collab-username-cancel-btn">Cancel</button>
+      <button id="collab-username-confirm-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Continue</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── ONLINE SONG PREVIEW MODAL ─────────────────────────────────────────── -->
 <div id="online-preview-modal">
   <div class="preview-box">
@@ -4245,7 +4362,8 @@ I hope you enjoy using your magic scroll!"></textarea>
   <div class="ctx-item" data-rt="bold"><b>B</b>&nbsp; Bold</div>
   <div class="ctx-item" data-rt="italic"><i>I</i>&nbsp; Italic</div>
   <div class="ctx-item" data-rt="underline"><u>U</u>&nbsp; Underline</div>
-  <div class="ctx-item" data-rt="color-toggle">🎨&nbsp; Colour</div>
+  <div class="ctx-item ctx-submenu-trigger" id="ctx-color-trigger">🎨&nbsp; Colour <span class="ctx-caret">▸</span></div>
+  <div class="ctx-submenu" id="ctx-color-submenu"></div>
   <div class="ctx-separator"></div>
   <div class="ctx-item" data-rt="embed">⧉&nbsp; Embed…</div>
   <div class="ctx-separator"></div>
@@ -6844,6 +6962,15 @@ function renderSong(idx) {
   if (isEditMode && currentIdx >= 0 && currentIdx !== idx) {
     persistCurrentEdits();
     isEditMode = false;
+    // Same "tell peers I've stopped editing" cleanup setEditMode(false) does
+    // — this branch bypasses that function (it flips isEditMode directly, to
+    // avoid setEditMode's own read-mode re-render firing for the song we're
+    // navigating AWAY from), so it needs its own copy of the cursor cleanup.
+    var _prevSong = songs[currentIdx];
+    if (_prevSong && _prevSong._collab && _prevSong._collab.active) {
+      _broadcastCollabCursorLeft(_prevSong._collab.itemId);
+      _clearAllRemoteCursors(_prevSong._collab.itemId);
+    }
   }
   currentIdx=idx;
   // Capo + transpose reset per song, but restore this song's cached state if it
@@ -8774,6 +8901,14 @@ function _applyFontSizeClass(cls) {
     if (!el) return;
     el.className = el.className.replace(/fs-\w+/g, '').trim() + ' ' + cls;
   });
+  // Changing size reflows #song-editor's text at different metrics — any
+  // remote cursor overlays need repositioning against the new layout.
+  if (currentIdx >= 0 && isEditMode) {
+    const _fsSong = songs[currentIdx];
+    if (_fsSong && _fsSong._collab && _fsSong._collab.active && typeof _repositionAllRemoteCursors === 'function') {
+      _repositionAllRemoteCursors(_fsSong._collab.itemId);
+    }
+  }
 }
 document.getElementById('font-size-sel').addEventListener('change',e=>{
   _applyFontSizeClass(e.target.value);
@@ -12217,6 +12352,13 @@ document.getElementById('btn-simplify').addEventListener('click', () => {
 document.getElementById('btn-chordview').addEventListener('click', () => {
   applyChordView(!isBracketChordView);
 });
+// Redundant entry point for the same "Collaborate" flow already reachable
+// from the kebab menu — some users won't think to look there, so it's
+// worth surfacing directly in the toolbar too, right on the song they're
+// already looking at. Same modal, same showCollabModal(i) either way.
+document.getElementById('btn-collaborate-toolbar').addEventListener('click', () => {
+  if (currentIdx >= 0) showCollabModal(currentIdx);
+});
 // Restore on load — this is a persistent global preference (see isBracketChordView),
 // not a per-session default, so it survives closing and reopening the app.
 (function(){
@@ -12759,6 +12901,13 @@ function setEditMode(on) {
     return;
   }
   isEditMode = on;
+  // Drives the mobile-only rule that hides "Condensed" and shortens its
+  // label — see the #btn-chordview CSS — freeing up room in #edit-toolbar
+  // for the "Collaborate" button on narrow screens specifically while
+  // editing (Condensed is a read-mode display option anyway; Collaborate
+  // needs to stay available in both modes so a collaboration can be started
+  // or managed at any time).
+  document.body.classList.toggle('editing-song', on);
   // Hide player bar while editing (it covers the edit UI)
   const _pb = document.getElementById('abc-player-bar');
   if (_pb) _pb.style.opacity = on ? '0' : '';
@@ -12808,12 +12957,24 @@ function setEditMode(on) {
     _ed.focus({ preventScroll: true });
     _ed.scrollTop = 0;
     window.scrollTo(0, 0);
+    // Announce our cursor right away if this is a collaboration — otherwise
+    // peers only learn we're here (and where) the first time we click/type,
+    // which reads as a beat of "did my Edit click even register?" lag.
+    if (song._collab && song._collab.active) _scheduleCollabCursorBroadcast();
   } else {
     // Exit is a clean toggle — changes were already persisted in-app, so no
     // "unsaved" prompt and no forced file download.
     renderTabContent();
     hasUnsavedChanges = false;
     setSaveStatus('');
+    // Tell peers we've left edit mode (their view of our cursor should
+    // vanish, not sit frozen at wherever it last was) and drop whatever
+    // remote cursors we ourselves were showing — there's no editor on
+    // screen to draw them in anymore.
+    if (song._collab && song._collab.active) {
+      _broadcastCollabCursorLeft(song._collab.itemId);
+      _clearAllRemoteCursors(song._collab.itemId);
+    }
   }
 }
 // Persist the current chord/tab edits to the library (localStorage) WITHOUT
@@ -13355,7 +13516,6 @@ function rtApply(kind, ta) {
   else if (kind === 'embed')       rtEmbed(ta);
   else if (kind === 'mark-chord')  rtSetLineMarker('chord', ta);
   else if (kind === 'mark-lyric')  rtSetLineMarker('lyric', ta);
-  else if (kind === 'color-toggle') rtToggleColor(ta);
 }
 
 // ── COLOUR TEXT (song editor only) ───────────────────────────────────────────
@@ -13387,27 +13547,7 @@ function rtClearColor(ta) {
   ta.selectionEnd   = e - openLen;
   ta.dispatchEvent(new Event('input'));
 }
-// Right-click "Colour" shortcut — a single toggle rather than a submenu of
-// swatches (the toolbar already covers picking a specific colour). Uses the
-// same "is the selection directly wrapped by a colour marker" check as
-// rtClearColor to decide which way to toggle: already coloured → clear it
-// (back to "non-coloured"); not coloured → apply whichever swatch was used
-// most recently (_lastColorUsed, see buildColorToolbar).
-function rtToggleColor(ta) {
-  ta = _rtTarget(ta);
-  if (!ta) return;
-  const val = ta.value;
-  const s = ta.selectionStart, e = ta.selectionEnd;
-  const beforeMatch = /⟦color:[a-z]+⟧$/.exec(val.slice(0, s));
-  const afterIsClose = val.slice(e, e + COLOR_CLOSE_TAG.length) === COLOR_CLOSE_TAG;
-  if (beforeMatch && afterIsClose) rtClearColor(ta);
-  else rtApplyColor(_lastColorUsed, ta);
-}
 // Builds the colour swatch row from COLOR_SWATCHES into `#rt-color-toolbar`.
-// Remembers whichever swatch was clicked most recently, so the right-click
-// "Colour" shortcut (see rtToggleColor) has a sensible colour to apply
-// without making the user reach for the toolbar first.
-let _lastColorUsed = COLOR_SWATCHES[0][0];
 function buildColorToolbar() {
   const bar = document.getElementById('rt-color-toolbar');
   if (!bar) return;
@@ -13419,7 +13559,7 @@ function buildColorToolbar() {
     b.style.background = hex;
     b.title = name.charAt(0).toUpperCase() + name.slice(1);
     b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', () => { _lastColorUsed = name; rtApplyColor(name); });
+    b.addEventListener('click', () => rtApplyColor(name));
     bar.appendChild(b);
   });
   const clear = document.createElement('button');
@@ -13431,7 +13571,34 @@ function buildColorToolbar() {
   clear.addEventListener('click', () => rtClearColor());
   bar.appendChild(clear);
 }
+// Same swatch set, rendered into the right-click context menu's "Colour ▸"
+// submenu (#ctx-color-submenu) — see the mousedown handler below for how the
+// trigger toggles this open without closing the whole menu, and rtClearColor
+// for what "Clear colour" does (unwrap a directly-selected colour marker).
+function buildContextColorSubmenu() {
+  const bar = document.getElementById('ctx-color-submenu');
+  if (!bar) return;
+  COLOR_SWATCHES.forEach(function(pair) {
+    const name = pair[0], hex = pair[1];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rt-color-swatch';
+    b.style.background = hex;
+    b.title = name.charAt(0).toUpperCase() + name.slice(1);
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => { rtApplyColor(name); closeRtCtx(); });
+    bar.appendChild(b);
+  });
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.id = 'ctx-color-clear';
+  clear.textContent = 'Clear';
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => { rtClearColor(); closeRtCtx(); });
+  bar.appendChild(clear);
+}
 buildColorToolbar();
+buildContextColorSubmenu();
 // Wires up a standalone "Add Chords" (precision) toggle for a textarea other
 // than the main song editor — currently just the lead-sheet notes editor.
 // Builds its own canvas + hint (appended into `wrap`, right after the
@@ -13501,16 +13668,37 @@ document.getElementById('song-editor').addEventListener('keydown', function(e) {
 
 // Right-click formatting menu on the editor
 const rtCtxMenu = document.getElementById('rt-ctx-menu');
-function closeRtCtx() { rtCtxMenu.classList.remove('open'); }
+// Collapsing the "Colour ▸" submenu along with the menu itself means it
+// always starts closed the next time the menu is opened, rather than
+// remembering whatever state it was left in.
+function closeRtCtx() {
+  rtCtxMenu.classList.remove('open');
+  const colorTrigger = document.getElementById('ctx-color-trigger');
+  const colorSubmenu = document.getElementById('ctx-color-submenu');
+  if (colorTrigger) colorTrigger.classList.remove('open');
+  if (colorSubmenu) colorSubmenu.classList.remove('open');
+}
 document.getElementById('song-editor').addEventListener('contextmenu', function(e) {
   e.preventDefault();
   closeRtCtx();
-  const menuW = 190, menuH = 260;   // taller now with the Line section added below Format
+  const menuW = 190, menuH = 320;   // taller now with the Colour submenu potentially open
   rtCtxMenu.style.left = Math.min(e.clientX, window.innerWidth  - menuW - 8) + 'px';
   rtCtxMenu.style.top  = Math.min(e.clientY, window.innerHeight - menuH - 8) + 'px';
   rtCtxMenu.classList.add('open');
 });
 rtCtxMenu.addEventListener('mousedown', function(e) {
+  // "Colour ▸" is special-cased: it toggles the swatch submenu open/closed
+  // in place rather than applying a formatting action and closing the whole
+  // menu like every other item does (rtApply). Clicking a swatch or "Clear"
+  // inside the submenu still closes everything — see buildContextColorSubmenu.
+  const trigger = e.target.closest('#ctx-color-trigger');
+  if (trigger) {
+    e.preventDefault();
+    trigger.classList.toggle('open');
+    document.getElementById('ctx-color-submenu').classList.toggle('open');
+    return;
+  }
+  if (e.target.closest('#ctx-color-submenu')) return;   // let the swatch/clear buttons' own click handlers run
   const item = e.target.closest('.ctx-item');
   if (!item) return;
   e.preventDefault(); // keep the textarea selection alive
@@ -13563,6 +13751,14 @@ document.getElementById('song-editor').addEventListener('input', () => {
 document.getElementById('song-editor').addEventListener('input', _scheduleCollabEditBroadcast);
 ['edit-title', 'edit-artist', 'edit-key', 'edit-time-sig'].forEach(id => {
   document.getElementById(id).addEventListener('input', _scheduleCollabEditBroadcast);
+});
+// Local typing reflows the text immediately (no debounce) — any already-
+// displayed remote cursor overlays need repositioning right along with it,
+// or they'd visibly lag a quarter-second behind the text moving under them.
+document.getElementById('song-editor').addEventListener('input', () => {
+  if (currentIdx < 0) return;
+  const song = songs[currentIdx];
+  if (song && song._collab && song._collab.active) _repositionAllRemoteCursors(song._collab.itemId);
 });
 
 // ── EDIT-MODE TRANSPOSE — permanently rewrites the chords in the editor text ──
@@ -17811,6 +18007,7 @@ function _lsTransposeChart(song, delta) {
   });
   if (song.key) song.key = transposeKey(song.key, delta) || song.key;
   saveSongs();
+  _scheduleLsCollabEditBroadcast(song);
   renderIRealSong(song);
   showToast((delta > 0 ? '♯ Transposed up' : '♭ Transposed down') + ' a semitone');
 }
@@ -17870,6 +18067,7 @@ function _irealEditCell(cell, bar, song){
     const chords=_irealTextToChords(ta.value);
     bar.chords=chords;
     saveSongs();
+    _scheduleLsCollabEditBroadcast(song);
     if(andRender) renderIRealSong(song);
   }
   function cancel(){
@@ -18028,7 +18226,7 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   menu.appendChild(row('♪', bar.timeChange ? 'Time: '+bar.timeChange : 'Set time sig', '', ()=>{
     openModal('Set time signature',
       [{label:'Time signature',placeholder:'e.g. 4/4',value:bar.timeChange||'',key:'t'}],
-      ({t})=>{bar.timeChange=t||null;saveSongs();renderIRealSong(song);}
+      ({t})=>{bar.timeChange=t||null;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}
     );
   }));
 
@@ -18036,7 +18234,7 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   menu.appendChild(row('§', bar.section ? 'Section: '+bar.section : 'Set section', '', ()=>{
     openModal('Set section marker',
       [{label:'Section label',key:'s'}],
-      ({s})=>{bar.section=s||null;saveSongs();renderIRealSong(song);}
+      ({s})=>{bar.section=s||null;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}
     );
   }));
 
@@ -18044,18 +18242,18 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   menu.appendChild(row('①', bar.endingNum ? 'Ending: '+bar.endingNum : 'Set ending', '', ()=>{
     openModal('Set ending number',
       [{label:'Ending (e.g. 1, 2)',placeholder:'1',value:bar.endingNum||'',key:'e'}],
-      ({e})=>{bar.endingNum=e||null;saveSongs();renderIRealSong(song);}
+      ({e})=>{bar.endingNum=e||null;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}
     );
   }));
 
   menu.appendChild(sep());
 
   // Repeat markers
-  menu.appendChild(row('𝄆', bar.openRepeat  ? '✓ Open repeat'  : 'Open repeat',  bar.openRepeat ?'active':'', ()=>{bar.openRepeat=!bar.openRepeat;saveSongs();renderIRealSong(song);}));
-  menu.appendChild(row('𝄇', bar.closeRepeat ? '✓ Close repeat' : 'Close repeat', bar.closeRepeat?'active':'', ()=>{bar.closeRepeat=!bar.closeRepeat;saveSongs();renderIRealSong(song);}));
-  menu.appendChild(row('𝄁', bar.sectionEnd  ? '✓ Double barline (end)' : 'Double barline (end)', bar.sectionEnd?'active':'', ()=>{bar.sectionEnd=!bar.sectionEnd;saveSongs();renderIRealSong(song);}));
-  menu.appendChild(row('𝄁', bar.sectionStart? '✓ Double barline (start)' : 'Double barline (start)', bar.sectionStart?'active':'', ()=>{bar.sectionStart=!bar.sectionStart;saveSongs();renderIRealSong(song);}));
-  menu.appendChild(row('||', bar.final ? '✓ Final barline' : 'Final barline', bar.final?'active':'', ()=>{bar.final=!bar.final;saveSongs();renderIRealSong(song);}));
+  menu.appendChild(row('𝄆', bar.openRepeat  ? '✓ Open repeat'  : 'Open repeat',  bar.openRepeat ?'active':'', ()=>{bar.openRepeat=!bar.openRepeat;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}));
+  menu.appendChild(row('𝄇', bar.closeRepeat ? '✓ Close repeat' : 'Close repeat', bar.closeRepeat?'active':'', ()=>{bar.closeRepeat=!bar.closeRepeat;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}));
+  menu.appendChild(row('𝄁', bar.sectionEnd  ? '✓ Double barline (end)' : 'Double barline (end)', bar.sectionEnd?'active':'', ()=>{bar.sectionEnd=!bar.sectionEnd;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}));
+  menu.appendChild(row('𝄁', bar.sectionStart? '✓ Double barline (start)' : 'Double barline (start)', bar.sectionStart?'active':'', ()=>{bar.sectionStart=!bar.sectionStart;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}));
+  menu.appendChild(row('||', bar.final ? '✓ Final barline' : 'Final barline', bar.final?'active':'', ()=>{bar.final=!bar.final;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);}));
 
   menu.appendChild(sep());
 
@@ -18063,12 +18261,12 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   menu.appendChild(row('+', 'Insert bar before', '', ()=>{
     closeMenu();
     chart.bars.splice(bidx,0,emptyBar());
-    saveSongs();renderIRealSong(song);
+    saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);
   }));
   menu.appendChild(row('+', 'Insert bar after', '', ()=>{
     closeMenu();
     chart.bars.splice(bidx+1,0,emptyBar());
-    saveSongs();renderIRealSong(song);
+    saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);
   }));
 
   menu.appendChild(sep());
@@ -18077,7 +18275,7 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   menu.appendChild(row('✕', 'Delete bar', 'danger', ()=>{
     closeMenu();
     if(chart.bars.length>1){chart.bars.splice(bidx,1);}
-    saveSongs();renderIRealSong(song);
+    saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song);
   }));
 
   document.body.appendChild(menu);
@@ -18188,12 +18386,15 @@ function renderIRealSong(song){
     };
     eh.appendChild(_mkField('Title', song.title||'', v=>{
       song.title=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
+      _scheduleLsCollabEditBroadcast(song);
     }, {placeholder:'Song title', cls:'ls-field-title'}));
     eh.appendChild(_mkField('Artist', song.artist||'', v=>{
       song.artist=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
+      _scheduleLsCollabEditBroadcast(song);
     }, {placeholder:'Composer / artist', cls:'ls-field-artist'}));
     const _styleFields=_mkStyleField(song.style||'', v=>{
       song.style=v.trim(); saveSongs();
+      _scheduleLsCollabEditBroadcast(song);
     });
     // BPM + Time Signature share one cell within the compact row below.
     // Time Sig edits the chart's OPENING time signature (bars[0].timeChange);
@@ -18201,10 +18402,12 @@ function renderIRealSong(song){
     const bpmTimeWrap=document.createElement('div');bpmTimeWrap.className='ls-ef-split';
     bpmTimeWrap.appendChild(_mkField('BPM', song.bpm||'', v=>{
       const n=parseInt(v,10); song.bpm=(n>0?n:null); saveSongs();
+      _scheduleLsCollabEditBroadcast(song);
     }, {type:'number', placeholder:'120', cls:'bpm'}));
     bpmTimeWrap.appendChild(_mkField('Time Sig', (chart.bars&&chart.bars[0]&&chart.bars[0].timeChange)||'', v=>{
       if(chart.bars&&chart.bars[0]) chart.bars[0].timeChange=v.trim()||null;
       saveSongs();
+      _scheduleLsCollabEditBroadcast(song);
     }, {placeholder:'e.g. 4/4', cls:'timesig'}));
     const trField=document.createElement('div');trField.className='ls-ef ls-transpose-field';
     const trLbl=document.createElement('span');trLbl.className='ls-ef-lbl';trLbl.textContent='Transpose';
@@ -18342,7 +18545,7 @@ function renderIRealSong(song){
     notesTa.rows=8;
     notesTa.placeholder='Lyrics, annotations, performance notes...';
     notesTa.value=song.ireal_notes||'';
-    notesTa.addEventListener('input',()=>{song.ireal_notes=notesTa.value;saveSongs();});
+    notesTa.addEventListener('input',()=>{song.ireal_notes=notesTa.value;saveSongs();_scheduleLsCollabEditBroadcast(song);});
     notesTa.addEventListener('keydown',e=>e.stopPropagation());
     // Rich-text toolbar (Bold / Italic / Underline / Embed), same as chord sheets —
     // plus its own Add Chords toggle, so chord changes can be tagged directly
@@ -18385,6 +18588,13 @@ function renderIRealSong(song){
       _lsEditSnapshot = JSON.parse(JSON.stringify(song));
     } else {
       _lsEditSnapshot = null;   // saving — changes are already persisted live
+      // Exiting edit mode is this UI's "Save" moment — broadcast a 'saved'
+      // event so read-mode viewers on other clients (who only apply on
+      // 'saved', not on the live 'edit' broadcasts above) pick up the final
+      // state, same as persistCurrentEdits() does for plaintext songs.
+      if (song._collab && song._collab.active && typeof _broadcastCollabSaved === 'function') {
+        _broadcastCollabSaved(song);
+      }
     }
     isLsEditMode=!isLsEditMode;
     renderIRealSong(song);
@@ -18451,12 +18661,26 @@ function renderIRealSong(song){
   saveMenu.appendChild(urlBtn);
   saveMenu.appendChild(pubLsBtn);
 
+  // Redundant entry point for the same "Collaborate" flow reachable elsewhere
+  // — mirrors #btn-collaborate-toolbar in the plaintext #edit-toolbar (same
+  // showCollabModal(i), same modal); positioned the same way, right after the
+  // save menu and before the Condensed toggle.
+  const collabLsBtn=document.createElement('button');
+  collabLsBtn.id='btn-ls-collaborate-toolbar';
+  collabLsBtn.textContent='🔗 Collaborate';
+  collabLsBtn.title='Start or manage a live collaboration on this lead sheet';
+  collabLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) showCollabModal(currentIdx); });
+
   // Rebuilt every render (this whole toolbar is), so reflect current global
   // state each time rather than needing a separate sync call.
   const chordViewBtn=document.createElement('button');
   chordViewBtn.id='btn-ls-chordview';
-  chordViewBtn.textContent='≡ Condensed view';
+  chordViewBtn.textContent='≡ Condensed';
   chordViewBtn.style.marginLeft='auto';
+  // Hidden while editing, same treatment as the plaintext toolbar's
+  // #btn-chordview (body.editing-song #btn-chordview) — condensed view isn't
+  // meaningful mid-edit, and hiding it keeps Collaborate reachable at any time.
+  if (isLsEditMode) chordViewBtn.style.display='none';
   chordViewBtn.classList.toggle('active', isBracketChordView);
   chordViewBtn.title = isBracketChordView
     ? 'Showing chords inline in [brackets] — click to float them above the words instead'
@@ -18467,6 +18691,7 @@ function renderIRealSong(song){
   if (cancelLsBtn) irealTb.appendChild(cancelLsBtn);
   irealTb.appendChild(saveMenuBtn);
   irealTb.appendChild(saveMenu);
+  irealTb.appendChild(collabLsBtn);
   irealTb.appendChild(chordViewBtn);
   _wireTbDropdown(saveMenuBtn, saveMenu);
 
@@ -18513,12 +18738,33 @@ function _sbHeaders(extra) {
 // No accounts, ever. Sessions are anonymous and ephemeral, identified only by
 // a random 6-character join code. Transport is a Supabase Realtime Broadcast
 // channel named `ms-collab-<code>` — pub/sub over WebSocket, no database
-// table, no RLS. Scope: plain-text songs only (song._source is undefined /
-// 'plaintext' — whatever renders through #song-editor / tab_content). iReal
-// (lead sheet) and ABC (sheet music) songs use entirely different editor UIs
-// and are explicitly out of scope for this feature; see the guard in
-// startCollaboration()/showCollabModal() below, which mirrors the wording of
-// the existing edit-mode guard in setEditMode().
+// table, no RLS. Scope: plain-text songs (song._source undefined/'plaintext',
+// rendered through #song-editor / tab_content) AND iReal lead sheets
+// (song._source === 'ireal', rendered through #ireal-toolbar / #ireal-content
+// / ireal_chart+ireal_notes — see renderIRealSong()). ABC (sheet music) songs
+// use a still-different editor UI and remain explicitly out of scope; see the
+// guards in startCollaboration()/showCollabModal() below.
+//
+// Lead sheets don't have a single textarea to diff/merge the way the
+// plaintext editor does — every header field, the notes textarea, and every
+// bar edit/structural change writes straight onto `song` and calls
+// saveSongs() immediately (see renderIRealSong's isLsEditMode block,
+// _irealEditCell, _irealCellMenu, _lsTransposeChart). So instead of the
+// plaintext editor's per-keystroke cursor-preserving text merge, lead-sheet
+// collaboration broadcasts "current full state of this song" (via
+// _collabPayloadFromSong/_collabCurrentPayload, both branching on
+// song._source) after every such commit — see _scheduleLsCollabEditBroadcast.
+// Applying an incoming update means a full renderIRealSong(song) re-render,
+// which is safe UNLESS the local user currently has a bar's kebab menu, a
+// structural-edit modal, or an in-progress bar-text edit open — in that one
+// case the re-render is deferred (see _lsCollabSafeToRerender) since tearing
+// down that DOM out from under an open menu/modal would be jarring; `song`
+// itself is still updated immediately either way, so the next local render
+// (menu close, blur, etc.) picks up the latest data regardless. Pixel-level
+// remote cursor overlays (see the plaintext-only "LIVE REMOTE CURSORS"
+// section below) are NOT extended to lead sheets — there's no single text
+// caret concept for a grid of discrete bar cells, so peer awareness there is
+// limited to the existing presence-based peer count / participant list.
 //
 // Per-song persisted state (survives reload, lives on the song object itself,
 // saved via the normal saveSongs()):
@@ -18561,6 +18807,80 @@ function _collabGenItemId() {
   return 'itm-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }
 
+// ── IDENTITY — display name + stable per-session client id ──────────────────
+// _collabClientId distinguishes "me" from other participants in presence/
+// cursor data. It's generated fresh every page load (not persisted) — that's
+// fine, presence naturally re-announces on (re)connect, and nothing keys
+// long-term state off it.
+var _collabClientId = 'c-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+
+// _collabUsername/_collabUsernamePromptedThisSession track the display-name
+// prompt described in _ensureCollabUsername below. Neither is set from
+// localStorage automatically on load — on a fresh page load nobody has been
+// asked yet THIS session, even if a collaboration auto-resumes in the
+// background (see _resumeActiveCollaborations) — that resume path reads
+// straight from localStorage for its own track() call without touching
+// these, so a silently-resumed collaboration never forces the modal open
+// unprompted; it only appears the next time the user explicitly starts or
+// joins a (new) collaboration.
+var _collabUsername = null;
+var _collabUsernamePromptedThisSession = false;
+
+// Gate for every "start" or "join" action: calls onReady() once a display
+// name is confirmed for this session. First time this session → shows
+// #collab-username-modal (pre-filled from localStorage, so confirming is a
+// single tap) and only calls onReady() if the user confirms — Cancel aborts
+// whatever start/join action triggered this, same as closing the join-code
+// modal aborts a join. Every subsequent call this session (regardless of
+// role — hosting or joining) skips the modal entirely and calls onReady()
+// immediately with the already-confirmed name, per "stays the same for all
+// collaborations in the same session."
+function _ensureCollabUsername(onReady) {
+  if (_collabUsernamePromptedThisSession && _collabUsername) { onReady(); return; }
+  var input  = document.getElementById('collab-username-input');
+  var status = document.getElementById('collab-username-status');
+  input.value = localStorage.getItem('ug_collab_username') || '';
+  status.textContent = '';
+  document.getElementById('collab-username-modal').classList.add('open');
+  setTimeout(function() { input.focus(); input.select(); }, 0);
+  _collabUsernamePendingReady = onReady;
+}
+var _collabUsernamePendingReady = null;
+function _confirmCollabUsername() {
+  var input = document.getElementById('collab-username-input');
+  var name = input.value.trim().slice(0, 24);
+  if (!name) { name = 'Guest'; }
+  _collabUsername = name;
+  _collabUsernamePromptedThisSession = true;
+  localStorage.setItem('ug_collab_username', name);
+  document.getElementById('collab-username-modal').classList.remove('open');
+  var ready = _collabUsernamePendingReady;
+  _collabUsernamePendingReady = null;
+  if (typeof ready === 'function') ready();
+}
+function _cancelCollabUsername() {
+  document.getElementById('collab-username-modal').classList.remove('open');
+  _collabUsernamePendingReady = null;   // aborts whatever start/join was waiting on this
+}
+document.getElementById('collab-username-confirm-btn').addEventListener('click', _confirmCollabUsername);
+document.getElementById('collab-username-cancel-btn').addEventListener('click', _cancelCollabUsername);
+document.getElementById('collab-username-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); _confirmCollabUsername(); }
+});
+document.getElementById('collab-username-modal').addEventListener('click', function(e) {
+  if (e.target === this) _cancelCollabUsername();
+});
+
+// Resolves a display name for a presence entry, falling back to "User N"
+// (numbered by join order, oldest first) for the rare case a peer's presence
+// payload has no name at all (e.g. a stale/older client). Takes the full
+// sorted list of presence entries so numbering is stable across calls.
+function _collabDisplayName(entry, sortedEntries) {
+  if (entry && entry.name) return entry.name;
+  var idx = sortedEntries.indexOf(entry);
+  return 'User ' + (idx >= 0 ? idx + 1 : sortedEntries.length);
+}
+
 // Find a song by its stable _collab.itemId (NOT array index — indices shift).
 function _findCollabSongIdx(itemId) {
   for (var i = 0; i < songs.length; i++) {
@@ -18574,6 +18894,20 @@ function _findCollabSongIdx(itemId) {
 // pull straight from the live input fields (freshest possible source); else
 // read from the song object.
 function _collabPayloadFromSong(itemId, song) {
+  if (song._source === 'ireal') {
+    return {
+      itemId:      itemId,
+      _source:     'ireal',
+      title:       song.title       || '',
+      artist:      song.artist      || '',
+      key:         song.key         || '',
+      style:       song.style       || '',
+      bpm:         song.bpm         || null,
+      ireal_chart: song.ireal_chart || null,
+      ireal_notes: song.ireal_notes || '',
+      ts:          Date.now(),
+    };
+  }
   return {
     itemId:      itemId,
     title:       song.title       || '',
@@ -18586,6 +18920,11 @@ function _collabPayloadFromSong(itemId, song) {
 }
 function _collabCurrentPayload(itemId, idx) {
   var song = songs[idx];
+  // Lead-sheet fields are written straight onto `song` by every editing
+  // control (header inputs, notes textarea, bar edits) — there's no separate
+  // "live DOM draft" to prefer the way the plaintext editor has, so the song
+  // object itself is already the freshest source.
+  if (song._source === 'ireal') return _collabPayloadFromSong(itemId, song);
   if (isEditMode && currentIdx === idx) {
     return {
       itemId:      itemId,
@@ -18645,6 +18984,20 @@ function _applyLiveTextValue(el, newValue) {
 // to the live edit-mode input elements. Every field is applied — including
 // ones with focus — via _applyLiveTextValue's cursor-preserving merge above.
 function _collabApplyFields(song, payload, alsoUpdateDom) {
+  if ((payload._source || song._source) === 'ireal') {
+    song.title       = payload.title       || '';
+    song.artist      = payload.artist      || '';
+    song.key         = payload.key         || '';
+    song.style       = payload.style       || '';
+    song.bpm         = payload.bpm         || null;
+    song.ireal_chart = payload.ireal_chart || song.ireal_chart;
+    song.ireal_notes = payload.ireal_notes || '';
+    // Lead sheets have no live-DOM text fields to patch in place (the whole
+    // toolbar/grid is rebuilt from `song` by renderIRealSong) — callers that
+    // need the screen to reflect this handle the re-render themselves, guarded
+    // against clobbering an open bar-menu/modal (see _lsCollabSafeToRerender).
+    return;
+  }
   var map = [['title', 'edit-title'], ['artist', 'edit-artist'], ['key', 'edit-key'], ['timeSig', 'edit-time-sig']];
   map.forEach(function(pair) {
     var key = pair[0], elId = pair[1];
@@ -18655,6 +19008,19 @@ function _collabApplyFields(song, payload, alsoUpdateDom) {
   var ta = alsoUpdateDom ? document.getElementById('song-editor') : null;
   song.tab_content = payload.tab_content;
   if (ta) _applyLiveTextValue(ta, payload.tab_content || '');
+}
+
+// Lead-sheet analogue of the "skip if focused" caution that bit the plaintext
+// editor (see _applyLiveTextValue above) — but here the risk isn't a focused
+// field, it's a full DOM rebuild (renderIRealSong tears down and rebuilds the
+// whole toolbar/grid) landing while the user has a bar's kebab menu, a
+// structural-edit modal, or an in-progress bar-text edit open. Reuses the same
+// "menu/modal open" check the bar editor's own blur handler already relies on
+// (see _irealEditCell's onTaBlur) so an incoming remote update simply waits —
+// the next local render (menu close, blur, etc.) will pick up the new data
+// via the `song` object, which was already updated regardless.
+function _lsCollabSafeToRerender() {
+  return !document.querySelector('.ls-cell-menu,.ls-cell-modal-overlay,.ls-bar.ls-editing');
 }
 
 function _teardownCollabChannel(itemId) {
@@ -18679,9 +19045,23 @@ function _sendFullState(channel, itemId, idx) {
 function _collabHandleEdit(itemId, payload) {
   var idx = _findCollabSongIdx(itemId);
   if (idx < 0) return;
+  var song = songs[idx];
+  if (song._source === 'ireal') {
+    // Live, in-progress lead-sheet edits are only meaningful to another client
+    // that also has this exact lead sheet open in edit mode — read-mode
+    // viewers wait for the 'saved' event instead, same split as plaintext.
+    if (!(currentIdx === idx && isLsEditMode)) return;
+    _collabApplyFields(song, payload, false);
+    if (_lsCollabSafeToRerender()) renderIRealSong(song);
+    return;
+  }
   if (!(isEditMode && currentIdx === idx)) return;
   _collabApplyFields(songs[idx], payload, true);
   if (typeof updateEditorPreview === 'function') updateEditorPreview();
+  // The text just reflowed (possibly), so every remote cursor's pixel
+  // position needs recomputing — including the sender's own, if we already
+  // had a cursor on file for them from a moment ago.
+  _repositionAllRemoteCursors(itemId);
 }
 // 'saved' — applied regardless of read/edit mode; this is how read-mode
 // viewers get live updates specifically on save (not on every keystroke).
@@ -18690,11 +19070,19 @@ function _collabHandleSaved(itemId, payload) {
   var idx = _findCollabSongIdx(itemId);
   if (idx < 0) return;
   var song = songs[idx];
+  if (song._source === 'ireal') {
+    _collabApplyFields(song, payload, false);
+    saveSongs();
+    if (currentIdx === idx && _lsCollabSafeToRerender()) renderIRealSong(song);
+    buildSongList(document.getElementById('search-input').value);
+    return;
+  }
   var isOpenEdit = isEditMode && currentIdx === idx;
   var isOpenRead = !isEditMode && currentIdx === idx;
   _collabApplyFields(song, payload, isOpenEdit);
   saveSongs();
   if (isOpenEdit && typeof updateEditorPreview === 'function') updateEditorPreview();
+  if (isOpenEdit) _repositionAllRemoteCursors(itemId);
   if (isOpenRead) {
     var dt = document.getElementById('display-title');  if (dt) dt.textContent = song.title  || 'Untitled';
     var da = document.getElementById('display-artist'); if (da) da.textContent = song.artist || '';
@@ -18709,6 +19097,20 @@ function _collabHandleEnd(itemId, payload) {
   var idx = _findCollabSongIdx(itemId);
   if (idx >= 0) {
     var song = songs[idx];
+    if (song._source === 'ireal') {
+      _collabApplyFields(song, payload, false);
+      song._collab = null;
+      saveSongs();
+      if (currentIdx === idx) {
+        isLsEditMode = false;
+        renderIRealSong(song);
+      }
+      buildSongList(document.getElementById('search-input').value);
+      if (typeof showToast === 'function') showToast('Collaboration ended — changes saved.');
+      _teardownCollabChannel(itemId);
+      _closeCollabModalIfShowing(itemId);
+      return;
+    }
     var isOpenEdit = isEditMode && currentIdx === idx;
     var isOpenRead = !isEditMode && currentIdx === idx;
     _collabApplyFields(song, payload, isOpenEdit);
@@ -18728,14 +19130,29 @@ function _collabHandleEnd(itemId, payload) {
   _closeCollabModalIfShowing(itemId);
 }
 
+// Flattens channel.presenceState() (an object keyed by presence key, each
+// value an array of "metas" — one per track() call under that key) into a
+// single list of the metas themselves, sorted oldest-first by joinedAt. Used
+// for the peer count, the modal's participant list, and _collabDisplayName's
+// "User N" fallback numbering — all three need the same stable ordering.
+function _collabPeerList(channel) {
+  var state = channel && channel.presenceState ? channel.presenceState() : null;
+  if (!state) return [];
+  var out = [];
+  Object.keys(state).forEach(function(key) {
+    (state[key] || []).forEach(function(meta) { out.push(meta); });
+  });
+  out.sort(function(a, b) { return (a.joinedAt || 0) - (b.joinedAt || 0); });
+  return out;
+}
 function _updateCollabPeerCount(stateRef, channel) {
   try {
-    var state = channel.presenceState ? channel.presenceState() : null;
-    var count = state ? Object.keys(state).length : 0;
-    stateRef.peers = count;
+    var list = _collabPeerList(channel);
+    stateRef.peerList = list;
+    stateRef.peers = list.length;
     if (stateRef.itemId) {
       var idx = _findCollabSongIdx(stateRef.itemId);
-      if (idx >= 0 && songs[idx]._collab) songs[idx]._collab.peers = count;
+      if (idx >= 0 && songs[idx]._collab) songs[idx]._collab.peers = list.length;
     }
     _refreshCollabModalIfOpen(stateRef.itemId);
   } catch (e) {}
@@ -18747,15 +19164,32 @@ function _finishCollabJoin(stateRef, channel, payload) {
   if (!payload || !payload.itemId) return;
   clearTimeout(stateRef.timeoutId);
   stateRef.itemId = payload.itemId;
-  var song = {
-    title:       payload.title       || 'Untitled',
-    artist:      payload.artist      || '',
-    key:         payload.key         || '',
-    timeSig:     payload.timeSig     || '',
-    tab_content: payload.tab_content || '',
-    _source:     'plaintext',
-    _collab: { code: stateRef.code, isHost: false, active: true, itemId: payload.itemId, peers: null },
-  };
+  var song;
+  if (payload._source === 'ireal') {
+    song = {
+      title:       payload.title       || 'Untitled',
+      artist:      payload.artist      || '',
+      key:         payload.key         || '',
+      style:       payload.style       || '',
+      bpm:         payload.bpm         || null,
+      ireal_chart: payload.ireal_chart || (typeof _makeBlankChart === 'function' ? _makeBlankChart() : { bars: [] }),
+      ireal_notes: payload.ireal_notes || '',
+      tab_content: '',
+      _source:     'ireal',
+      _ms_format:  'lead-sheet',
+      _collab: { code: stateRef.code, isHost: false, active: true, itemId: payload.itemId, peers: null },
+    };
+  } else {
+    song = {
+      title:       payload.title       || 'Untitled',
+      artist:      payload.artist      || '',
+      key:         payload.key         || '',
+      timeSig:     payload.timeSig     || '',
+      tab_content: payload.tab_content || '',
+      _source:     'plaintext',
+      _collab: { code: stateRef.code, isHost: false, active: true, itemId: payload.itemId, peers: null },
+    };
+  }
   songs.push(song);
   _collabChannels.set(payload.itemId, channel);
   saveSongs();
@@ -18801,8 +19235,27 @@ function _wireCollabChannel(channel, stateRef, isHost) {
     if (!stateRef.itemId || payload.itemId !== stateRef.itemId) return;
     _collabHandleEnd(stateRef.itemId, payload);
   });
+  // Live remote-cursor position — see _collabHandleCursor. Ignored entirely
+  // unless this client currently has the same song open in edit mode (no
+  // point tracking cursor coordinates for a textarea that isn't on screen).
+  channel.on('broadcast', { event: 'cursor' }, function(msg) {
+    var payload = (msg && msg.payload) || {};
+    if (!stateRef.itemId || payload.itemId !== stateRef.itemId) return;
+    if (payload.clientId === _collabClientId) return;   // ignore our own (shouldn't arrive, but harmless guard)
+    _collabHandleCursor(stateRef.itemId, payload);
+  });
   channel.on('presence', { event: 'sync' }, function() {
     _updateCollabPeerCount(stateRef, channel);
+  });
+  // A peer disconnecting (closed tab, lost connection) doesn't send an
+  // explicit "editing:false" cursor update — clear their cursor overlay
+  // immediately on presence 'leave' rather than leaving a stale cursor
+  // frozen on screen until something else happens to repaint it.
+  channel.on('presence', { event: 'leave' }, function(payload) {
+    if (!stateRef.itemId) return;
+    (payload && payload.leftPresences || []).forEach(function(meta) {
+      if (meta && meta.clientId) _collabRemoveCursor(stateRef.itemId, meta.clientId);
+    });
   });
 }
 
@@ -18810,8 +19263,8 @@ function _wireCollabChannel(channel, stateRef, isHost) {
 function startCollaboration(i) {
   var song = songs[i];
   if (!song) return;
-  if (song._source && song._source !== 'plaintext') {
-    alert('Collaborate works on plain-text songs only.');
+  if (song._source && song._source !== 'plaintext' && song._source !== 'ireal') {
+    alert('Collaborate works on plain-text songs and lead sheets only.');
     return;
   }
   var client = _sbCollabClient();
@@ -18819,6 +19272,9 @@ function startCollaboration(i) {
     alert('Collaborate needs an internet connection and could not connect. Check your connection and try again.');
     return;
   }
+  // Display-name gate — see _ensureCollabUsername. No-op (immediate callback)
+  // after the first start/join this session.
+  _ensureCollabUsername(function() {
   var code   = _collabGenCode();
   var itemId = _collabGenItemId();
   song._collab = { code: code, isHost: true, active: true, itemId: itemId, peers: 1 };
@@ -18831,13 +19287,14 @@ function startCollaboration(i) {
   _collabChannels.set(itemId, channel);
   channel.subscribe(function(status) {
     if (status === 'SUBSCRIBED') {
-      try { channel.track({ role: 'host', joinedAt: Date.now() }); } catch (e) {}
+      try { channel.track({ role: 'host', joinedAt: Date.now(), name: _collabUsername, clientId: _collabClientId }); } catch (e) {}
       var idx = _findCollabSongIdx(itemId);
       if (idx >= 0) _sendFullState(channel, itemId, idx);
       _refreshCollabModalIfOpen(itemId);
     }
   });
   if (_collabModalSongIdx === i) _renderCollabModalState();
+  });
 }
 
 // ── Joiner: join an existing collaboration by its 6-character code ──────────
@@ -18860,6 +19317,10 @@ function joinCollaborationByCode(rawCode, onFail) {
     if (typeof _closeJoinCollabModal === 'function') _closeJoinCollabModal();
     return;
   }
+  // Display-name gate — see _ensureCollabUsername. Placed after the "already
+  // joined" short-circuit above so re-opening a collaboration you're already
+  // in never re-prompts for a name it doesn't need.
+  _ensureCollabUsername(function() {
   var stateRef = { itemId: null, code: code, timedOut: false, peers: null };
   var channel  = client.channel('ms-collab-' + code);
   _wireCollabChannel(channel, stateRef, false);
@@ -18873,9 +19334,10 @@ function joinCollaborationByCode(rawCode, onFail) {
   }, 4000);
   channel.subscribe(function(status) {
     if (status === 'SUBSCRIBED') {
-      try { channel.track({ role: 'joiner', joinedAt: Date.now() }); } catch (e) {}
+      try { channel.track({ role: 'joiner', joinedAt: Date.now(), name: _collabUsername, clientId: _collabClientId }); } catch (e) {}
       try { channel.send({ type: 'broadcast', event: 'request-sync', payload: { itemId: null } }); } catch (e) {}
     }
+  });
   });
 }
 
@@ -18910,7 +19372,243 @@ function _scheduleCollabEditBroadcast() {
     var payload = _collabCurrentPayload(itemId, currentIdx);
     try { ch.send({ type: 'broadcast', event: 'edit', payload: payload }); } catch (e) {}
   }, 250);
+  _scheduleCollabCursorBroadcast();
 }
+
+// Lead-sheet analogue of _scheduleCollabEditBroadcast above. Called after
+// every commit to a collaborating lead sheet made while isLsEditMode is true
+// (header fields, notes textarea keystrokes, bar-chord edits, and every
+// structural bar-menu action) — see the call sites in renderIRealSong(),
+// _irealEditCell(), and _irealCellMenu(). Debounced the same ~250ms as the
+// plaintext editor so a burst of keystrokes in the notes textarea doesn't
+// spam the channel; discrete actions (toggling a repeat mark, deleting a bar)
+// just re-arm the same timer, which is harmless since the payload is always
+// "current full state of this song," not an incremental diff.
+var _lsCollabEditDebounceT = null;
+function _scheduleLsCollabEditBroadcast(song) {
+  if (!song || !song._collab || !song._collab.active || !isLsEditMode) return;
+  var itemId = song._collab.itemId;
+  clearTimeout(_lsCollabEditDebounceT);
+  _lsCollabEditDebounceT = setTimeout(function() {
+    if (currentIdx < 0 || songs[currentIdx] !== song) return;   // user navigated away before this fired
+    var ch = _collabChannels.get(itemId);
+    if (!ch) return;
+    var payload = _collabPayloadFromSong(itemId, song);
+    try { ch.send({ type: 'broadcast', event: 'edit', payload: payload }); } catch (e) {}
+  }, 250);
+}
+
+// ── LIVE REMOTE CURSORS ───────────────────────────────────────────────────────
+// Shows a small coloured caret + hover-only name label inside #song-editor for
+// every OTHER participant currently in edit mode on the same song — nothing
+// is shown for a peer who's in read mode or looking at anything else (they
+// simply never broadcast a cursor while that's true; see setEditMode/
+// _broadcastCollabCursorState below). This is a display-only feature: it
+// never changes song.tab_content or anything persisted, purely a transient
+// overlay computed fresh from presence + broadcast data.
+
+// One colour per participant, assigned round-robin by join order (via
+// _collabPeerList, already sorted oldest-first) so it's stable for as long as
+// the collaboration runs, without needing a server-assigned id.
+var CURSOR_COLORS = ['#c0392b', '#2563a8', '#2e7d32', '#b8860b', '#7b3fa0', '#d2691e'];
+function _cursorColorFor(itemId, clientId) {
+  var ch = _collabChannels.get(itemId);
+  var list = ch ? _collabPeerList(ch) : [];
+  var idx = -1;
+  for (var i = 0; i < list.length; i++) { if (list[i].clientId === clientId) { idx = i; break; } }
+  if (idx < 0) idx = 0;
+  return CURSOR_COLORS[idx % CURSOR_COLORS.length];
+}
+
+// remoteCursors: itemId -> Map(clientId -> {name, start, end, lastSeen})
+var _remoteCursors = new Map();
+function _remoteCursorsFor(itemId) {
+  if (!_remoteCursors.has(itemId)) _remoteCursors.set(itemId, new Map());
+  return _remoteCursors.get(itemId);
+}
+
+// Builds/reuses a hidden div that mirrors #song-editor's text layout exactly,
+// so measuring where a character offset lands in the mirror tells us where
+// the real caret would be in the textarea (textareas have no API for this
+// themselves — this "shadow element" technique is the standard workaround).
+// Copies every CSS property that affects how text WRAPS or is METRICALLY
+// spaced (font, line-height, padding, border, box-sizing, white-space,
+// overflow-wrap, letter-spacing) — anything else (colour, background) is
+// irrelevant since the mirror is never actually shown (visibility:hidden;
+// still fully laid out and measurable, just not painted).
+var _taMirrorEl = null;
+function _getTaMirror(ta) {
+  var wrap = document.getElementById('song-editor-wrap');
+  if (!wrap) return null;
+  if (!_taMirrorEl || !wrap.contains(_taMirrorEl)) {
+    _taMirrorEl = document.createElement('div');
+    _taMirrorEl.id = 'ta-caret-mirror';
+    _taMirrorEl.style.position = 'absolute';
+    _taMirrorEl.style.top = '0';
+    _taMirrorEl.style.left = '0';
+    _taMirrorEl.style.visibility = 'hidden';
+    _taMirrorEl.style.pointerEvents = 'none';
+    _taMirrorEl.style.zIndex = '-1';
+    wrap.appendChild(_taMirrorEl);
+  }
+  var cs = window.getComputedStyle(ta);
+  ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight',
+   'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+   'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+   'boxSizing', 'whiteSpace', 'overflowWrap', 'wordBreak', 'tabSize', 'width'
+  ].forEach(function(prop) { _taMirrorEl.style[prop] = cs[prop]; });
+  return _taMirrorEl;
+}
+// Returns {left, top, height} for character offset `pos` in `ta`, in the
+// same coordinate space as #song-editor-wrap (i.e. exactly where an overlay
+// element inside #remote-cursors-layer should be positioned, since that
+// layer's inset:0 shares the wrapper's origin). Returns null if it can't be
+// measured (mirror missing, etc.) — callers should just skip drawing.
+function _taCaretRect(ta, pos) {
+  var mirror = _getTaMirror(ta);
+  if (!mirror) return null;
+  var value = ta.value || '';
+  pos = Math.max(0, Math.min(pos, value.length));
+  mirror.textContent = '';
+  mirror.appendChild(document.createTextNode(value.slice(0, pos)));
+  var marker = document.createElement('span');
+  marker.textContent = '​';   // zero-width space — gives the span real, measurable geometry
+  mirror.appendChild(marker);
+  mirror.appendChild(document.createTextNode(value.slice(pos) || ' '));
+  var wrapRect = document.getElementById('song-editor-wrap').getBoundingClientRect();
+  var mRect = marker.getBoundingClientRect();
+  var lineHeight = parseFloat(window.getComputedStyle(ta).lineHeight);
+  return {
+    left: mRect.left - wrapRect.left,
+    top:  mRect.top  - wrapRect.top,
+    height: mRect.height || lineHeight || 20,
+  };
+}
+
+// Creates/updates the on-screen element for one peer's cursor. No-ops (and
+// removes any existing element) if we can't get a rect, or the referenced
+// song isn't the one currently open in edit mode — callers already guard
+// this, but a second check here is cheap insurance against a stale call
+// landing after the user's navigated away.
+function _renderRemoteCursor(itemId, clientId) {
+  var idx = _findCollabSongIdx(itemId);
+  if (idx < 0 || !(isEditMode && currentIdx === idx)) return;
+  var data = _remoteCursorsFor(itemId).get(clientId);
+  var layer = document.getElementById('remote-cursors-layer');
+  var ta = document.getElementById('song-editor');
+  if (!data || !layer || !ta) return;
+  var rect = _taCaretRect(ta, data.end);
+  if (!rect) return;
+  var elId = 'rc-' + itemId + '-' + clientId;
+  var el = document.getElementById(elId);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = elId;
+    el.className = 'remote-cursor';
+    var label = document.createElement('span');
+    label.className = 'remote-cursor-label';
+    el.appendChild(label);
+    layer.appendChild(el);
+  }
+  el.style.setProperty('--rc-color', _cursorColorFor(itemId, clientId));
+  el.style.left   = rect.left + 'px';
+  el.style.top    = rect.top  + 'px';
+  el.style.height = rect.height + 'px';
+  el.querySelector('.remote-cursor-label').textContent = data.name || 'User';
+  el.title = data.name || 'User';   // fallback for platforms where :hover CSS is unreliable (touch)
+}
+function _collabRemoveCursor(itemId, clientId) {
+  _remoteCursorsFor(itemId).delete(clientId);
+  var el = document.getElementById('rc-' + itemId + '-' + clientId);
+  if (el) el.remove();
+}
+// Repositions every currently-tracked remote cursor for the open song —
+// called whenever the textarea's content changes (own typing or a remote
+// edit/save applied to it) or the window resizes, since either can reflow
+// the text and move where any given character offset lands on screen.
+function _repositionAllRemoteCursors(itemId) {
+  var map = _remoteCursorsFor(itemId);
+  map.forEach(function(_data, clientId) { _renderRemoteCursor(itemId, clientId); });
+}
+function _clearAllRemoteCursors(itemId) {
+  var map = _remoteCursorsFor(itemId);
+  map.forEach(function(_data, clientId) {
+    var el = document.getElementById('rc-' + itemId + '-' + clientId);
+    if (el) el.remove();
+  });
+  map.clear();
+}
+window.addEventListener('resize', function() {
+  if (currentIdx < 0 || !isEditMode) return;
+  var song = songs[currentIdx];
+  if (song && song._collab && song._collab.active) _repositionAllRemoteCursors(song._collab.itemId);
+});
+
+// Receiving handler for the 'cursor' broadcast event (see _wireCollabChannel).
+// Only meaningful while THIS client also has the same song open in edit mode
+// — there's nowhere to draw a cursor otherwise, so incoming positions for any
+// other view are simply dropped rather than accumulated for later.
+function _collabHandleCursor(itemId, payload) {
+  var idx = _findCollabSongIdx(itemId);
+  if (idx < 0 || !(isEditMode && currentIdx === idx)) return;
+  if (payload.editing === false) { _collabRemoveCursor(itemId, payload.clientId); return; }
+  _remoteCursorsFor(itemId).set(payload.clientId, {
+    name: payload.name || 'User',
+    start: payload.start || 0,
+    end: payload.end != null ? payload.end : (payload.start || 0),
+    lastSeen: Date.now(),
+  });
+  _renderRemoteCursor(itemId, payload.clientId);
+}
+
+// Debounced (~120ms — snappier than the 250ms text-edit debounce, since
+// cursor movement alone should feel responsive) broadcast of the LOCAL
+// user's own cursor position, while editing a collaborating song. Wired to
+// #song-editor's selectionchange/click/keyup (see the listeners below) as
+// well as being triggered from every text-edit broadcast (_scheduleCollabEditBroadcast)
+// since typing moves the caret too.
+var _collabCursorDebounceT = null;
+function _scheduleCollabCursorBroadcast() {
+  if (currentIdx < 0 || !isEditMode) return;
+  var song = songs[currentIdx];
+  if (!song || !song._collab || !song._collab.active) return;
+  var itemId = song._collab.itemId;
+  clearTimeout(_collabCursorDebounceT);
+  _collabCursorDebounceT = setTimeout(function() {
+    if (currentIdx < 0 || !isEditMode || songs[currentIdx] !== song) return;
+    var ch = _collabChannels.get(itemId);
+    var ta = document.getElementById('song-editor');
+    if (!ch || !ta) return;
+    try {
+      ch.send({ type: 'broadcast', event: 'cursor', payload: {
+        itemId: itemId, clientId: _collabClientId, name: _collabUsername,
+        start: ta.selectionStart, end: ta.selectionEnd, editing: true, ts: Date.now(),
+      }});
+    } catch (e) {}
+  }, 120);
+}
+// Sent immediately (not debounced) the moment editing stops for a
+// collaborating song — leaving edit mode, switching to a different song, or
+// ending the collaboration — so peers clear this user's cursor promptly
+// rather than it sitting frozen at its last position. Presence 'leave' (see
+// _wireCollabChannel) is the backstop for the case this never gets a chance
+// to send (tab closed, connection dropped).
+function _broadcastCollabCursorLeft(itemId) {
+  clearTimeout(_collabCursorDebounceT);
+  var ch = _collabChannels.get(itemId);
+  if (!ch) return;
+  try {
+    ch.send({ type: 'broadcast', event: 'cursor', payload: {
+      itemId: itemId, clientId: _collabClientId, name: _collabUsername, editing: false, ts: Date.now(),
+    }});
+  } catch (e) {}
+}
+document.addEventListener('selectionchange', function() {
+  if (document.activeElement === document.getElementById('song-editor')) _scheduleCollabCursorBroadcast();
+});
+['click', 'keyup'].forEach(function(evt) {
+  document.getElementById('song-editor').addEventListener(evt, _scheduleCollabCursorBroadcast);
+});
 
 // Called from persistCurrentEdits() (the in-app Save / Ctrl+S / edit-toggle-exit
 // path) right after it writes the edited fields onto `song` and saveSongs().
@@ -18928,8 +19626,8 @@ var _collabModalSongIdx = -1;
 function showCollabModal(i) {
   var song = songs[i];
   if (!song) return;
-  if (song._source && song._source !== 'plaintext' && !(song._collab && song._collab.active)) {
-    alert('Collaborate works on plain-text songs only.');
+  if (song._source && song._source !== 'plaintext' && song._source !== 'ireal' && !(song._collab && song._collab.active)) {
+    alert('Collaborate works on plain-text songs and lead sheets only.');
     return;
   }
   _collabModalSongIdx = i;
@@ -19071,9 +19769,17 @@ function _resumeCollabChannel(idx) {
   var channel = client.channel('ms-collab-' + song._collab.code);
   _wireCollabChannel(channel, stateRef, isHost);
   _collabChannels.set(itemId, channel);
+  // Resuming a collaboration that survived a reload is automatic, not an
+  // explicit "Start"/"Join" action — so it must never pop the display-name
+  // modal unprompted while the user is just reopening the app. Read straight
+  // from localStorage instead of going through _ensureCollabUsername; if
+  // nothing's been saved yet, fall back to "Guest" rather than sending an
+  // empty name. The modal still appears, as normal, the next time the user
+  // explicitly starts or joins a (new) collaboration this session.
+  var _resumeName = _collabUsername || localStorage.getItem('ug_collab_username') || 'Guest';
   channel.subscribe(function(status) {
     if (status === 'SUBSCRIBED') {
-      try { channel.track({ role: isHost ? 'host' : 'joiner', joinedAt: Date.now() }); } catch (e) {}
+      try { channel.track({ role: isHost ? 'host' : 'joiner', joinedAt: Date.now(), name: _resumeName, clientId: _collabClientId }); } catch (e) {}
       if (!isHost) {
         try { channel.send({ type: 'broadcast', event: 'request-sync', payload: { itemId: itemId } }); } catch (e) {}
       }
