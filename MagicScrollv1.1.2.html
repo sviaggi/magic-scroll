@@ -1011,6 +1011,29 @@
     padding: 4px 9px; line-height: 1;
   }
   #rt-toolbar #rt-embed, .rt-toolbar .rt-embed-btn { min-width: auto; }
+  /* Colour-text swatches — song editor only (see COLOR_SWATCHES/rtApplyColor).
+     Small square buttons in the same toolbar row as Bold/Italic/Underline. */
+  #rt-color-toolbar { display: flex; gap: 4px; align-items: center; }
+  #rt-color-toolbar .rt-color-swatch {
+    width: 22px; height: 22px; min-width: 22px; padding: 0;
+    border-radius: 3px; border: 1px solid var(--c-chrome-border);
+  }
+  #rt-color-toolbar .rt-color-swatch:hover { border-color: var(--c-chrome-text); }
+  #rt-toolbar #rt-color-clear, #rt-color-toolbar #rt-color-clear {
+    width: 22px; height: 22px; min-width: 22px; padding: 0;
+    font-size: 0.8rem; line-height: 1;
+  }
+  /* On phones, force the colour swatches onto their own line below Add
+     Chords/Bold/Italic/Underline/Embed rather than letting them wrap
+     wherever there happens to be room (which could land mid-row on some
+     widths and cramp everything else). flex-basis:100% on a flex item in a
+     wrapping flex container forces a line break before it. */
+  @media (max-width: 520px) {
+    #rt-color-toolbar {
+      flex-basis: 100%;
+      margin-top: 2px;
+    }
+  }
   .ctx-item {
     padding: 6px 14px;
     color: var(--c-chrome-text);
@@ -1142,6 +1165,22 @@
   #tab-content.fs-lg { font-size: 1.12rem; }
   #tab-content.fs-xl { font-size: 1.32rem; line-height: var(--user-line-height, 1.8); }
 
+  /* #song-editor and #tab-content-preview mirror #tab-content's font-size
+     scale exactly. Before this, #song-editor had its own hardcoded 0.9rem
+     (never tied to the XS/S/M/L/XL selector at all) and #tab-content-preview
+     was hardcoded to class="fs-md" in the HTML and never updated — so
+     entering edit mode always looked like a jump toward Medium regardless of
+     what size was actually selected. Both are now kept in sync with
+     #tab-content by _applyFontSizeClass() (search for it) every time the
+     size changes or is restored on load. Specificity note: these rules (id +
+     class) already win over #song-editor's own base font-size rule without
+     needing !important, since an id+class selector outranks a bare id.  */
+  #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: 0.68rem; }
+  #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: 0.82rem; }
+  #song-editor.fs-md, #tab-content-preview.fs-md { font-size: 0.95rem; }
+  #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: 1.12rem; }
+  #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: 1.32rem; }
+
   /* ── CHORD DIAGRAMS ──────────────────────────────────────────────────────── */
   #diagram-panel {
     position: fixed;
@@ -1198,20 +1237,6 @@
   .diagram-instrument-tabs select.inst-select.active {
     background: var(--c-accent); color: #fff;
     border-color: var(--c-accent); font-weight: bold; }
-
-  #diag-disclaimer {
-    font-size: 0.7rem; line-height: 1.45;
-    color: var(--c-chrome-text); background: var(--c-chrome-bg3);
-    border: 1px solid var(--c-chrome-border); border-radius: 3px;
-    padding: 7px 9px; margin-bottom: 10px;
-  }
-  #diag-disclaimer p { margin: 0 0 6px; }
-  #diag-disclaimer button {
-    font-size: 0.65rem; padding: 2px 8px;
-    background: var(--c-accent); color: #fff;
-    border: none; border-radius: 2px; cursor: pointer;
-  }
-  #diag-disclaimer button:hover { opacity: 0.85; }
 
   .chord-diagram-grid {
     display: grid;
@@ -1899,6 +1924,21 @@
     .diagram-instrument-tabs select.inst-select {
       font-size: 0.6rem;
       padding: 2px 5px;
+      /* Native <select> controls render with extra intrinsic height/line-box
+         a <button> with the same padding/font-size doesn't pick up on its
+         own — pin both to the same explicit height/line-height (content-box
+         height = 26px - 4px padding - 2px border = 20px, matched exactly by
+         line-height so the single line of text centers vertically) so the
+         Piano/Custom…/None buttons don't look shorter than the tuning
+         dropdowns sitting next to them in the same row. */
+      height: 26px;
+      line-height: 20px;
+      box-sizing: border-box;
+    }
+    /* Buttons default to centered text; selects default to left-aligned —
+       match buttons to the selects' alignment so both sit flush left. */
+    .diagram-instrument-tabs .inst-btn {
+      text-align: left;
     }
 
     /* Edit split: stack vertically */
@@ -2066,8 +2106,8 @@
   #settings-menu-content > #topbar-size-group {
     flex: 0 0 auto !important;
   }
-  /* Line Spacing has a slider + reset button, too wide to share a row with
-     Size/Themes/Print — give it the full row to itself, on the line below. */
+  /* Line Spacing's slider is too wide to share a row with Size/Themes/Print —
+     give it the full row to itself, on the line below. */
   #settings-menu-content > #topbar-linespacing-group {
     flex: 1 1 100% !important;
     width: 100%;
@@ -2223,6 +2263,34 @@
     flex: none;
   }
   .theme-preset-btn.active { background: var(--c-accent); color: var(--c-chrome-bg); }
+
+  /* On phone widths the Themes panel has WAY too much content (preset
+     swatches, ~11 colour pickers, background-image controls, 4 font
+     selects, a spacing toggle, action buttons) to behave like a small
+     dropdown anchored under its trigger button — openSettingsPanel's
+     inline left/top positioning (measured off the button, sized to
+     content) leaves it either clipped or taller than the viewport. Below
+     520px it instead docks as a fixed panel directly beneath the topbar,
+     spanning most of the viewport width, with its own internal scroll —
+     so the whole page never has to grow to fit it. --topbar-h is kept
+     live by the auto-hide-topbar code (see "AUTO-HIDE TOPBAR ON SCROLL")
+     for exactly this kind of positioning. The !important overrides are
+     needed because openSettingsPanel still sets inline left/top on every
+     .settings-panel (shared with Print settings, which isn't affected —
+     this rule is scoped to the Themes panel's own id) — same open/close
+     class toggle as always, just repositioned/resized here. */
+  @media (max-width: 520px) {
+    #theme-settings-panel {
+      position: fixed !important;
+      top: var(--topbar-h, 49px) !important;
+      left: 8px !important;
+      right: 8px !important;
+      width: auto !important;
+      max-width: calc(100vw - 16px) !important;
+      max-height: calc(100vh - var(--topbar-h, 49px) - 12px) !important;
+      overflow-y: auto !important;
+    }
+  }
 
   /* ── MONOSPACE CHORD/LYRIC SPACING ──────────────────────────────────────────
      Renders chord and lyric lines in a TRUE monospace font so every character
@@ -3158,14 +3226,14 @@
   .pub-actions { display: flex; gap: 8px; justify-content: flex-end; }
   .pub-status { font-size: 0.75rem; color: var(--c-chrome-muted); margin-top: 10px; text-align: center; min-height: 1em; }
   /* ── COLLABORATE MODAL ──────────────────────────────────────────────────── */
-  #collab-modal {
+  #collab-modal, #join-collab-modal {
     display: none;
     position: fixed; inset: 0; z-index: 900;
     background: rgba(0,0,0,0.55);
     align-items: center; justify-content: center;
     padding: 20px;
   }
-  #collab-modal.open { display: flex; }
+  #collab-modal.open, #join-collab-modal.open { display: flex; }
   #collab-code-display {
     font-family: var(--font-mono); font-size: 1.9rem; font-weight: bold;
     letter-spacing: 0.28em; text-align: center; color: var(--c-accent);
@@ -3174,6 +3242,15 @@
   }
   #collab-peer-count { text-align: center; font-size: 0.72rem; color: var(--c-chrome-muted); margin-bottom: 10px; min-height: 1em; }
   #collab-host-only-note { font-size: 0.74rem; color: var(--c-chrome-muted); text-align: center; margin-bottom: 10px; }
+  #join-collab-code-input {
+    display: block; width: 100%; box-sizing: border-box;
+    font-family: var(--font-mono); font-size: 1.9rem; font-weight: bold;
+    letter-spacing: 0.28em; text-align: center; text-transform: uppercase; color: var(--c-accent);
+    background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
+    border-radius: 4px; padding: 12px 6px; margin: 10px 0;
+  }
+  #join-collab-code-input:focus { outline: none; border-color: var(--c-accent); }
+  #join-collab-status.error { color: #e05252; }
   /* online preview */
   .preview-box { max-width: 600px; max-height: 80vh; display: flex; flex-direction: column; }
   .preview-scroll { overflow-y: auto; flex: 1; margin: 10px 0; }
@@ -3322,8 +3399,7 @@
   <span class="sep">|</span>
   <div class="ctrl-group" id="topbar-linespacing-group">
     <span class="ctrl-label">Line Spacing</span>
-    <input type="range" id="line-spacing-sel" min="1.1" max="2.3" step="0.05" value="1.65" title="Line spacing for song &amp; lead-sheet text">
-    <button id="btn-linespacing-reset" title="Reset line spacing to default">↺</button>
+    <input type="range" id="line-spacing-sel" min="1.65" max="2.3" step="0.05" value="1.65" title="Line spacing for song &amp; lead-sheet text">
   </div>
   <span class="sep">|</span>
   <div class="ctrl-group settings-btn" id="theme-settings-wrap">
@@ -3759,8 +3835,9 @@
           <button type="button" id="rt-italic" title="Italic (*text*)"><i>I</i></button>
           <button type="button" id="rt-underline" title="Underline (_text_)"><u>U</u></button>
           <button type="button" id="rt-embed" title="Embed a video or link">⧉ Embed…</button>
+          <div id="rt-color-toolbar"></div>
         </div>
-        <textarea id="song-editor" spellcheck="false"
+        <textarea id="song-editor" class="fs-md" spellcheck="false"
           placeholder="Paste or type your song here.
 
 [Verse]
@@ -3825,6 +3902,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     <select class="inst-select active" data-family="guitar">
       <option value="guitar">Guitar: E Standard</option>
       <option value="drop_d">Guitar: Drop D</option>
+      <option value="drop_c">Guitar: Drop C</option>
       <option value="dadgad">Guitar: DADGAD</option>
       <option value="open_g">Guitar: Open G</option>
       <option value="tenor_guitar">Guitar: Tenor (GDAE)</option>
@@ -3891,10 +3969,6 @@ I hope you enjoy using your magic scroll!"></textarea>
       </span>
     </div>
     <div class="diagram-instrument-tabs inst-section-body" data-role="secondary" hidden></div>
-  </div>
-  <div id="diag-disclaimer" style="display:none;">
-    <p>Due to the number of instruments and alternate tunings supported, it's possible some fingerings are off or not the most common/easiest way to play that chord. Please report any inaccuracies for me to fix!</p>
-    <button id="diag-disclaimer-dismiss" aria-label="Dismiss">Got it</button>
   </div>
   <div class="chord-diagram-grid" id="diagram-grid"></div>
 </div>
@@ -4125,6 +4199,22 @@ I hope you enjoy using your magic scroll!"></textarea>
   </div>
 </div>
 
+<!-- ── JOIN COLLABORATION MODAL (replaces prompt(), which is unreliable/absent
+     in installed PWAs and WebView app shells on mobile) ────────────────────── -->
+<div id="join-collab-modal">
+  <div class="pub-box" id="join-collab-box">
+    <h3>Join Collaboration</h3>
+    <div class="pub-warning">Enter the 6-character collaboration code shared with you.</div>
+    <input type="text" id="join-collab-code-input" maxlength="6" autocomplete="off"
+           autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="ABCDEF">
+    <div class="pub-status" id="join-collab-status"></div>
+    <div class="pub-actions">
+      <button id="join-collab-cancel-btn">Cancel</button>
+      <button id="join-collab-confirm-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Join</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── ONLINE SONG PREVIEW MODAL ─────────────────────────────────────────── -->
 <div id="online-preview-modal">
   <div class="preview-box">
@@ -4155,6 +4245,7 @@ I hope you enjoy using your magic scroll!"></textarea>
   <div class="ctx-item" data-rt="bold"><b>B</b>&nbsp; Bold</div>
   <div class="ctx-item" data-rt="italic"><i>I</i>&nbsp; Italic</div>
   <div class="ctx-item" data-rt="underline"><u>U</u>&nbsp; Underline</div>
+  <div class="ctx-item" data-rt="color-toggle">🎨&nbsp; Colour</div>
   <div class="ctx-separator"></div>
   <div class="ctx-item" data-rt="embed">⧉&nbsp; Embed…</div>
   <div class="ctx-separator"></div>
@@ -5218,6 +5309,28 @@ function _parseParenChordContent(content) {
 }
 function _isRoundBracketChord(content) { return !!_parseParenChordContent(content); }
 
+// Display-only helper: given round-bracket chord-annotation content (e.g.
+// "D /// //" or "F-Bb-F-Bb-C"), returns just the chord name(s) for showing
+// to the user — strum/connector glyphs (spaces, slashes, digits, arrows)
+// are dropped so a secondary/parenthetical chord shows only its name, e.g.
+// "(D /// //)" displays as "(D)" instead of duplicating the strum pattern
+// that already rendered for the primary chord earlier on the same line.
+// Explicit hyphen/dash separators between multiple chords in a turnaround
+// sequence are kept (e.g. "(F-Bb-F-Bb-C)" stays intact) since those mark
+// meaningful chord boundaries rather than strum notation.
+// NEVER call this anywhere that writes back into song.tab_content —
+// transposeText/extractChords need _parseParenChordContent's full
+// parts/chords reconstruction so stored text round-trips correctly; this
+// helper is for building read-mode DOM/text only.
+function _displayParenChordText(content) {
+  const parsed = _parseParenChordContent(content);
+  if (!parsed) return content;
+  return parsed.parts.map(p => {
+    if (p.type === 'chord') return p.value;
+    return /[-–—]/.test(p.value) ? '-' : '';
+  }).join('');
+}
+
 // "/", "-", "--", ",", "\" are frequently used right up against a chord to
 // denote a pause, strum, or break (e.g. "G," "D-" "Am/" "G--"). Strip a run of
 // these from a token's edges (never the middle, so slash chords like "C/G"
@@ -5246,6 +5359,11 @@ function lineIsChordLine(line) {
   // like "---" on an otherwise ordinary chord line) must NOT trip this.
   if (_isTabLine(line)) return false;
   line = splitPipeDelimited(line);
+  // Colour markers (⟦color:NAME⟧…⟦/color⟧) are stripped to their plain inner
+  // text before tokenizing — purely cosmetic, so they must never make a
+  // chord token unrecognisable, or an otherwise-valid chord line fail
+  // classification just because part of it was colour-highlighted.
+  line = _stripColorMarkers(line);
   const stripped = stripParenLyrics(line);
   const tokens = stripped.trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return false;
@@ -5483,7 +5601,10 @@ function parsePrecisionLine(line) {
 // itself, rendered separately by the caller, is never wrapped in any of
 // these tags at all (chords keep their own fixed chord-token styling
 // regardless of what markdown surrounds them in the source).
-function _newMarkdownState() { return { bold: false, italic: false, underline: false }; }
+// color: null when no colour run is open, else the active colour NAME (not
+// boolean, unlike bold/italic/underline) — see the COLOUR TEXT comment above
+// applyMarkup for the ⟦color:NAME⟧…⟦/color⟧ marker syntax.
+function _newMarkdownState() { return { bold: false, italic: false, underline: false, color: null }; }
 
 function _renderMarkdownSegment(text, state) {
   const frag = document.createDocumentFragment();
@@ -5496,19 +5617,31 @@ function _renderMarkdownSegment(text, state) {
     target = el;
     state[key] = true;
   }
+  function openColor(name) {
+    const el = document.createElement('span');
+    el.style.color = COLOR_NAME_TO_HEX[name] || name;
+    target.appendChild(el);
+    stack.push({ key: 'color', el });
+    target = el;
+    state.color = name;
+  }
+  function closeKey(key) {
+    const idx = stack.map(s => s.key).lastIndexOf(key);
+    if (idx !== -1) { stack.length = idx; target = stack.length ? stack[stack.length - 1].el : frag; }
+  }
   // Re-establish whatever was already open when this segment started (e.g. a
   // bold span that opened in an earlier segment, before an interposed chord).
   if (state.bold)      open('bold', 'strong');
   if (state.italic)    open('italic', 'em');
   if (state.underline) open('underline', 'u');
+  if (state.color)     openColor(state.color);
 
   let buf = '';
   function flush() { if (buf) { target.appendChild(document.createTextNode(buf)); buf = ''; } }
   function toggle(key, tag) {
     flush();
     if (state[key]) {
-      const idx = stack.map(s => s.key).lastIndexOf(key);
-      if (idx !== -1) { stack.length = idx; target = stack.length ? stack[stack.length - 1].el : frag; }
+      closeKey(key);
       state[key] = false;
     } else {
       open(key, tag);
@@ -5519,6 +5652,19 @@ function _renderMarkdownSegment(text, state) {
     if (text[i] === '*' && text[i + 1] === '*') { toggle('bold', 'strong'); i += 2; continue; }
     if (text[i] === '*') { toggle('italic', 'em'); i += 1; continue; }
     if (text[i] === '_') { toggle('underline', 'u'); i += 1; continue; }
+    if (text.startsWith(COLOR_CLOSE_TAG, i)) {
+      flush();
+      if (state.color) { closeKey('color'); state.color = null; }
+      i += COLOR_CLOSE_TAG.length;
+      continue;
+    }
+    const colorOpenMatch = COLOR_OPEN_RE.exec(text.slice(i, i + 24));   // ⟦color:xxxxxxx⟧ is well under 24 chars
+    if (colorOpenMatch && colorOpenMatch.index === 0) {
+      flush();
+      openColor(colorOpenMatch[1]);
+      i += colorOpenMatch[0].length;
+      continue;
+    }
     buf += text[i]; i += 1;
   }
   flush();
@@ -5555,7 +5701,13 @@ function buildPrecisionLineEl(line, opts) {
       rt.dataset.chord = seg.value;
       rt.textContent = seg.value;
     } else {
-      rt.appendChild(_chordTokenSpan(seg.value));
+      // Round-bracket segments (secondary/passing chords) carry strum glyphs
+      // baked into their value (e.g. "D /// //") — strip those for display
+      // so they don't duplicate the primary chord's own strum pattern; see
+      // _displayParenChordText. Curly/square segments are already a bare,
+      // validated chord name, so they pass through unchanged.
+      const isRound = line[seg.rawStart] === '(';
+      rt.appendChild(_chordTokenSpan(isRound ? _displayParenChordText(seg.value) : seg.value));
     }
     return rt;
   }
@@ -5677,13 +5829,16 @@ function buildBracketLineEl(line, opts) {
     }
     const openCh = line[seg.rawStart];
     if (openCh === '(') {
-      // Round-bracket strum/turnaround annotations carry extra non-chord text
-      // baked into their value (e.g. "G7 ////", "F-Bb-F-Bb-C") — show the
-      // whole thing verbatim rather than picking apart which pieces are
-      // chords for individual fingering conversion.
+      // Round-bracket annotations carry extra non-chord text baked into
+      // their value (e.g. "G7 ////", "F-Bb-F-Bb-C") — but a round-bracket
+      // group is nearly always a SECONDARY/passing chord following a
+      // primary chord that already showed its own strum glyphs earlier on
+      // the same line, so echoing them again here would just duplicate the
+      // strum pattern (see _displayParenChordText). No fingering/capo
+      // conversion is done here either — same as before, just chord name(s).
       const chip = document.createElement('span');
       chip.className = 'chord-token';
-      chip.textContent = line.slice(seg.rawStart, seg.rawEnd);
+      chip.textContent = '(' + _displayParenChordText(seg.value) + ')';
       el.appendChild(chip);
       return;
     }
@@ -5824,6 +5979,69 @@ function extractAbcChords(abcText, semis) {
 //   [yt: https://youtu.be/ID]        — YouTube thumbnail link
 //   [video: https://youtube.com/...]  — same
 //   [link: Title | https://...]       — hyperlink
+//
+// ── COLOUR TEXT (plain-text song editor only) ───────────────────────────────
+// Syntax:  ⟦color:NAME⟧colored text⟦/color⟧   e.g. ⟦color:red⟧Amazing⟦/color⟧
+// NAME is one of a small fixed palette — see COLOR_SWATCHES/COLOR_NAME_TO_HEX
+// below — not an arbitrary hex/rgb value, to keep this a plain, readable,
+// easy-to-strip marker rather than a general rich-text engine.
+//
+// ⟦ ⟧ (U+27E6/U+27E7, MATHEMATICAL LEFT/RIGHT WHITE SQUARE BRACKET) were
+// picked specifically because they can't collide with any bracket already
+// meaningful to the app: {Chord}, [Chord]/[Verse]/[yt:...]/[link:...], and
+// (Chord strum) round-bracket annotations all use ordinary ASCII brackets.
+//
+// Wired from the song editor's colour swatches (#rt-color-toolbar, built by
+// buildColorToolbar()) via rtApplyColor()/rtClearColor(), which just wrap or
+// unwrap the current textarea selection — same mechanism as rtWrapSelection
+// for **bold**/*italic*/_underline_. The stored text (song.tab_content) is
+// just these plain characters; nothing here is HTML.
+//
+// Read-mode rendering recognises the marker pair in two places, matching how
+// bold/italic/underline are already split across two renderers:
+//   - applyMarkup()          — plain (non-chord, non-inline-chord-tagged) lines
+//   - _renderMarkdownSegment() — text segments inside precision/bracket
+//                                chord-tagged lines (buildPrecisionLineEl /
+//                                buildBracketLineEl), tracked across segment
+//                                boundaries the same way state.bold/italic/
+//                                underline already are
+// Both simply wrap the enclosed run in <span style="color:...">.
+//
+// Chord-line classification (lineIsChordLine) and the classic two-line chord
+// renderer (renderChordLineInto) strip these markers before tokenizing (see
+// _stripColorMarkers) — the same treatment stripParenLyrics/the ~/! prefix
+// handling already get — so a colour marker sitting on or next to a chord
+// token can't be mistaken for part of the chord and can't make an otherwise
+// valid chord line fail classification. Colour is not itself rendered on a
+// chord token in that classic format (an edge case outside this feature's
+// scope — colouring is for lyrics); it's stripped there rather than shown.
+//
+// transposeText/extractChords/the simplified-view rebuild never recognise
+// ⟦…⟧ as a chord token (isChordToken requires a leading A-G), so a colour
+// marker glued to a token just makes that one token fail the chord match and
+// pass through untouched — no data loss, no corruption of song.tab_content;
+// only that specific token doesn't get transposed. Scope: plain-text songs
+// only, matching the _source !== 'plaintext' guard used by Collaborate.
+const COLOR_SWATCHES = [
+  ['red',    '#c0392b'],
+  ['orange', '#d2691e'],
+  ['gold',   '#b8860b'],
+  ['green',  '#2e7d32'],
+  ['blue',   '#2563a8'],
+  ['purple', '#7b3fa0'],
+];
+const COLOR_NAME_TO_HEX = {};
+COLOR_SWATCHES.forEach(function(pair) { COLOR_NAME_TO_HEX[pair[0]] = pair[1]; });
+const COLOR_OPEN_RE  = /⟦color:([a-z]+)⟧/;
+const COLOR_CLOSE_TAG = '⟦/color⟧';
+// Strips colour markers down to their plain inner text — used ONLY ahead of
+// chord-line classification/tokenizing (lineIsChordLine, renderChordLineInto),
+// never anywhere that writes back into song.tab_content.
+function _stripColorMarkers(text) {
+  return String(text || '')
+    .replace(/⟦color:[a-z]+⟧/g, '')
+    .replace(new RegExp(COLOR_CLOSE_TAG, 'g'), '');
+}
 function extractYTId(url) {
   const m = url.match(/(?:youtu\.be\/|[?&]v=)([\w-]{11})/);
   return m ? m[1] : null;
@@ -5860,6 +6078,13 @@ function applyMarkup(line, lineEl) {
   line = line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
              .replace(/\*([^*\n]+)\*/g,     '<em>$1</em>')
              .replace(/_([^_\n]+)_/g,        '<u>$1</u>');
+  // Colour text — ⟦color:NAME⟧…⟦/color⟧ (see the COLOUR TEXT comment above
+  // extractYTId). Unknown/unrecognised colour names just fall back to plain
+  // text rather than breaking the line.
+  line = line.replace(/⟦color:([a-z]+)⟧([\s\S]*?)⟦\/color⟧/g, function(_, name, inner) {
+    var hex = COLOR_NAME_TO_HEX[name];
+    return hex ? '<span style="color:' + hex + '">' + inner + '</span>' : inner;
+  });
   // Restore protected URLs as clickable links
   line = line.replace(/\x02(\d+)\x02/g, function(_, i) {
     var u = _rtUrls[+i], href = /^https?:\/\//.test(u) ? u : 'https://' + u;
@@ -6131,7 +6356,11 @@ function _buildEmbeddedABCBlock(abcText, idx) {
 const CPFX = /^([A-G][b#]?(?:maj|min|sus|add|aug|dim|mmaj|dom|m|M)?(?:[0-9]{1,2})?(?:[b#][0-9]{1,2})?(?:\/[A-G][b#]?)?)/;
 function renderChordLineInto(el, line) {
   const isForced = line.startsWith('!');
-  const dispLine = (line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line;
+  // Classic two-line chord format never renders colour on individual chord
+  // tokens (colouring is a lyrics feature) — strip markers here so a chord
+  // that happens to have one glued on renders normally instead of as
+  // literal marker text or failing isChordToken.
+  const dispLine = _stripColorMarkers((line.startsWith('!') || line.startsWith('~')) ? line.slice(1) : line);
   dispLine.split(/(\s+)/).forEach(part => {
     if (/^\s+$/.test(part)) {
       el.appendChild(document.createTextNode(part));
@@ -8530,17 +8759,30 @@ document.getElementById('btn-transpose-reset').addEventListener('click',()=>{
 });
 
 // ── FONT SIZE ───────────────────────────────────────────────────────────────
+// Every element whose text scales with the XS/S/M/L/XL selector — shared by
+// the change handler below and the on-load restore, so they can never drift
+// out of sync again. #song-editor and #tab-content-preview were missing from
+// this list until now: #song-editor had its own hardcoded font-size and
+// #tab-content-preview was permanently stuck at fs-md, which together are why
+// entering edit mode used to visibly jump toward Medium regardless of the
+// size actually selected (see the CSS comment above the .fs-* rules for
+// #song-editor/#tab-content-preview).
+const _FONT_SIZE_ELS = ['tab-content', 'ireal-song-card', 'song-editor', 'tab-content-preview'];
+function _applyFontSizeClass(cls) {
+  _FONT_SIZE_ELS.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = el.className.replace(/fs-\w+/g, '').trim() + ' ' + cls;
+  });
+}
 document.getElementById('font-size-sel').addEventListener('change',e=>{
-  const tc=document.getElementById('tab-content');
-  tc.className=tc.className.replace(/fs-\w+/g,'').trim(); tc.classList.add(e.target.value);
-  // Apply same size class to iReal lead sheet card
-  const isc=document.getElementById('ireal-song-card');
-  isc.className=isc.className.replace(/fs-\w+/g,'').trim()+' '+e.target.value;
+  _applyFontSizeClass(e.target.value);
   // xs size shrinks the whole chrome UI, not just text
   document.body.classList.toggle('ui-xs', e.target.value === 'fs-xs');
   localStorage.setItem('ug_fontsize', e.target.value);
   // Re-render the active sheet so the new size takes effect.
   const _cs=currentIdx>=0?songs[currentIdx]:null;
+  const isc=document.getElementById('ireal-song-card');
   if(_cs&&_cs._source==='ireal'&&isc.style.display!=='none') renderIRealSong(_cs);
   else if(_cs&&_cs._source==='abc'&&document.getElementById('abc-song-card').style.display!=='none'&&typeof renderABCSong==='function') renderABCSong(_cs);
 });
@@ -8564,17 +8806,17 @@ document.getElementById('line-spacing-sel').addEventListener('input', e => {
   _applyLineSpacing(e.target.value);
   localStorage.setItem('ug_linespacing', e.target.value);
 });
-document.getElementById('btn-linespacing-reset').addEventListener('click', () => {
-  localStorage.removeItem('ug_linespacing');
-  _applyLineSpacing(null);
-  document.getElementById('line-spacing-sel').value = 1.65;
-});
-// restore saved line spacing on load
+// restore saved line spacing on load — clamp anything saved from before the
+// slider's range changed (old min was 1.1; the low half never actually did
+// anything, so the new min is the old default, 1.65) so an old stored value
+// below that doesn't leave the thumb clamped left while a lower CSS value is
+// silently still in effect.
 (function(){
   const saved = localStorage.getItem('ug_linespacing');
   if (saved !== null && saved !== '') {
-    document.getElementById('line-spacing-sel').value = saved;
-    _applyLineSpacing(saved);
+    const clamped = Math.max(1.65, parseFloat(saved) || 1.65);
+    document.getElementById('line-spacing-sel').value = clamped;
+    _applyLineSpacing(clamped);
   }
 })();
 
@@ -8588,13 +8830,9 @@ document.getElementById('btn-linespacing-reset').addEventListener('click', () =>
   // more aggressive than most phones need out of the box.
   const saved = localStorage.getItem('ug_fontsize') ||
                 (window.innerWidth <= 520 ? 'fs-sm' : 'fs-md');
-  const tc = document.getElementById('tab-content');
-  tc.className = tc.className.replace(/fs-\w+/g,'').trim() + ' ' + saved;
-  const isc = document.getElementById('ireal-song-card');
-  isc.className = isc.className.replace(/fs-\w+/g,'').trim() + ' ' + saved;
+  _applyFontSizeClass(saved);
   document.body.classList.toggle('ui-xs', saved === 'fs-xs');
   document.getElementById('font-size-sel').value = saved;
-  document.body.classList.toggle('ui-xs', saved === 'fs-xs');
 })();
 
 // ── THEME SELECTOR ───────────────────────────────────────────────────────────
@@ -11268,7 +11506,7 @@ function getChordDiagram(name, inst) {
 // A chord can have several playable voicings. We expose them as a list so the
 // user can cycle through them with the < > arrows in the diagram panel, and we
 // remember their pick (per chord + instrument) so it shows everywhere.
-const SIX_STRING_INSTS = new Set(['guitar','drop_d','dadgad','open_g']);
+const SIX_STRING_INSTS = new Set(['guitar','drop_d','drop_c','dadgad','open_g']);
 
 let _selectedVoicings = {};
 try { _selectedVoicings = JSON.parse(localStorage.getItem('ms_voicings') || '{}') || {}; } catch(e) { _selectedVoicings = {}; }
@@ -11602,15 +11840,6 @@ let _abcChordTapT = null;
   });
 })();
 
-// Chord-inaccuracy notice: shown only the first time the diagrams panel is
-// opened. It is removed when the user changes instrument or closes/reopens.
-let _diagDisclaimerShown = false;
-function hideDiagDisclaimer(){ const d=document.getElementById('diag-disclaimer'); if(d) d.style.display='none'; }
-(function() {
-  const btn = document.getElementById('diag-disclaimer-dismiss');
-  if(btn) btn.addEventListener('click', hideDiagDisclaimer);
-})();
-
 document.getElementById('btn-diagrams').addEventListener('click',()=>{
   const panel=document.getElementById('diagram-panel');
   panel.classList.toggle('visible');
@@ -11627,13 +11856,9 @@ document.getElementById('btn-diagrams').addEventListener('click',()=>{
       panel.style.setProperty('top', top + 'px', 'important');
       panel.style.setProperty('max-height', Math.max(160, window.innerHeight - top - 12) + 'px', 'important');
     }
-    if(!_diagDisclaimerShown){ const d=document.getElementById('diag-disclaimer'); if(d) d.style.display='block'; _diagDisclaimerShown=true; }
-    else { hideDiagDisclaimer(); }
     renderDiagrams();
     const activeInstEl = panel.querySelector('.diagram-instrument-tabs[data-role="primary"] .inst-btn.active, .diagram-instrument-tabs[data-role="primary"] .inst-select.active');
     if(activeInstEl) activeInstEl.focus();
-  } else {
-    hideDiagDisclaimer();
   }
 });
 document.getElementById('btn-close-diagrams').addEventListener('click',()=>{
@@ -11641,7 +11866,6 @@ document.getElementById('btn-close-diagrams').addEventListener('click',()=>{
   document.getElementById('btn-diagrams').setAttribute('aria-pressed','false');
 });
 function setActiveInstrument(inst) {
-  hideDiagDisclaimer();
   currentInstrument = inst;
   _setSectionActive('primary', inst);
   if (inst === 'none') {
@@ -11799,9 +12023,6 @@ function _updateCapoDisplay(){
 function setCapo(which, delta){
   if(which==='secondary'){ secondaryCapo=Math.max(0,Math.min(11,secondaryCapo+delta)); }
   else { primaryCapo=Math.max(0,Math.min(11,primaryCapo+delta)); }
-  // Interacting with the capo counts as engaging with the diagrams → dismiss the
-  // "report bad chords" notice.
-  if(typeof hideDiagDisclaimer==='function') hideDiagDisclaimer();
   _saveSongState();               // remember this song's capo for the session
   _updateCapoDisplay();
   // Primary capo raises the SOUNDING pitch: refresh the key label + backing track.
@@ -12405,6 +12626,18 @@ document.getElementById('btn-settings-menu').addEventListener('click', function(
     }
     // Don't yank the bar away while a dropdown/panel opened from it is open.
     if (document.querySelector('.settings-panel.open, .topbar-cat-panel.open, #metro-panel.open')) {
+      lastY = y;
+      return;
+    }
+    // Don't yank the bar away while the library/sidebar is open either.
+    // NOTE: "open" isn't purely #sidebar:not(.collapsed) — on mobile the
+    // overlay drawer is shown/hidden via body.sidebar-open (see the
+    // SIDEBAR TOGGLE handler on btn-sidebar), and #sidebar keeps a stale
+    // 'collapsed' class from initial page load that's never toggled off on
+    // mobile. Checking both covers desktop (collapsed absent) and mobile
+    // (sidebar-open present) correctly.
+    var _sb = document.getElementById('sidebar');
+    if (document.body.classList.contains('sidebar-open') || (_sb && !_sb.classList.contains('collapsed'))) {
       lastY = y;
       return;
     }
@@ -13122,7 +13355,83 @@ function rtApply(kind, ta) {
   else if (kind === 'embed')       rtEmbed(ta);
   else if (kind === 'mark-chord')  rtSetLineMarker('chord', ta);
   else if (kind === 'mark-lyric')  rtSetLineMarker('lyric', ta);
+  else if (kind === 'color-toggle') rtToggleColor(ta);
 }
+
+// ── COLOUR TEXT (song editor only) ───────────────────────────────────────────
+// Wraps/unwraps the current selection in ⟦color:NAME⟧…⟦/color⟧ — see the
+// COLOUR TEXT comment above applyMarkup for the full syntax note and where
+// it's recognised in read mode. Plain-text songs only; not wired up for the
+// lead-sheet notes editor (buildRtToolbar) at all, so iReal/ABC songs never
+// see this toolbar.
+function rtApplyColor(name, ta) {
+  rtWrapSelection('⟦color:' + name + '⟧', COLOR_CLOSE_TAG, ta);
+}
+// Removes a colour marker pair from around the current selection — only
+// handles the direct case where the selection sits exactly between an
+// opening and closing marker (i.e. was just coloured, or the user re-selected
+// exactly what a previous colour swatch wrapped). A minimal, working fix
+// rather than a full "find any enclosing marker" search.
+function rtClearColor(ta) {
+  ta = _rtTarget(ta);
+  if (!ta) return;
+  const val = ta.value;
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  const beforeMatch = /⟦color:[a-z]+⟧$/.exec(val.slice(0, s));
+  const afterIsClose = val.slice(e, e + COLOR_CLOSE_TAG.length) === COLOR_CLOSE_TAG;
+  if (!beforeMatch || !afterIsClose) return;   // selection isn't directly wrapped — nothing to clear
+  const openLen = beforeMatch[0].length;
+  ta.value = val.slice(0, s - openLen) + val.slice(s, e) + val.slice(e + COLOR_CLOSE_TAG.length);
+  ta.focus({ preventScroll: true });
+  ta.selectionStart = s - openLen;
+  ta.selectionEnd   = e - openLen;
+  ta.dispatchEvent(new Event('input'));
+}
+// Right-click "Colour" shortcut — a single toggle rather than a submenu of
+// swatches (the toolbar already covers picking a specific colour). Uses the
+// same "is the selection directly wrapped by a colour marker" check as
+// rtClearColor to decide which way to toggle: already coloured → clear it
+// (back to "non-coloured"); not coloured → apply whichever swatch was used
+// most recently (_lastColorUsed, see buildColorToolbar).
+function rtToggleColor(ta) {
+  ta = _rtTarget(ta);
+  if (!ta) return;
+  const val = ta.value;
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  const beforeMatch = /⟦color:[a-z]+⟧$/.exec(val.slice(0, s));
+  const afterIsClose = val.slice(e, e + COLOR_CLOSE_TAG.length) === COLOR_CLOSE_TAG;
+  if (beforeMatch && afterIsClose) rtClearColor(ta);
+  else rtApplyColor(_lastColorUsed, ta);
+}
+// Builds the colour swatch row from COLOR_SWATCHES into `#rt-color-toolbar`.
+// Remembers whichever swatch was clicked most recently, so the right-click
+// "Colour" shortcut (see rtToggleColor) has a sensible colour to apply
+// without making the user reach for the toolbar first.
+let _lastColorUsed = COLOR_SWATCHES[0][0];
+function buildColorToolbar() {
+  const bar = document.getElementById('rt-color-toolbar');
+  if (!bar) return;
+  COLOR_SWATCHES.forEach(function(pair) {
+    const name = pair[0], hex = pair[1];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rt-color-swatch';
+    b.style.background = hex;
+    b.title = name.charAt(0).toUpperCase() + name.slice(1);
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => { _lastColorUsed = name; rtApplyColor(name); });
+    bar.appendChild(b);
+  });
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.id = 'rt-color-clear';
+  clear.title = 'Clear colour';
+  clear.textContent = '⌀';
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => rtClearColor());
+  bar.appendChild(clear);
+}
+buildColorToolbar();
 // Wires up a standalone "Add Chords" (precision) toggle for a textarea other
 // than the main song editor — currently just the lead-sheet notes editor.
 // Builds its own canvas + hint (appended into `wrap`, right after the
@@ -16564,7 +16873,16 @@ var _nnRafMap   = {};  // notDiv.id → pending rAF id, for cancellation (Note N
 
 // ── Key compatibility ────────────────────────────────────────────────────────
 function _wtCrossFingerCount(keyStr, baseMidi) {
-  var km = (keyStr||'').match(/^([A-G][b#]?)\s*(m(?:in)?|dor|mix|lyd|phr)?/i);
+  // Mode alternatives must be tried longest/most-specific-first — "maj", in
+  // particular, has to come before the bare minor indicator "m", otherwise
+  // "Dmaj"/"Gmaj"/"Amaj" match the "m(?:in)?" branch on just their leading
+  // "m" and get scored as D minor/G minor/A minor instead of major. That
+  // silently fed the wrong interval set into the cross-fingering count below,
+  // which is exactly why keys written as e.g. "K:Dmaj" (very common in ABC
+  // tunes, including many in The Session's collection) got the wrong
+  // whistle-difficulty verdict. Same ordering issue existed between "m" and
+  // "mix" (mixolydian), fixed the same way.
+  var km = (keyStr||'').match(/^([A-G][b#]?)\s*(maj(?:or)?|dor(?:ian)?|mix(?:olydian)?|lyd(?:ian)?|phr(?:ygian)?|m(?:in)?(?:or)?)?/i);
   if (!km) return 0;
   var nm = {C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11,Cb:11};
   var root = nm[km[1]]; if (root===undefined) return 0;
@@ -18443,6 +18761,7 @@ function _finishCollabJoin(stateRef, channel, payload) {
   saveSongs();
   buildSongList(document.getElementById('search-input').value);
   if (typeof showToast === 'function') showToast('Joined collaboration: ' + (song.title || 'Untitled'));
+  if (typeof _closeJoinCollabModal === 'function') _closeJoinCollabModal();
   renderSong(songs.length - 1);
 }
 
@@ -18522,18 +18841,23 @@ function startCollaboration(i) {
 }
 
 // ── Joiner: join an existing collaboration by its 6-character code ──────────
-function joinCollaborationByCode(rawCode) {
+// onFail(message) — optional callback used by the Join-Collaboration modal to
+// show an inline error instead of alert(); when omitted, falls back to alert()
+// so any other/older call site keeps working unchanged.
+function joinCollaborationByCode(rawCode, onFail) {
   var code = (rawCode || '').trim().toUpperCase();
+  var fail = typeof onFail === 'function' ? onFail : function(msg) { alert(msg); };
   if (!code) return;
   var client = _sbCollabClient();
   if (!client) {
-    alert('Joining a collaboration needs an internet connection and could not connect. Check your connection and try again.');
+    fail('Joining a collaboration needs an internet connection and could not connect. Check your connection and try again.');
     return;
   }
   var already = songs.find(function(s) { return s._collab && s._collab.active && s._collab.code === code; });
   if (already) {
     renderSong(songs.indexOf(already));
     if (typeof showToast === 'function') showToast('Already in your library.');
+    if (typeof _closeJoinCollabModal === 'function') _closeJoinCollabModal();
     return;
   }
   var stateRef = { itemId: null, code: code, timedOut: false, peers: null };
@@ -18545,7 +18869,7 @@ function joinCollaborationByCode(rawCode) {
     try { channel.unsubscribe(); } catch (e) {}
     var c = _sbCollabClient();
     if (c && c.removeChannel) { try { c.removeChannel(channel); } catch (e) {} }
-    alert('No active collaboration found for that code. Double-check it and try again.');
+    fail('No active collaboration found for that code. Double-check it and try again.');
   }, 4000);
   channel.subscribe(function(status) {
     if (status === 'SUBSCRIBED') {
@@ -18680,10 +19004,51 @@ document.getElementById('collab-end-btn').addEventListener('click', function() {
 });
 
 // ── "Join Collaboration" entry point (bottom of the Songs/library menu) ─────
+// Uses a custom modal (#join-collab-modal) rather than window.prompt() —
+// native prompt() is unreliable-to-entirely-nonfunctional inside installed
+// PWAs / WebView app shells on mobile (a documented iOS/Android limitation),
+// and it was also the one place Collaborate broke from the app's own modal
+// conventions used everywhere else (#collab-modal, #publish-modal, etc.).
+function _openJoinCollabModal() {
+  var input  = document.getElementById('join-collab-code-input');
+  var status = document.getElementById('join-collab-status');
+  input.value = '';
+  status.textContent = '';
+  status.classList.remove('error');
+  document.getElementById('join-collab-modal').classList.add('open');
+  setTimeout(function() { input.focus(); }, 0);
+}
+function _closeJoinCollabModal() {
+  document.getElementById('join-collab-modal').classList.remove('open');
+}
+function _showJoinCollabError(msg) {
+  var status = document.getElementById('join-collab-status');
+  status.textContent = msg;
+  status.classList.add('error');
+}
 document.getElementById('btn-join-collab').addEventListener('click', function() {
-  var code = prompt('Enter the 6-character collaboration code:');
-  if (code === null) return;
-  joinCollaborationByCode(code);
+  _openJoinCollabModal();
+});
+document.getElementById('join-collab-code-input').addEventListener('input', function() {
+  // Auto-uppercase and cap at 6 chars, matching the code format _collabGenCode() produces.
+  var v = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (v !== this.value) this.value = v;
+  document.getElementById('join-collab-status').textContent = '';
+  document.getElementById('join-collab-status').classList.remove('error');
+});
+document.getElementById('join-collab-code-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('join-collab-confirm-btn').click(); }
+});
+document.getElementById('join-collab-cancel-btn').addEventListener('click', function() {
+  _closeJoinCollabModal();
+});
+document.getElementById('join-collab-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+document.getElementById('join-collab-confirm-btn').addEventListener('click', function() {
+  var code = document.getElementById('join-collab-code-input').value.trim();
+  if (!code) { _showJoinCollabError('Enter a code first.'); return; }
+  joinCollaborationByCode(code, _showJoinCollabError);
 });
 
 // ── Resume live channels on page load ────────────────────────────────────────
