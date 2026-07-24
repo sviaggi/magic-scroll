@@ -665,12 +665,12 @@
     border: 1px solid var(--c-chrome-border);
     border-radius: 3px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.55);
-    /* Size to whichever option is widest, rather than a fixed min-width that
-       forced longer items (e.g. "⬇ Export monospace") to wrap onto a second
-       line while leaving extra empty space around shorter ones. max-width
-       keeps a single pathologically long item from stretching the menu off
-       the edge of narrow screens. */
-    width: max-content;
+    /* Actual width is computed and set inline by _wireTbDropdown (JS) at open
+       time — sized to whichever option is widest, rather than a fixed
+       min-width that forced longer items (e.g. "⬇ Export monospace") to wrap
+       onto a second line while leaving extra empty space around shorter
+       ones. See _wireTbDropdown for why that's done in JS rather than via
+       width:max-content here. max-width is a harmless backup cap. */
     max-width: min(320px, calc(100vw - 16px));
     padding: 4px 0;
     font-size: 0.78rem;
@@ -1262,7 +1262,16 @@
      up visibly narrower than everything else. Stretching the container and
      giving buttons the same width:100% treatment selects already had makes
      every option (button or select) fill the same full row width. */
-  .diagram-instrument-tabs button { font-size: 0.68rem; padding: 3px 7px;
+  .diagram-instrument-tabs button {
+    /* font: inherit FIRST — resets every font-related UA default (WebKit's
+       button-chrome font/size/line-height package) in one shot — then the
+       specific values below override just the sub-properties we actually
+       want to differ from the surrounding page. Order matters here: a
+       longhand like font-size only wins over an EARLIER shorthand if it's
+       declared AFTER it in this same rule. */
+    font: inherit;
+    font-size: 0.68rem; font-family: var(--font-mono);
+    padding: 3px 7px;
     color: #3a2010; border-color: #c8b89a; background: #e8dece;
     width: 100%; box-sizing: border-box;
     /* Buttons (Piano/Custom…/None) don't inherit the page font or text-align
@@ -1275,8 +1284,18 @@
        use to silently keep enforcing their own platform font/size on <button>
        text even after font-family/font-size are set in author CSS — without
        it, this rule alone wasn't reliably enough on every mobile browser. */
-    font-family: var(--font-mono); text-align: left;
-    appearance: none; -webkit-appearance: none; }
+    text-align: left;
+    appearance: none; -webkit-appearance: none;
+    /* iOS Safari/WKWebView (Firefox on iOS is Safari's engine underneath —
+       Apple requires it) auto-boosts small text for readability via
+       -webkit-text-size-adjust, but historically only for regular reading
+       content, not <button> labels — so a <select>'s displayed text gets
+       boosted while a same-font-size <button>'s doesn't, leaving Piano/
+       Custom…/None visibly smaller than the tuning dropdowns next to them
+       specifically on iOS even though every other browser renders them
+       identically. Locking both to 100% (no adjustment either way) below
+       keeps them matched regardless of engine. */
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .diagram-instrument-tabs button:hover { background: #d8cbbe; color: #1a0a00; }
   .diagram-instrument-tabs button.active {
     background: var(--c-accent); color: #fff;
@@ -1285,7 +1304,8 @@
     font-size: 0.68rem; padding: 3px 4px; font-family: inherit;
     color: #3a2010; border: 1px solid #c8b89a; background: #e8dece;
     border-radius: 2px; cursor: pointer;
-    width: 100%; max-width: 100%; box-sizing: border-box; }
+    width: 100%; max-width: 100%; box-sizing: border-box;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .diagram-instrument-tabs select.inst-select:hover { background: #d8cbbe; color: #1a0a00; }
   .diagram-instrument-tabs select.inst-select.active {
     background: var(--c-accent); color: #fff;
@@ -13888,28 +13908,43 @@ document.getElementById('song-editor').addEventListener('input', _scheduleCollab
 ['edit-title', 'edit-artist', 'edit-key', 'edit-time-sig'].forEach(id => {
   document.getElementById(id).addEventListener('input', _scheduleCollabEditBroadcast);
 });
-// Local typing reflows the text immediately (no debounce) — any already-
-// displayed remote cursor overlays sitting AFTER the edit need repositioning
-// right along with it, or they'd visibly lag a quarter-second behind the
-// text moving under them. Cursors sitting entirely within the UNCHANGED
-// portion of the text (before wherever this keystroke actually landed) can't
-// have moved at all — their character offset points at byte-identical text
-// before and after — so recalculating them anyway was needlessly jittering
-// every remote cursor on every keystroke, even ones nowhere near what was
-// being typed. Compare against the text as of the previous input event and
-// only reposition cursors at or after the first point that actually differs.
+// Local typing reflows the text immediately (no debounce). Cursors sitting
+// entirely within the UNCHANGED portion of the text (before wherever this
+// keystroke actually landed) can't have moved at all — their character
+// offset points at byte-identical text before and after — so they're left
+// alone, exactly as before.
+//
+// Cursors AT OR AFTER the edit point are a different problem. Their stored
+// offset is a raw character count broadcast by their OWN owner, who hasn't
+// seen (and hasn't adjusted for) the edit we just made — there's no OT/CRDT
+// here to transform it correctly. Recalculating their pixel position against
+// it anyway doesn't recover the truth, it just guesses: the cursor visibly
+// advances or retreats to a WRONG spot, then — once the owner's own client
+// applies this same edit (via _collabApplyFields/_applyLiveTextValue, which
+// re-anchors THEIR caret and fires a fresh 'cursor' broadcast on the
+// resulting selectionchange, see _collabHandleCursor) — snaps to where it
+// actually belongs a moment later. That guess-then-correct cycle is exactly
+// the reported jitter. Rather than show a guess, hide the cursor the instant
+// it could be wrong; the fresh broadcast (normally well under a second later
+// for an actively-connected peer) reveals it again at the right spot with no
+// visible wrong stop in between. Its tracked data isn't deleted, only the
+// on-screen element — see _hideRemoteCursorElement.
 let _lastLocalSongEditorValue = null;
 document.getElementById('song-editor').addEventListener('input', () => {
   if (currentIdx < 0) { _lastLocalSongEditorValue = null; return; }
   const song = songs[currentIdx];
   if (!(song && song._collab && song._collab.active)) { _lastLocalSongEditorValue = null; return; }
+  const itemId = song._collab.itemId;
   const newValue = document.getElementById('song-editor').value;
   const oldValue = _lastLocalSongEditorValue != null ? _lastLocalSongEditorValue : newValue;
   const maxPrefix = Math.min(oldValue.length, newValue.length);
   let prefixLen = 0;
   while (prefixLen < maxPrefix && oldValue[prefixLen] === newValue[prefixLen]) prefixLen++;
   _lastLocalSongEditorValue = newValue;
-  _repositionAllRemoteCursors(song._collab.itemId, prefixLen);
+  _remoteCursorsFor(itemId).forEach(function(data, clientId) {
+    if ((data.end || 0) < prefixLen) return;   // provably unaffected — leave it exactly where it is
+    _hideRemoteCursorElement(itemId, clientId);
+  });
 });
 
 // Runs the ordinary chord/lyric transposer (transposeText) everywhere in a
@@ -14215,17 +14250,38 @@ function _wireTbDropdown(trigger, menu) {
     document.querySelectorAll('.tb-menu.open').forEach(function(m) { m.classList.remove('open'); });
     if (wasOpen) return;
     var rect = trigger.getBoundingClientRect();
+    // Size the menu to its widest option ourselves in JS rather than relying
+    // on CSS width:max-content — that combined with .tb-menu button/select's
+    // own width:100% is a circular sizing case (the parent's "size to
+    // content" depends on children whose declared width is itself "100% of
+    // parent"), and while modern desktop Chrome/Firefox resolve it fine,
+    // it was rendering far too wide — full width:max-width, not actually
+    // fitted to any real option — on iOS/the Capacitor WKWebView specifically.
+    // Measuring each child's OWN natural width (with the 100% temporarily
+    // overridden) and setting the menu's width to a plain pixel value
+    // sidesteps that circularity on every engine.
+    menu.style.width = 'auto';
+    menu.style.visibility = 'hidden';
+    menu.classList.add('open');
+    var maxW = 0;
+    Array.prototype.forEach.call(menu.children, function(child) {
+      var prevWidth = child.style.width;
+      child.style.width = 'auto';
+      maxW = Math.max(maxW, child.getBoundingClientRect().width);
+      child.style.width = prevWidth;
+    });
+    var capW = Math.min(320, window.innerWidth - 16);
+    menu.style.width = Math.min(Math.ceil(maxW), capW) + 'px';
+    menu.style.visibility = '';
     menu.style.top = (rect.bottom + 2) + 'px';
     menu.style.left = 'auto';
     menu.style.right = Math.max(4, window.innerWidth - rect.right) + 'px';
-    menu.classList.add('open');
-    // The menu is now sized to its widest option (see .song-kebab-menu's
-    // width:max-content) rather than a fixed min-width, so a right-anchored
-    // menu whose trigger sits near the left edge of a narrow screen can have
-    // its LEFT edge pushed off-screen — measure it now that it's actually
-    // rendered and, if so, pin it to a small margin from the left instead.
-    // Doesn't touch text alignment inside it (still left-justified) — this
-    // only repositions the box as a whole back onto the visible screen.
+    // A right-anchored menu whose trigger sits near the left edge of a
+    // narrow screen can still have its LEFT edge pushed off-screen even at
+    // the correct (now much smaller) width — pin it to a small margin from
+    // the left instead when that happens. Doesn't touch text alignment
+    // inside it (still left-justified) — this only repositions the box as a
+    // whole back onto the visible screen.
     var menuRect = menu.getBoundingClientRect();
     if (menuRect.left < 4) {
       menu.style.right = 'auto';
@@ -19751,6 +19807,15 @@ function _renderRemoteCursor(itemId, clientId) {
 }
 function _collabRemoveCursor(itemId, clientId) {
   _remoteCursorsFor(itemId).delete(clientId);
+  var el = document.getElementById('rc-' + itemId + '-' + clientId);
+  if (el) el.remove();
+}
+// Like _collabRemoveCursor, but keeps the tracked data — used when we still
+// believe this cursor exists somewhere, we just don't have a trustworthy
+// position for it right now (see the local-typing listener below). The next
+// genuine broadcast for this clientId (a fresh 'cursor' event, or a text
+// edit/save that re-renders everyone) naturally recreates the element.
+function _hideRemoteCursorElement(itemId, clientId) {
   var el = document.getElementById('rc-' + itemId + '-' + clientId);
   if (el) el.remove();
 }
