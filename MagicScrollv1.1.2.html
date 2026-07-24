@@ -1015,15 +1015,20 @@
     padding: 4px 9px; line-height: 1;
   }
   #rt-toolbar #rt-embed, .rt-toolbar .rt-embed-btn { min-width: auto; }
-  /* Colour-text swatches — song editor only (see COLOR_SWATCHES/rtApplyColor).
-     Small square buttons in the same toolbar row as Bold/Italic/Underline. */
-  #rt-color-toolbar { display: flex; gap: 4px; align-items: center; }
-  #rt-color-toolbar .rt-color-swatch {
+  /* Colour-text swatches — song editor's static #rt-color-toolbar, AND (via
+     the .rt-color-toolbar class) any per-instance row built by the shared
+     _buildColorSwatchRow() factory, e.g. the lead-sheet notes editor's
+     rich-text toolbar (buildRtToolbar) — that one is rebuilt fresh every
+     render, so it needs a class rather than reusing the same id. Small
+     square buttons in the same toolbar row as Bold/Italic/Underline. */
+  #rt-color-toolbar, .rt-color-toolbar { display: flex; gap: 4px; align-items: center; }
+  #rt-color-toolbar .rt-color-swatch, .rt-color-toolbar .rt-color-swatch {
     width: 22px; height: 22px; min-width: 22px; padding: 0;
     border-radius: 3px; border: 1px solid var(--c-chrome-border);
   }
-  #rt-color-toolbar .rt-color-swatch:hover { border-color: var(--c-chrome-text); }
-  #rt-toolbar #rt-color-clear, #rt-color-toolbar #rt-color-clear {
+  #rt-color-toolbar .rt-color-swatch:hover, .rt-color-toolbar .rt-color-swatch:hover { border-color: var(--c-chrome-text); }
+  #rt-toolbar #rt-color-clear, #rt-color-toolbar #rt-color-clear,
+  .rt-toolbar .rt-color-clear, .rt-color-toolbar .rt-color-clear {
     width: 22px; height: 22px; min-width: 22px; padding: 0;
     font-size: 0.8rem; line-height: 1;
   }
@@ -1033,7 +1038,7 @@
      widths and cramp everything else). flex-basis:100% on a flex item in a
      wrapping flex container forces a line break before it. */
   @media (max-width: 520px) {
-    #rt-color-toolbar {
+    #rt-color-toolbar, .rt-color-toolbar {
       flex-basis: 100%;
       margin-top: 2px;
     }
@@ -1765,7 +1770,7 @@
     margin-bottom: 2px;
     background: var(--rc-color, var(--c-accent));
     color: #fff;
-    font-family: var(--font-ui, sans-serif);
+    font-family: var(--font-mono);
     font-size: 0.65rem;
     line-height: 1.3;
     white-space: nowrap;
@@ -3322,10 +3327,11 @@
     padding: 20px;
   }
   #collab-modal.open, #join-collab-modal.open, #collab-username-modal.open { display: flex; z-index: 950; }
-  #collab-username-input {
+  #collab-username-input, #collab-start-name-input {
     width: 100%; box-sizing: border-box; font-size: 1rem; padding: 8px 10px;
     margin-top: 10px; border-radius: 4px; border: 1px solid var(--c-chrome-border);
     background: var(--c-inset-ov); color: var(--c-chrome-text);
+    font-family: var(--font-mono);
   }
   #collab-code-display {
     font-family: var(--font-mono); font-size: 1.9rem; font-weight: bold;
@@ -4272,6 +4278,7 @@ I hope you enjoy using your magic scroll!"></textarea>
         accounts, nothing to sign up for. When you end the session, the final version is
         saved for everyone who joined.
       </div>
+      <input type="text" id="collab-start-name-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name (e.g. Alex)">
       <div class="pub-actions">
         <button id="collab-cancel-btn-1">Cancel</button>
         <button id="collab-start-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Start Collaborating</button>
@@ -5862,16 +5869,27 @@ function buildPrecisionLineEl(line, opts) {
     //
     // Whitespace right after a marker plays one of two different roles, and
     // they need opposite handling:
-    //   - "(Bb) heart" -- the space is just delimiter noise between the
+    //   - "word (Bb) heart" -- the space is just delimiter noise between the
     //     marker and the word it's paired with; the REAL gap between the
     //     previous word and "heart" was already emitted when the prior text
-    //     segment (ending in its own trailing space) was appended. Emitting
+    //     segment (ending in its OWN trailing space) was appended. Emitting
     //     this one too would double it up, so it's discarded here.
     //   - "(F) (Bb)" -- the space has no word to attach to at all; it's the
     //     only thing separating two chord labels, so it must be kept, and
     //     kept AFTER this chord's ruby (where it sits in the raw text), not
     //     before -- otherwise the gap ends up on the wrong side of the label.
+    //   - "deadline[Cm] running" -- no space precedes the marker (it's glued
+    //     directly onto the end of "deadline"), so the space after it is NOT
+    //     a duplicate of anything already rendered -- it's the ONLY separator
+    //     between "deadline" and "running". Discarding it here (as the first
+    //     bullet does) merges the two words together with no gap at all. The
+    //     "already emitted" assumption only holds when the chord itself had a
+    //     leading space too (space on BOTH sides) -- checked directly against
+    //     the raw line via seg.rawStart rather than any segs bookkeeping,
+    //     since that stays correct regardless of what earlier iterations did.
     let next = segs[i + 1];
+    const chordPrecededBySpace = seg.rawStart > 0 && /\s/.test(line[seg.rawStart - 1]);
+    let keptLeadingWs = null;
     if (next && next.type === 'text') {
       const wsMatch = next.value.match(/^\s+/);
       if (wsMatch && wsMatch[0].length === next.value.length) {
@@ -5882,6 +5900,9 @@ function buildPrecisionLineEl(line, opts) {
         continue;
       }
       if (wsMatch) {
+        if (!chordPrecededBySpace) {
+          keptLeadingWs = { value: wsMatch[0], rawStart: next.rawStart, rawEnd: next.rawStart + wsMatch[0].length };
+        }
         next = {
           type: 'text',
           value: next.value.slice(wsMatch[0].length),
@@ -5894,6 +5915,7 @@ function buildPrecisionLineEl(line, opts) {
     const wordMatch = (next && next.type === 'text') ? next.value.match(/^\S+/) : null;
     if (wordMatch) {
       const wordLen = wordMatch[0].length;
+      if (keptLeadingWs) el.appendChild(textNode(keptLeadingWs));
       const ruby = document.createElement('ruby');
       ruby.appendChild(textNode({ value: wordMatch[0], rawStart: next.rawStart }));
       ruby.appendChild(chordRt(seg));
@@ -13233,6 +13255,16 @@ function _exitPrecisionMode() {
   if (ctx.canvas) ctx.canvas.classList.remove('visible');
   if (ctx.ta) ctx.ta.style.display = '';
   if (ctx.hint) ctx.hint.style.display = 'none';
+  // The textarea was display:none for the whole time the canvas overlay was
+  // showing — while hidden, neither field-sizing:content nor scrollHeight can
+  // reflect its real content height, so on reveal it can settle back to a
+  // stale/default height (~12 lines) instead of the size the actual text
+  // needs. It self-corrects the moment any edit fires an 'input' event (which
+  // is what made this look intermittent), so just force that same
+  // recalculation immediately on reveal instead of waiting for one.
+  if (ctx.ta && ctx.ta.id === 'song-editor' && typeof autoResizeEditor === 'function') {
+    autoResizeEditor(ctx.ta);
+  }
 }
 
 // Maps a click point to a {node, offset} text position, trying both the
@@ -13518,12 +13550,15 @@ function rtApply(kind, ta) {
   else if (kind === 'mark-lyric')  rtSetLineMarker('lyric', ta);
 }
 
-// ── COLOUR TEXT (song editor only) ───────────────────────────────────────────
+// ── COLOUR TEXT ───────────────────────────────────────────────────────────────
 // Wraps/unwraps the current selection in ⟦color:NAME⟧…⟦/color⟧ — see the
 // COLOUR TEXT comment above applyMarkup for the full syntax note and where
-// it's recognised in read mode. Plain-text songs only; not wired up for the
-// lead-sheet notes editor (buildRtToolbar) at all, so iReal/ABC songs never
-// see this toolbar.
+// it's recognised in read mode. Available in both the plain-text song editor
+// (#song-editor, via the static #rt-color-toolbar + the #rt-ctx-menu
+// right-click submenu) and the lead-sheet notes editor (.ls-notes-ta, via
+// buildRtToolbar's per-instance _buildColorSwatchRow, and the same right-click
+// menu re-targeted per _rtCtxTargetTa — see _openRtCtxMenu below). ABC songs
+// have their own separate editor UI and still don't see this at all.
 function rtApplyColor(name, ta) {
   rtWrapSelection('⟦color:' + name + '⟧', COLOR_CLOSE_TAG, ta);
 }
@@ -13546,6 +13581,37 @@ function rtClearColor(ta) {
   ta.selectionStart = s - openLen;
   ta.selectionEnd   = e - openLen;
   ta.dispatchEvent(new Event('input'));
+}
+// Shared factory: builds one instance of the colour-swatch row (every
+// COLOR_SWATCHES entry as a button, plus a "clear colour" button), wired via
+// rtApplyColor/rtClearColor to whichever textarea is passed in. Uses classes
+// rather than ids (see the .rt-color-toolbar/.rt-color-clear CSS) because,
+// unlike the main editor's single static #rt-color-toolbar, this can be
+// called more than once — e.g. every time the lead-sheet notes editor's
+// toolbar is rebuilt (see buildRtToolbar below).
+function _buildColorSwatchRow(ta) {
+  const bar = document.createElement('div');
+  bar.className = 'rt-color-toolbar';
+  COLOR_SWATCHES.forEach(function(pair) {
+    const name = pair[0], hex = pair[1];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rt-color-swatch';
+    b.style.background = hex;
+    b.title = name.charAt(0).toUpperCase() + name.slice(1);
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => rtApplyColor(name, ta));
+    bar.appendChild(b);
+  });
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.className = 'rt-color-clear';
+  clear.title = 'Clear colour';
+  clear.textContent = '⌀';
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => rtClearColor(ta));
+  bar.appendChild(clear);
+  return bar;
 }
 // Builds the colour swatch row from COLOR_SWATCHES into `#rt-color-toolbar`.
 function buildColorToolbar() {
@@ -13586,7 +13652,7 @@ function buildContextColorSubmenu() {
     b.style.background = hex;
     b.title = name.charAt(0).toUpperCase() + name.slice(1);
     b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', () => { rtApplyColor(name); closeRtCtx(); });
+    b.addEventListener('click', () => { rtApplyColor(name, _rtCtxTargetTa); closeRtCtx(); });
     bar.appendChild(b);
   });
   const clear = document.createElement('button');
@@ -13594,7 +13660,7 @@ function buildContextColorSubmenu() {
   clear.id = 'ctx-color-clear';
   clear.textContent = 'Clear';
   clear.addEventListener('mousedown', e => e.preventDefault());
-  clear.addEventListener('click', () => { rtClearColor(); closeRtCtx(); });
+  clear.addEventListener('click', () => { rtClearColor(_rtCtxTargetTa); closeRtCtx(); });
   bar.appendChild(clear);
 }
 buildColorToolbar();
@@ -13650,6 +13716,10 @@ function buildRtToolbar(targetTa) {
     b.addEventListener('click', ()=>rtApply(kind, targetTa));
     bar.appendChild(b);
   });
+  // Colour swatches — previously song-editor-only (see the comment at
+  // rtApplyColor); every caller of buildRtToolbar gets the same row now, bound
+  // to its own textarea via the shared _buildColorSwatchRow factory.
+  bar.appendChild(_buildColorSwatchRow(targetTa));
   return bar;
 }
 document.getElementById('rt-bold').addEventListener('click', () => rtApply('bold'));
@@ -13666,8 +13736,14 @@ document.getElementById('song-editor').addEventListener('keydown', function(e) {
   else if (k === 'u') { e.preventDefault(); rtApply('underline'); }
 });
 
-// Right-click formatting menu on the editor
+// Right-click formatting menu — shared by the plain-text song editor AND the
+// lead-sheet notes editor. Only one #rt-ctx-menu exists in the DOM, so
+// _rtCtxTargetTa tracks which textarea it's currently acting on: set right
+// before it opens (see _openRtCtxMenu), read by every action inside it
+// (rtApply below, and the colour swatches built in buildContextColorSubmenu)
+// instead of each of those defaulting to #song-editor via _rtTarget.
 const rtCtxMenu = document.getElementById('rt-ctx-menu');
+var _rtCtxTargetTa = null;
 // Collapsing the "Colour ▸" submenu along with the menu itself means it
 // always starts closed the next time the menu is opened, rather than
 // remembering whatever state it was left in.
@@ -13678,13 +13754,17 @@ function closeRtCtx() {
   if (colorTrigger) colorTrigger.classList.remove('open');
   if (colorSubmenu) colorSubmenu.classList.remove('open');
 }
-document.getElementById('song-editor').addEventListener('contextmenu', function(e) {
+function _openRtCtxMenu(e, ta) {
   e.preventDefault();
+  _rtCtxTargetTa = ta;
   closeRtCtx();
   const menuW = 190, menuH = 320;   // taller now with the Colour submenu potentially open
   rtCtxMenu.style.left = Math.min(e.clientX, window.innerWidth  - menuW - 8) + 'px';
   rtCtxMenu.style.top  = Math.min(e.clientY, window.innerHeight - menuH - 8) + 'px';
   rtCtxMenu.classList.add('open');
+}
+document.getElementById('song-editor').addEventListener('contextmenu', function(e) {
+  _openRtCtxMenu(e, this);
 });
 rtCtxMenu.addEventListener('mousedown', function(e) {
   // "Colour ▸" is special-cased: it toggles the swatch submenu open/closed
@@ -13702,7 +13782,7 @@ rtCtxMenu.addEventListener('mousedown', function(e) {
   const item = e.target.closest('.ctx-item');
   if (!item) return;
   e.preventDefault(); // keep the textarea selection alive
-  rtApply(item.getAttribute('data-rt'));
+  rtApply(item.getAttribute('data-rt'), _rtCtxTargetTa);
   closeRtCtx();
 });
 document.addEventListener('click',  e => { if (!rtCtxMenu.contains(e.target)) closeRtCtx(); });
@@ -14139,8 +14219,13 @@ document.getElementById('btn-ns-create').addEventListener('click', () => {
 // ── TEXTAREA AUTO-RESIZE (fallback for browsers without field-sizing:content) ─
 // field-sizing:content handles this natively in Chrome 123+ / Firefox 130+.
 // For older browsers, we use the scrollHeight trick on every input event.
-function autoResizeEditor() {
-  const ta = document.getElementById('song-editor');
+// Accepts an optional textarea override (used by _exitPrecisionMode below) —
+// falls back to #song-editor when called with no args, or with an Event
+// object (as it is when wired directly as an 'input' listener), since an
+// Event has no .tagName and so fails the isElement check.
+function autoResizeEditor(ta) {
+  ta = (ta && ta.tagName) ? ta : document.getElementById('song-editor');
+  if (!ta) return;
   ta.style.height = 'auto';
   ta.style.height = ta.scrollHeight + 'px';
 }
@@ -18291,7 +18376,8 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
 }
 
 // ── Render lead sheet ─────────────────────────────────────────────────────────
-function renderIRealSong(song){
+function renderIRealSong(song, opts){
+  opts = opts || {};
   document.getElementById('abc-song-card').style.display='none';
   document.getElementById('abc-toolbar').style.display='none';
   document.getElementById('song-card').classList.remove('visible');
@@ -18547,6 +18633,11 @@ function renderIRealSong(song){
     notesTa.value=song.ireal_notes||'';
     notesTa.addEventListener('input',()=>{song.ireal_notes=notesTa.value;saveSongs();_scheduleLsCollabEditBroadcast(song);});
     notesTa.addEventListener('keydown',e=>e.stopPropagation());
+    // Right-click "Colour"/formatting menu — same shared #rt-ctx-menu the main
+    // song editor uses, re-targeted at this textarea (see _openRtCtxMenu).
+    if (typeof _openRtCtxMenu === 'function') {
+      notesTa.addEventListener('contextmenu', e => _openRtCtxMenu(e, notesTa));
+    }
     // Rich-text toolbar (Bold / Italic / Underline / Embed), same as chord sheets —
     // plus its own Add Chords toggle, so chord changes can be tagged directly
     // onto the lyrics/notes text the same way as the main song editor.
@@ -18700,7 +18791,13 @@ function renderIRealSong(song){
   if (typeof btOpenBar === 'function') btOpenBar(song);
   updateTransposeButtons();
   updateSidebarActive();
-  window.scrollTo(0, 0);
+  // Skipped when re-rendering because a REMOTE collaborator's edit arrived
+  // (see _collabHandleEdit/_collabHandleSaved/_collabHandleEnd) — jumping this
+  // client's scroll position to the top every time a peer types in the notes
+  // textarea (or edits a bar) would otherwise be constant and disorienting.
+  // Every local, user-initiated render (opening the song, toggling edit mode,
+  // switching songs) still scrolls to top as before.
+  if (!opts.preserveScroll) window.scrollTo(0, 0);
 }
 
 
@@ -19052,7 +19149,7 @@ function _collabHandleEdit(itemId, payload) {
     // viewers wait for the 'saved' event instead, same split as plaintext.
     if (!(currentIdx === idx && isLsEditMode)) return;
     _collabApplyFields(song, payload, false);
-    if (_lsCollabSafeToRerender()) renderIRealSong(song);
+    if (_lsCollabSafeToRerender()) renderIRealSong(song, { preserveScroll: true });
     return;
   }
   if (!(isEditMode && currentIdx === idx)) return;
@@ -19073,7 +19170,7 @@ function _collabHandleSaved(itemId, payload) {
   if (song._source === 'ireal') {
     _collabApplyFields(song, payload, false);
     saveSongs();
-    if (currentIdx === idx && _lsCollabSafeToRerender()) renderIRealSong(song);
+    if (currentIdx === idx && _lsCollabSafeToRerender()) renderIRealSong(song, { preserveScroll: true });
     buildSongList(document.getElementById('search-input').value);
     return;
   }
@@ -19103,7 +19200,7 @@ function _collabHandleEnd(itemId, payload) {
       saveSongs();
       if (currentIdx === idx) {
         isLsEditMode = false;
-        renderIRealSong(song);
+        renderIRealSong(song, { preserveScroll: true });
       }
       buildSongList(document.getElementById('search-input').value);
       if (typeof showToast === 'function') showToast('Collaboration ended — changes saved.');
@@ -19645,6 +19742,15 @@ function _renderCollabModalState() {
   document.getElementById('collab-song-name').textContent = song.title || 'Untitled';
   document.getElementById('collab-start-view').style.display  = active ? 'none' : '';
   document.getElementById('collab-active-view').style.display = active ? '' : 'none';
+  if (!active) {
+    // Prefill straight from whatever name was last confirmed — either this
+    // session's already-chosen _collabUsername, or the last one saved to
+    // localStorage — so choosing a name here is a single tap most of the
+    // time, same convenience as the (still separate, Join-flow-only)
+    // #collab-username-modal.
+    var nameInp = document.getElementById('collab-start-name-input');
+    if (nameInp) nameInp.value = _collabUsername || localStorage.getItem('ug_collab_username') || '';
+  }
   if (active) {
     document.getElementById('collab-code-display').textContent = song._collab.code;
     var peers = song._collab.peers;
@@ -19679,7 +19785,21 @@ document.getElementById('collab-modal').addEventListener('click', function(e) {
 });
 document.getElementById('collab-start-btn').addEventListener('click', function() {
   if (_collabModalSongIdx < 0) return;
+  // Confirm the name typed directly into this modal — same effect as
+  // _confirmCollabUsername, just sourced from this field instead of the
+  // separate #collab-username-modal, so the host picks a name in the same
+  // step as clicking "Start Collaborating" rather than a follow-up popup.
+  // _ensureCollabUsername (inside startCollaboration) sees a name already
+  // confirmed this session and skips straight to onReady() — no second modal.
+  var nameInp = document.getElementById('collab-start-name-input');
+  var name = (nameInp ? nameInp.value.trim().slice(0, 24) : '') || 'Guest';
+  _collabUsername = name;
+  _collabUsernamePromptedThisSession = true;
+  localStorage.setItem('ug_collab_username', name);
   startCollaboration(_collabModalSongIdx);
+});
+document.getElementById('collab-start-name-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('collab-start-btn').click(); }
 });
 document.getElementById('collab-copy-btn').addEventListener('click', function() {
   var song = songs[_collabModalSongIdx];
