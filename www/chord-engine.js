@@ -17,6 +17,10 @@
     // Guitar
     guitar:              [40, 45, 50, 55, 59, 64], // E2 A2 D3 G3 B3 E4
     drop_d:              [38, 45, 50, 55, 59, 64], // D2 A2 D3 G3 B3 E4
+    // Drop C: standard tuning down a whole step (D G C F A D), then the low
+    // string dropped a further whole step — same "drop" relationship Drop D
+    // has to standard, just a whole step lower overall. Low-to-high: C G C F A D.
+    drop_c:              [36, 43, 48, 53, 57, 62], // C2 G2 C3 F3 A3 D4
     dadgad:              [38, 45, 50, 55, 57, 62], // D2 A2 D3 G3 A3 D4
     open_g:              [38, 43, 50, 55, 59, 62], // D2 G2 D3 G3 B3 D4
     // Ukulele
