@@ -1270,8 +1270,13 @@
        without these they render centered, in the browser's platform UI font,
        looking both off-alignment and visually smaller than the selects even
        at the same declared font-size (different font metrics). Match the
-       select rule below exactly so every option in this row reads the same. */
-    font-family: inherit; text-align: left; }
+       select rule below exactly so every option in this row reads the same.
+       appearance:none strips native button chrome that some mobile browsers
+       use to silently keep enforcing their own platform font/size on <button>
+       text even after font-family/font-size are set in author CSS — without
+       it, this rule alone wasn't reliably enough on every mobile browser. */
+    font-family: var(--font-mono); text-align: left;
+    appearance: none; -webkit-appearance: none; }
   .diagram-instrument-tabs button:hover { background: #d8cbbe; color: #1a0a00; }
   .diagram-instrument-tabs button.active {
     background: var(--c-accent); color: #fff;
@@ -2031,6 +2036,7 @@
     .diagram-instrument-tabs button,
     .diagram-instrument-tabs select.inst-select {
       font-size: 0.6rem;
+      font-family: var(--font-mono);
       padding: 2px 5px;
       /* Native <select> controls render with extra intrinsic height/line-box
          a <button> with the same padding/font-size doesn't pick up on its
@@ -13271,6 +13277,16 @@ function _enterPrecisionMode(ctx) {
   ta.style.display = 'none';
   ctx.canvas.classList.add('visible');
   if (ctx.hint) ctx.hint.style.display = '';
+  // #remote-cursors-layer is a separate overlay sitting on top of #song-editor
+  // (see _renderRemoteCursor) — hiding the textarea above doesn't hide it, so
+  // a collaborator's floating caret was left pointing at text the viewer can
+  // no longer even see or edit directly while the Add Chords canvas is up.
+  // Only relevant for the main song editor; the lead-sheet notes editor has
+  // no cursor overlay system at all (see the COLLABORATE scope comment).
+  if (ta.id === 'song-editor') {
+    const layer = document.getElementById('remote-cursors-layer');
+    if (layer) layer.style.display = 'none';
+  }
 }
 function _exitPrecisionMode() {
   _precisionMode = false;
@@ -13291,6 +13307,19 @@ function _exitPrecisionMode() {
   // recalculation immediately on reveal instead of waiting for one.
   if (ctx.ta && ctx.ta.id === 'song-editor' && typeof autoResizeEditor === 'function') {
     autoResizeEditor(ctx.ta);
+  }
+  // Restore the remote-cursor overlay hidden on entry (see _enterPrecisionMode)
+  // and refresh every position — the text may well have changed while it was
+  // hidden (the auto-tag conversion above, or a remote edit that arrived
+  // during Add Chords mode), so stale coordinates from before entering
+  // wouldn't necessarily still be correct.
+  if (ctx.ta && ctx.ta.id === 'song-editor') {
+    const layer = document.getElementById('remote-cursors-layer');
+    if (layer) layer.style.display = '';
+    if (currentIdx >= 0) {
+      const song = songs[currentIdx];
+      if (song && song._collab && song._collab.active) _repositionAllRemoteCursors(song._collab.itemId);
+    }
   }
 }
 
@@ -13860,12 +13889,27 @@ document.getElementById('song-editor').addEventListener('input', _scheduleCollab
   document.getElementById(id).addEventListener('input', _scheduleCollabEditBroadcast);
 });
 // Local typing reflows the text immediately (no debounce) — any already-
-// displayed remote cursor overlays need repositioning right along with it,
-// or they'd visibly lag a quarter-second behind the text moving under them.
+// displayed remote cursor overlays sitting AFTER the edit need repositioning
+// right along with it, or they'd visibly lag a quarter-second behind the
+// text moving under them. Cursors sitting entirely within the UNCHANGED
+// portion of the text (before wherever this keystroke actually landed) can't
+// have moved at all — their character offset points at byte-identical text
+// before and after — so recalculating them anyway was needlessly jittering
+// every remote cursor on every keystroke, even ones nowhere near what was
+// being typed. Compare against the text as of the previous input event and
+// only reposition cursors at or after the first point that actually differs.
+let _lastLocalSongEditorValue = null;
 document.getElementById('song-editor').addEventListener('input', () => {
-  if (currentIdx < 0) return;
+  if (currentIdx < 0) { _lastLocalSongEditorValue = null; return; }
   const song = songs[currentIdx];
-  if (song && song._collab && song._collab.active) _repositionAllRemoteCursors(song._collab.itemId);
+  if (!(song && song._collab && song._collab.active)) { _lastLocalSongEditorValue = null; return; }
+  const newValue = document.getElementById('song-editor').value;
+  const oldValue = _lastLocalSongEditorValue != null ? _lastLocalSongEditorValue : newValue;
+  const maxPrefix = Math.min(oldValue.length, newValue.length);
+  let prefixLen = 0;
+  while (prefixLen < maxPrefix && oldValue[prefixLen] === newValue[prefixLen]) prefixLen++;
+  _lastLocalSongEditorValue = newValue;
+  _repositionAllRemoteCursors(song._collab.itemId, prefixLen);
 });
 
 // Runs the ordinary chord/lyric transposer (transposeText) everywhere in a
@@ -14175,6 +14219,18 @@ function _wireTbDropdown(trigger, menu) {
     menu.style.left = 'auto';
     menu.style.right = Math.max(4, window.innerWidth - rect.right) + 'px';
     menu.classList.add('open');
+    // The menu is now sized to its widest option (see .song-kebab-menu's
+    // width:max-content) rather than a fixed min-width, so a right-anchored
+    // menu whose trigger sits near the left edge of a narrow screen can have
+    // its LEFT edge pushed off-screen — measure it now that it's actually
+    // rendered and, if so, pin it to a small margin from the left instead.
+    // Doesn't touch text alignment inside it (still left-justified) — this
+    // only repositions the box as a whole back onto the visible screen.
+    var menuRect = menu.getBoundingClientRect();
+    if (menuRect.left < 4) {
+      menu.style.right = 'auto';
+      menu.style.left = '4px';
+    }
     docHandler = function(ev) {
       if (!menu.contains(ev.target) && ev.target !== trigger) closeMenu();
     };
@@ -19702,9 +19758,18 @@ function _collabRemoveCursor(itemId, clientId) {
 // called whenever the textarea's content changes (own typing or a remote
 // edit/save applied to it) or the window resizes, since either can reflow
 // the text and move where any given character offset lands on screen.
-function _repositionAllRemoteCursors(itemId) {
+// minOffset (optional): skip any cursor whose stored offset falls entirely
+// before this point — used by the local-typing listener above to avoid
+// touching cursors that provably didn't move (see its comment). Omitted by
+// every other caller (a remote edit/save can touch anything anywhere in the
+// text, and a resize can reflow every line), so they still reposition all of
+// them as before.
+function _repositionAllRemoteCursors(itemId, minOffset) {
   var map = _remoteCursorsFor(itemId);
-  map.forEach(function(_data, clientId) { _renderRemoteCursor(itemId, clientId); });
+  map.forEach(function(data, clientId) {
+    if (typeof minOffset === 'number' && (data.end || 0) < minOffset) return;
+    _renderRemoteCursor(itemId, clientId);
+  });
 }
 function _clearAllRemoteCursors(itemId) {
   var map = _remoteCursorsFor(itemId);
