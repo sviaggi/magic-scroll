@@ -3329,7 +3329,7 @@
   #collab-modal.open, #join-collab-modal.open, #collab-username-modal.open { display: flex; z-index: 950; }
   #collab-username-input, #collab-start-name-input {
     width: 100%; box-sizing: border-box; font-size: 1rem; padding: 8px 10px;
-    margin-top: 10px; border-radius: 4px; border: 1px solid var(--c-chrome-border);
+    margin-top: 10px; margin-bottom: 14px; border-radius: 4px; border: 1px solid var(--c-chrome-border);
     background: var(--c-inset-ov); color: var(--c-chrome-text);
     font-family: var(--font-mono);
   }
@@ -5841,7 +5841,11 @@ function buildPrecisionLineEl(line, opts) {
     // immediately follows with no lyric word between) -- give it a
     // zero-width placeholder base purely so the browser has a box to anchor
     // the <rt> chord label over, without adding any visible gap of its own.
+    // Marked with .chord-placeholder-ruby so reflowPrecisionOverlaps can skip
+    // it entirely -- see the comment there for why treating its own rendered
+    // width as "reclaimable slack" is wrong for this specific ruby shape.
     const ruby = document.createElement('ruby');
+    ruby.className = 'chord-placeholder-ruby';
     ruby.appendChild(document.createTextNode('​'));
     ruby.appendChild(chordRt(seg));
     return ruby;
@@ -6046,6 +6050,14 @@ function reflowPrecisionOverlaps(container) {
     rubies.forEach(r => { r.style.marginRight = ''; });
     for (let i = 0; i < rubies.length; i++) {
       const ruby = rubies[i];
+      // Placeholder rubies (see placeholderRuby in buildPrecisionLineEl) have
+      // no real word as their base -- just an invisible zero-width space, so
+      // the ruby's ENTIRE rendered width is the <rt> chord label itself, not
+      // slack left over from a short word. Treating that as reclaimable
+      // margin (as the general case below does) ate the actual typed space
+      // between back-to-back/trailing chords, visually gluing them together
+      // (e.g. "Fmaj9 Am G" rendering as "Fmaj9AmG"). Nothing to reclaim here.
+      if (ruby.classList.contains('chord-placeholder-ruby')) continue;
       const rubyRect = ruby.getBoundingClientRect();
       const baseRect = _rubyBaseRect(ruby);
       if (!baseRect) continue;
@@ -19902,10 +19914,53 @@ function _resumeCollabChannel(idx) {
       try { channel.track({ role: isHost ? 'host' : 'joiner', joinedAt: Date.now(), name: _resumeName, clientId: _collabClientId }); } catch (e) {}
       if (!isHost) {
         try { channel.send({ type: 'broadcast', event: 'request-sync', payload: { itemId: itemId } }); } catch (e) {}
+        _armCollabEndedFallback(itemId, channel);
       }
       _refreshCollabModalIfOpen(itemId);
     }
   });
+}
+// Backstop for joiners resuming a collaboration after a reload: the 'end'
+// broadcast (see _collabHandleEnd) only reaches clients connected at the
+// exact moment the host sends it. If this device was offline/closed when
+// that happened, nothing would otherwise ever tell it the session is over —
+// song._collab.active would stay true and the 🔗 badge would show forever,
+// even though the collaboration genuinely ended while this device was away.
+// Give the host a few seconds to show up in the channel's presence list
+// (they track() themselves immediately on subscribing, same as this joiner
+// just did, both here and in the normal join flow) — if they never do,
+// nobody is left hosting this session, so treat it as ended locally, the
+// same way _collabHandleEnd does, just without an incoming 'end' payload to
+// apply (there's nothing newer to pull — the last-synced local copy is all
+// that's left, which is exactly what an ended collaboration leaves everyone
+// with anyway).
+function _armCollabEndedFallback(itemId, channel) {
+  setTimeout(function() {
+    var idxNow = _findCollabSongIdx(itemId);
+    if (idxNow < 0) return;                                     // already handled some other way
+    var songNow = songs[idxNow];
+    if (!songNow._collab || !songNow._collab.active) return;    // already cleared (real 'end' arrived, etc.)
+    var hostPresent = _collabPeerList(channel).some(function(p) { return p.role === 'host'; });
+    if (hostPresent) return;                                    // host is still here — genuinely still active
+    songNow._collab = null;
+    saveSongs();
+    buildSongList(document.getElementById('search-input').value);
+    if (currentIdx === idxNow) {
+      var dt = document.getElementById('display-title');  if (dt) dt.textContent = songNow.title  || 'Untitled';
+      var da = document.getElementById('display-artist'); if (da) da.textContent = songNow.artist || '';
+      if (songNow._source === 'ireal') {
+        isLsEditMode = false;
+        renderIRealSong(songNow, { preserveScroll: true });
+      } else if (isEditMode) {
+        setEditMode(false);
+      } else if (typeof renderTabContent === 'function') {
+        renderTabContent();
+      }
+    }
+    if (typeof showToast === 'function') showToast('Collaboration ended while you were away.');
+    _teardownCollabChannel(itemId);
+    _closeCollabModalIfShowing(itemId);
+  }, 4000);
 }
 function _resumeActiveCollaborations() {
   songs.forEach(function(song, idx) { _resumeCollabChannel(idx); });
