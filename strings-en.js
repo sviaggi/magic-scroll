@@ -18,32 +18,55 @@
  *  - Static HTML: elements carry a `data-i18n="key"` (element text content),
  *    `data-i18n-title="key"` (title tooltip) and/or `data-i18n-placeholder="key"`
  *    (input placeholder) attribute. `applyI18nStrings()` (in the main HTML
- *    file, run once at boot) walks the DOM and fills all three from this file.
+ *    file, run once at boot, and again whenever `setLanguage()` switches
+ *    languages) walks the DOM and fills all three from whichever language
+ *    dictionary is currently active.
  *  - JS-generated text (alerts, confirms, prompts, dynamically-built status
  *    messages): call `t('key')`, or `t('key', {name: value, ...})` when the
  *    string has a `{name}`-style placeholder for data that varies at runtime
  *    (a song title, a count, an error message, ...). See the `t()` helper
- *    defined at the bottom of this file.
+ *    defined at the bottom of this file. Note this only affects text
+ *    generated AFTER a language switch — a hint/status string built once by
+ *    JS and left sitting in the DOM (e.g. the lead-sheet edit hint, built
+ *    once when that editor opens) won't retroactively re-translate until
+ *    whatever built it runs again.
+ *
+ * MULTIPLE LANGUAGES
+ * This file defines `window.MS_STRINGS_EN` (rather than the generic
+ * `window.MS_STRINGS` older versions used) so a second dictionary —
+ * `window.MS_STRINGS_ZH` (see strings-zh.js), loaded via its own
+ * `<script src="strings-zh.js">` tag right after this one — can sit
+ * alongside it without either file overwriting the other. `window.MS_LANG`
+ * ('en' or 'zh', persisted in localStorage as `ug_lang`) picks which one
+ * `t()` actually reads from; `window.setLanguage(lang)` (defined below)
+ * changes it and re-applies every `data-i18n*` element on the page. A
+ * missing key in a non-English dictionary silently falls back to the
+ * English string rather than showing raw key text, so a partially-
+ * translated language degrades gracefully instead of looking broken.
+ * Adding a third language is the same shape: a new strings-<lang>.js
+ * defining `window.MS_STRINGS_<LANG>`, a case in `_activeDict()` below, a
+ * `<script src>` tag for it, and an `<option>` in the `#lang-sel` dropdown.
  *
  * SCOPE / STATUS (as of this pass)
  * This is a first, substantial i18n pass — it covers every alert/confirm/
  * prompt dialog in the app (the messages most worth getting exactly right
  * for a translator, since they're often the only feedback the user gets for
  * an action), the topbar, sidebar header/search, the song/lead-sheet/ABC
- * editor toolbars and their tutorial hints, the theme settings panel, empty
- * states, and the main modals. It does NOT yet cover literally every string
- * in the app (this is a ~20,000-line file with many hundreds of scattered
- * dynamic status messages in less-common code paths) — anything not yet
- * migrated still reads as a plain hard-coded string inline, same as before.
- * The mechanism above is meant to make finishing that migration, section by
- * section, straightforward whenever it's worth doing.
+ * editor toolbars and their tutorial hints and placeholder/example text, the
+ * theme settings panel, empty states, and the main modals. It does NOT yet
+ * cover literally every string in the app (this is a ~20,000-line file with
+ * many hundreds of scattered dynamic status messages in less-common code
+ * paths) — anything not yet migrated still reads as a plain hard-coded
+ * string inline, same as before. The mechanism above is meant to make
+ * finishing that migration, section by section, straightforward whenever
+ * it's worth doing.
  *
  * KEY NAMING
  * Dot-separated, coarsely grouped by where the string appears (topbar.*,
  * editor.*, alert.*, confirm.*, prompt.*, modal.*, ...) so a translator can
  * tell roughly where in the app a string shows up without running it.
  */
-window.MS_STRINGS = {
+window.MS_STRINGS_EN = {
 
   // ── TOPBAR ─────────────────────────────────────────────────────────────
   'topbar.library':            '☰ Library',
@@ -85,6 +108,14 @@ window.MS_STRINGS = {
   'editor.saveAs':              '⬇ Save As…',
   'editor.publish':             '☁ Publish',
   'editor.exportMonospace':     '⬇ Export monospace',
+  // Placeholder / example text shown inside empty fields — these are what a
+  // user sees BEFORE they've typed anything, so they need translating same
+  // as any other visible copy.
+  'editor.titlePlaceholder':    'Song title',
+  'editor.artistPlaceholder':   'Artist name',
+  'editor.keyPlaceholder':      'e.g. Am',
+  'editor.timeSigPlaceholder':  'e.g. 4/4',
+  'editor.songPlaceholder': 'Paste or type your song here.\n\n[Verse]\nType out your lyrics... take your time, get \'em right\nNo columns, no rulers, no fuss is in sight\nTap "Add Chords" above, and pick the right spot\nOver words, over space, over all, over thought\n\n[Chorus]\n[G]Like this, a chord [D] or a strum where you need[D]\nC                                D                                      Em                     G\nIt\'ll format real pretty! Don\'t you think it looks clean?\nIt\'s fast and it\'s simple, it\'s free, (there\'s no toll!)\nI hope you enjoy using your magic scroll!',
 
   // ── LEAD-SHEET EDITOR ──────────────────────────────────────────────────
   'editor.lsHint': 'Editing — change the title, author, style, BPM and time signature above; click a bar to change its chords, or use its ⋮ menu for barlines, mid-piece time changes, sections and inserting/deleting bars. '
@@ -93,8 +124,29 @@ window.MS_STRINGS = {
   // ── ABC SHEET-MUSIC EDITOR ─────────────────────────────────────────────
   'editor.abcHint': 'Editing raw ABC notation — notes are letters A-G (lowercase = higher octave; add \' after a note for another octave up, or , for an octave down); a number after a note changes its length (C2 = twice as long, C/2 = half); | marks a bar line. Chord symbols go in quotes above the note they fall on, e.g. "G7". K: sets the key, M: sets the meter, Q: sets the tempo.',
 
+  // ── ADD-CHORDS PRECISION POPUP ──────────────────────────────────────────
+  'precision.chordInputPlaceholder': 'Chord, e.g. Am7',
+
+  // ── CREATE SET MODAL ────────────────────────────────────────────────────
+  'createSet.searchPlaceholder': 'Search tunes or type (jig, reel, waltz…)',
+
+  // ── NEW SONG MODAL ───────────────────────────────────────────────────────
+  'newSong.abcPlaceholder':   'X:1\nT:My Tune\nC:Composer\nM:4/4\nL:1/8\nK:G\n...',
+  'newSong.irealPlaceholder': 'irealb://SongTitle%3DComposer%3D%3DStyle%3DKey...',
+
+  // ── COMMUNITY COLLECTIONS ────────────────────────────────────────────────
+  'collections.searchPlaceholder': 'Search community collections…',
+
+  // ── COLLABORATION ─────────────────────────────────────────────────────────
+  'collab.namePlaceholder': 'Your name',
+  'collab.codePlaceholder': 'ABCDEF',
+
   // ── CHORD DIAGRAMS ─────────────────────────────────────────────────────
   'diagrams.fabTitle':          'Chord Diagrams',
+
+  // ── OPTIONS PANEL ──────────────────────────────────────────────────────
+  'options.language':           'Language',
+  'options.languageTitle':      'Change the app\'s display language',
 
   // ── EMPTY STATE ────────────────────────────────────────────────────────
   'emptyState.title':           'No song loaded',
@@ -152,18 +204,45 @@ window.MS_STRINGS = {
   'prompt.copyIrealUrl':              'Copy this irealb:// URL:',
 };
 
+// ── Active language ──────────────────────────────────────────────────────
+// 'en' or 'zh', persisted so the choice survives a reload. Read once at
+// load; setLanguage() below is the only thing that should change it after.
+window.MS_LANG = (function() {
+  try { return localStorage.getItem('ug_lang') || 'en'; } catch (e) { return 'en'; }
+})();
+function _activeDict() {
+  if (window.MS_LANG === 'zh' && window.MS_STRINGS_ZH) return window.MS_STRINGS_ZH;
+  return window.MS_STRINGS_EN;
+}
+
 // ── Lookup helper ────────────────────────────────────────────────────────
 // t('some.key') returns the string; t('some.key', {name: 'X', count: 3})
-// substitutes {name}/{count}/... placeholders inside it. Falls back to the
-// key itself (so a missing/typo'd key fails loud in the UI instead of
-// silently rendering blank) if strings-en.js somehow didn't load or the key
-// doesn't exist.
+// substitutes {name}/{count}/... placeholders inside it. Missing key in the
+// active (non-English) dictionary falls back to English rather than raw key
+// text, so a partially-translated language still reads as real copy
+// everywhere except the specific strings not yet translated. Missing key in
+// English too (a genuine typo, or strings-en.js failed to load) falls back
+// to the key itself, so that failure is loud instead of silent.
 window.t = function t(key, vars) {
-  var s = (window.MS_STRINGS && window.MS_STRINGS[key] !== undefined) ? window.MS_STRINGS[key] : key;
+  var dict = _activeDict();
+  var s = (dict && dict[key] !== undefined) ? dict[key]
+    : (window.MS_STRINGS_EN && window.MS_STRINGS_EN[key] !== undefined) ? window.MS_STRINGS_EN[key]
+    : key;
   if (vars) {
     Object.keys(vars).forEach(function(k) {
       s = s.split('{' + k + '}').join(vars[k]);
     });
   }
   return s;
+};
+
+// ── Language switch ──────────────────────────────────────────────────────
+// Changes the active dictionary, persists the choice, and re-applies every
+// data-i18n/-title/-placeholder element on the page. Does NOT retroactively
+// fix already-built dynamic text (see the file header comment) — that
+// catches up the next time whatever built it runs again.
+window.setLanguage = function setLanguage(lang) {
+  window.MS_LANG = lang;
+  try { localStorage.setItem('ug_lang', lang); } catch (e) {}
+  if (typeof applyI18nStrings === 'function') applyI18nStrings();
 };

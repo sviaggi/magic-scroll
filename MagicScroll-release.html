@@ -1449,8 +1449,11 @@
        keeps them matched regardless of engine. */
     -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .diagram-instrument-tabs button:hover { background: #d8cbbe; color: #1a0a00; }
+  /* White text on the accent was hard to read once the accent leans
+     yellow/orange/gold (every light theme) — same fix as the Add Chords
+     button: dark text on the accent fill instead of white. */
   .diagram-instrument-tabs button.active {
-    background: var(--c-accent); color: #fff;
+    background: var(--c-accent); color: #1a0a00;
     border-color: var(--c-accent); font-weight: bold; }
   .diagram-instrument-tabs select.inst-select {
     font-size: 0.68rem; padding: 3px 4px; font-family: inherit;
@@ -1460,7 +1463,7 @@
     -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .diagram-instrument-tabs select.inst-select:hover { background: #d8cbbe; color: #1a0a00; }
   .diagram-instrument-tabs select.inst-select.active {
-    background: var(--c-accent); color: #fff;
+    background: var(--c-accent); color: #1a0a00;
     border-color: var(--c-accent); font-weight: bold; }
 
   .chord-diagram-grid {
@@ -2445,6 +2448,11 @@
   #settings-menu-content > #topbar-linespacing-group input[type=range] {
     flex: 1 1 auto;
     min-width: 60px;
+  }
+  /* Language sits directly beneath Line Spacing — same "own full row" treatment. */
+  #settings-menu-content > #topbar-language-group {
+    flex: 1 1 100% !important;
+    width: 100%;
   }
   #settings-menu-content > #theme-settings-wrap,
   #settings-menu-content > #print-settings-wrap {
@@ -3695,12 +3703,14 @@
 <script src="squeezebox-engine.js"></script>
 <script src="irealpro-engine.js"></script>
 <!-- All user-facing copy (button labels, tooltips, alert/confirm/prompt text,
-     tutorial hints, ...) lives in this sidecar file, not inline in the app
-     below — see its header comment for why, and how a future
-     strings-<lang>.js would plug in to translate the app. Must load before
-     the main inline script runs (it does — synchronous <script src> tags
-     execute in order, before any inline <script> later in the document). -->
+     tutorial hints, ...) lives in these sidecar files, not inline in the app
+     below — see strings-en.js's header comment for why, and how the
+     language switch (window.setLanguage(), wired to #lang-sel in Options)
+     works. Both must load before the main inline script runs (they do —
+     synchronous <script src> tags execute in order, before any inline
+     <script> later in the document). -->
 <script src="strings-en.js"></script>
+<script src="strings-zh.js"></script>
 </head>
 <body>
 <!-- Dedicated pinned-background layer — see #bg-layer-fixed CSS + applyTheme()/
@@ -3772,6 +3782,14 @@
   <div class="ctrl-group" id="topbar-linespacing-group">
     <span class="ctrl-label" data-i18n="topbar.lineSpacing">Line Spacing</span>
     <input type="range" id="line-spacing-sel" min="1.65" max="2.3" step="0.05" value="1.65" title="Line spacing for song &amp; lead-sheet text" data-i18n-title="topbar.lineSpacingTitle">
+  </div>
+  <span class="sep">|</span>
+  <div class="ctrl-group" id="topbar-language-group">
+    <span class="ctrl-label" data-i18n="options.language">Language</span>
+    <select id="lang-sel" title="Change the app's display language" data-i18n-title="options.languageTitle">
+      <option value="en">English</option>
+      <option value="zh">中文</option>
+    </select>
   </div>
   <span class="sep">|</span>
   <div class="ctrl-group settings-btn" id="theme-settings-wrap">
@@ -4184,20 +4202,20 @@
         <div id="editor-meta">
           <div class="editor-field">
             <label>Title</label>
-            <input type="text" id="edit-title" placeholder="Song title">
+            <input type="text" id="edit-title" placeholder="Song title" data-i18n-placeholder="editor.titlePlaceholder">
           </div>
           <div class="editor-field">
             <label>Artist</label>
-            <input type="text" id="edit-artist" placeholder="Artist name">
+            <input type="text" id="edit-artist" placeholder="Artist name" data-i18n-placeholder="editor.artistPlaceholder">
           </div>
           <div class="editor-field editor-field-split">
             <div class="editor-subfield">
               <label>Key</label>
-              <input type="text" id="edit-key" placeholder="e.g. Am">
+              <input type="text" id="edit-key" placeholder="e.g. Am" data-i18n-placeholder="editor.keyPlaceholder">
             </div>
             <div class="editor-subfield">
               <label>Time Sig.</label>
-              <input type="text" id="edit-time-sig" placeholder="e.g. 4/4">
+              <input type="text" id="edit-time-sig" placeholder="e.g. 4/4" data-i18n-placeholder="editor.timeSigPlaceholder">
             </div>
           </div>
           <div class="editor-field">
@@ -4218,7 +4236,7 @@
         </div>
         <div id="precision-hint" class="precision-hint" data-i18n="editor.precisionHint">Click on the word (or the spot) where you want a chord, then type it into the box that appears. Click an existing chord to edit or remove it.</div>
         <div id="song-editor-wrap">
-          <textarea id="song-editor" class="fs-md" spellcheck="false"
+          <textarea id="song-editor" class="fs-md" spellcheck="false" data-i18n-placeholder="editor.songPlaceholder"
             placeholder="Paste or type your song here.
 
 [Verse]
@@ -4252,7 +4270,7 @@ I hope you enjoy using your magic scroll!"></textarea>
 
 <!-- Precision-chord popup (add / edit / delete a tagged chord) -->
 <div id="precision-popup">
-  <input type="text" id="pp-chord-input" placeholder="Chord, e.g. Am7" spellcheck="false" autocomplete="off">
+  <input type="text" id="pp-chord-input" placeholder="Chord, e.g. Am7" data-i18n-placeholder="precision.chordInputPlaceholder" spellcheck="false" autocomplete="off">
   <div class="pp-chips" id="pp-chips"></div>
   <div class="pp-row">
     <button type="button" id="pp-save">Add</button>
@@ -4361,7 +4379,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     <h3>⛓ Create set</h3>
     <p class="ci-hint">Tick tunes to stack them on the page. They appear in the order you select them — the order is shown below.</p>
     <div class="abc-set-filters">
-      <input type="search" id="abc-set-search" placeholder="Search tunes or type (jig, reel, waltz…)" autocomplete="off" spellcheck="false">
+      <input type="search" id="abc-set-search" placeholder="Search tunes or type (jig, reel, waltz…)" data-i18n-placeholder="createSet.searchPlaceholder" autocomplete="off" spellcheck="false">
       <select id="abc-set-type-filter" title="Filter by tune type"><option value="">All types</option></select>
     </div>
     <div id="abc-set-order" class="abc-set-order"></div>
@@ -4415,15 +4433,15 @@ I hope you enjoy using your magic scroll!"></textarea>
       </div>
       <div class="modal-field" style="grid-column:1/-1">
         <label>Title</label>
-        <input type="text" id="ns-title" placeholder="Song title" autocomplete="off">
+        <input type="text" id="ns-title" placeholder="Song title" data-i18n-placeholder="editor.titlePlaceholder" autocomplete="off">
       </div>
       <div class="modal-field" style="grid-column:1/-1">
         <label>Artist</label>
-        <input type="text" id="ns-artist" placeholder="Artist name" autocomplete="off">
+        <input type="text" id="ns-artist" placeholder="Artist name" data-i18n-placeholder="editor.artistPlaceholder" autocomplete="off">
       </div>
       <div class="modal-field" style="grid-column:1/-1">
         <label>Key (optional)</label>
-        <input type="text" id="ns-key" placeholder="e.g. Am" autocomplete="off">
+        <input type="text" id="ns-key" placeholder="e.g. Am" data-i18n-placeholder="editor.keyPlaceholder" autocomplete="off">
       </div>
     </div>
     <div id="new-song-format">
@@ -4431,7 +4449,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     </div>
     <div id="ns-abc-section" style="display:none;">
       <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste ABC Notation below — title and composer are extracted automatically</label>
-      <textarea id="ns-abc-content" rows="8"
+      <textarea id="ns-abc-content" rows="8" data-i18n-placeholder="newSong.abcPlaceholder"
         placeholder="X:1&#10;T:My Tune&#10;C:Composer&#10;M:4/4&#10;L:1/8&#10;K:G&#10;..."
         style="width:100%;font-size:0.7rem;font-family:var(--font-mono);resize:vertical;
                background:var(--c-chrome-bg3);color:var(--c-chrome-text);
@@ -4441,7 +4459,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     </div>
     <div id="ns-ireal-section" style="display:none;">
       <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste an <code>irealb://</code> URL — single songs and full playlists are supported</label>
-      <textarea id="ns-ireal-url" rows="4"
+      <textarea id="ns-ireal-url" rows="4" data-i18n-placeholder="newSong.irealPlaceholder"
         placeholder="irealb://SongTitle%3DComposer%3D%3DStyle%3DKey..."
         style="width:100%;font-size:0.7rem;font-family:var(--font-mono);resize:vertical;
                background:var(--c-chrome-bg3);color:var(--c-chrome-text);
@@ -4533,7 +4551,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     </div>
     <!-- Community search bar (hidden on built-in tab) -->
     <div id="col-community-search" style="display:none;padding:0 14px 8px;">
-      <input id="col-community-q" type="search" placeholder="Search community collections…" autocomplete="off" spellcheck="false"
+      <input id="col-community-q" type="search" placeholder="Search community collections…" data-i18n-placeholder="collections.searchPlaceholder" autocomplete="off" spellcheck="false"
         style="width:100%;box-sizing:border-box;font-size:0.72rem;padding:5px 8px;background:var(--c-chrome-bg2);border:1px solid var(--c-chrome-border);border-radius:4px;color:var(--c-chrome-text);">
     </div>
     <div id="collections-list" style="overflow-y:auto;padding:6px 14px 14px;flex:1;">
@@ -4584,7 +4602,7 @@ I hope you enjoy using your magic scroll!"></textarea>
         accounts, nothing to sign up for. When you end the session, the final version is
         saved for everyone who joined.
       </div>
-      <input type="text" id="collab-start-name-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name">
+      <input type="text" id="collab-start-name-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name" data-i18n-placeholder="collab.namePlaceholder">
       <div class="pub-actions">
         <button id="collab-cancel-btn-1">Cancel</button>
         <button id="collab-start-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Start Collaborating</button>
@@ -4616,7 +4634,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     <h3>Join Collaboration</h3>
     <div class="pub-warning">Enter the 6-character collaboration code shared with you.</div>
     <input type="text" id="join-collab-code-input" maxlength="6" autocomplete="off"
-           autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="ABCDEF">
+           autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="ABCDEF" data-i18n-placeholder="collab.codePlaceholder">
     <div class="pub-status" id="join-collab-status"></div>
     <div class="pub-actions">
       <button id="join-collab-cancel-btn">Cancel</button>
@@ -4636,7 +4654,7 @@ I hope you enjoy using your magic scroll!"></textarea>
   <div class="pub-box" id="collab-username-box">
     <h3>Your Name</h3>
     <div class="pub-warning">Other people in this collaboration will see this name. It stays the same for every collaboration this session — you can change it again next time you open the app.</div>
-    <input type="text" id="collab-username-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name">
+    <input type="text" id="collab-username-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name" data-i18n-placeholder="collab.namePlaceholder">
     <div class="pub-status" id="collab-username-status"></div>
     <div class="pub-actions">
       <button id="collab-username-cancel-btn">Cancel</button>
@@ -4688,11 +4706,13 @@ I hope you enjoy using your magic scroll!"></textarea>
 <div id="chord-hover-tooltip"></div>
 <script src="backing-track.js"></script>
 <script>
-// ── I18N — fill in text from strings-en.js (see that file's header) ────────
+// ── I18N — fill in text from strings-en.js/strings-zh.js (see strings-en.js's
+// header) ────────────────────────────────────────────────────────────────
 // Static HTML elements opt in with data-i18n (element text), data-i18n-title
 // (the title tooltip) and/or data-i18n-placeholder (input placeholder)
-// attributes carrying a key into window.MS_STRINGS. Run once at boot, before
-// anything else needs the DOM's text to be final.
+// attributes carrying a key. Run once at boot, before anything else needs
+// the DOM's text to be final, and again by setLanguage() (in strings-en.js)
+// whenever the user switches languages via #lang-sel below.
 function applyI18nStrings() {
   if (typeof t !== 'function') return;   // strings-en.js failed to load — leave the (English) fallback markup as-is
   document.querySelectorAll('[data-i18n]').forEach(function(el) { el.textContent = t(el.getAttribute('data-i18n')); });
@@ -4700,6 +4720,17 @@ function applyI18nStrings() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
 }
 applyI18nStrings();
+
+// Language switcher (Options panel, beneath Line Spacing) — reflect the
+// saved/active language on load, and hand off to setLanguage() on change.
+(function() {
+  var sel = document.getElementById('lang-sel');
+  if (!sel) return;
+  sel.value = window.MS_LANG || 'en';
+  sel.addEventListener('change', function() {
+    if (typeof setLanguage === 'function') setLanguage(sel.value);
+  });
+})();
 
 // ── DATA — songs array, folders, scroll state, instrument ───────────────────
 let songs = [];
@@ -6563,12 +6594,14 @@ function reflowPrecisionOverlaps(container) {
       // in the DOM, so they render flush against each other. Top up to the
       // chord-adjacent minimum (never negative — only ever ADDS room) so
       // that case is still legible.
-      const nextForPlaceholder = rubies[i + 1];
-      if (nextForPlaceholder && Math.abs(nextForPlaceholder.getBoundingClientRect().top - ruby.getBoundingClientRect().top) < 4) {
-        const rawGap = nextForPlaceholder.getBoundingClientRect().left - ruby.getBoundingClientRect().right;
-        if (rawGap < CHORD_ADJACENT_BUFFER) ruby.style.marginRight = (CHORD_ADJACENT_BUFFER - rawGap) + 'px';
+      if (ruby.classList.contains('chord-placeholder-ruby')) {
+        const nextForPlaceholder = rubies[i + 1];
+        if (nextForPlaceholder && Math.abs(nextForPlaceholder.getBoundingClientRect().top - ruby.getBoundingClientRect().top) < 4) {
+          const rawGap = nextForPlaceholder.getBoundingClientRect().left - ruby.getBoundingClientRect().right;
+          if (rawGap < CHORD_ADJACENT_BUFFER) ruby.style.marginRight = (CHORD_ADJACENT_BUFFER - rawGap) + 'px';
+        }
+        continue;
       }
-      continue;
       const rubyRect = ruby.getBoundingClientRect();
       const baseRect = _rubyBaseRect(ruby);
       if (!baseRect) continue;
@@ -7580,6 +7613,22 @@ function renderSong(idx) {
       _broadcastCollabCursorLeft(_prevSong._collab.itemId);
       _clearAllRemoteCursors(_prevSong._collab.itemId);
     }
+    // Also hide the edit-split UI itself here, unconditionally — below, this
+    // reset only runs for the plain-text/tab render branch, but navigation
+    // can land on an iReal or ABC song instead, both of which `return` early
+    // before ever reaching that reset. Left undone, #edit-split stayed
+    // .visible (still holding the OLD song's editor) while the new song's
+    // card rendered on top of/underneath it — the two stacking visibly.
+    var _editSplit = document.getElementById('edit-split');
+    if (_editSplit) _editSplit.classList.remove('visible');
+    var _oldCard = document.getElementById('song-card');
+    if (_oldCard) _oldCard.style.display = '';
+    var _editBtn = document.getElementById('btn-edit-toggle');
+    if (_editBtn) { _editBtn.classList.remove('active'); _editBtn.setAttribute('aria-pressed', 'false'); _editBtn.textContent = '✎ Edit'; }
+    var _cancelBtn = document.getElementById('btn-edit-cancel');
+    if (_cancelBtn) _cancelBtn.style.display = 'none';
+    var _saveBtn = document.getElementById('btn-save');
+    if (_saveBtn) _saveBtn.style.display = 'none';
   }
   currentIdx=idx;
   // Capo + transpose reset per song, but restore this song's cached state if it
@@ -13278,7 +13327,7 @@ if (localStorage.getItem('ug_topbar_collapsed')) setTopbarCollapsed(true);
 // (_topbarRestoreDesktop is kept below, unused, in case a desktop-only mode
 // is ever wanted again — it's just no longer wired up to anything.)
 var _TOPBAR_MUSIC_IDS    = ['topbar-key-group', 'btn-diagrams', 'metronome-wrap', 'tuner-wrap'];
-var _TOPBAR_SETTINGS_IDS = ['topbar-size-group', 'theme-settings-wrap', 'print-settings-wrap', 'topbar-linespacing-group'];
+var _TOPBAR_SETTINGS_IDS = ['topbar-size-group', 'theme-settings-wrap', 'print-settings-wrap', 'topbar-linespacing-group', 'topbar-language-group'];
 var _topbarHomes = null;   // id → {parent, next} — original desktop position, captured once
 
 function _topbarCaptureHomes() {
