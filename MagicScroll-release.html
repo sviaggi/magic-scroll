@@ -3721,14 +3721,14 @@
   <div id="abc-player-inner">
     <div id="abc-player-controls">
       <div class="abc-row-1">
-        <button id="abc-play-btn" class="abc-ctrl-btn" title="Play">▶︎</button>
-        <button id="abc-stop-btn" class="abc-ctrl-btn" title="Stop">⏹︎</button>
+        <button id="abc-play-btn" class="abc-ctrl-btn" title="Play" data-i18n-title="playbar.play">▶︎</button>
+        <button id="abc-stop-btn" class="abc-ctrl-btn" title="Stop" data-i18n-title="playbar.stop">⏹︎</button>
       </div>
       <div class="abc-row-2">
-        <label>BPM</label>
+        <label data-i18n="playbar.bpm">BPM</label>
         <input  id="abc-tempo" type="range" min="40" max="240" value="120" style="width:72px;">
         <span   id="abc-tempo-label" style="min-width:44px;font-variant-numeric:tabular-nums;">120</span>
-        <label>Meter</label>
+        <label data-i18n="playbar.meter">Meter</label>
         <select id="abc-time-sig" class="abc-ctrl-btn" style="font-size:0.7rem;padding:2px 4px;">
           <option>4/4</option><option>3/4</option><option>2/4</option>
           <option>6/8</option><option>5/4</option><option>7/8</option>
@@ -3762,7 +3762,7 @@
   <div class="ctrl-group" id="topbar-key-group">
     <span class="ctrl-label" data-i18n="topbar.key">Key</span>
     <button id="btn-transpose-down" title="Transpose down one semitone" data-i18n-title="topbar.transposeDown">♭−</button>
-    <span class="transpose-val" id="key-display" title="Detected key — click ♭/♯ to transpose">?</span>
+    <span class="transpose-val" id="key-display" title="Detected key — click ♭/♯ to transpose" data-i18n-title="topbar.detectedKeyTitle">?</span>
     <button id="btn-transpose-up" title="Transpose up one semitone" data-i18n-title="topbar.transposeUp">♯+</button>
     <button id="btn-transpose-reset" title="Reset to original key" data-i18n-title="topbar.transposeReset">↺</button>
     <button id="btn-simplify" title="Simplify all chords to root form" style="margin-left:4px;" data-i18n="topbar.simplifyChords" data-i18n-title="topbar.simplifyChordsTitle">Simplify chords</button>
@@ -3795,100 +3795,100 @@
   <div class="ctrl-group settings-btn" id="theme-settings-wrap">
     <button id="btn-theme-settings" title="Customise theme, colours, fonts &amp; background" data-i18n="topbar.themes" data-i18n-title="topbar.themesTitle">Themes</button>
     <div class="settings-panel" id="theme-settings-panel">
-      <h5>🎨 Themes</h5>
+      <h5 data-i18n="themes.panelTitle">🎨 Themes</h5>
 
-      <div class="settings-section-title">Preset Themes</div>
+      <div class="settings-section-title" data-i18n="themes.presetThemes">Preset Themes</div>
       <div class="theme-presets" id="color-presets"></div>
 
-      <div class="settings-section-title">UI Colours</div>
-      <div class="settings-row"><label>UI BG</label><input type="color" id="sc-chrome-bg"></div>
-      <div class="settings-row"><label>UI BG Alt</label><input type="color" id="sc-chrome-bg2"></div>
-      <div class="settings-row"><label>UI Border</label><input type="color" id="sc-chrome-border"></div>
-      <div class="settings-row"><label>UI Text</label><input type="color" id="sc-chrome-text"></div>
-      <div class="settings-row"><label>UI Muted</label><input type="color" id="sc-chrome-muted"></div>
-      <div class="settings-row"><label>Accent</label><input type="color" id="sc-accent"></div>
+      <div class="settings-section-title" data-i18n="themes.uiColours">UI Colours</div>
+      <div class="settings-row"><label data-i18n="themes.uiBg">UI BG</label><input type="color" id="sc-chrome-bg"></div>
+      <div class="settings-row"><label data-i18n="themes.uiBgAlt">UI BG Alt</label><input type="color" id="sc-chrome-bg2"></div>
+      <div class="settings-row"><label data-i18n="themes.uiBorder">UI Border</label><input type="color" id="sc-chrome-border"></div>
+      <div class="settings-row"><label data-i18n="themes.uiText">UI Text</label><input type="color" id="sc-chrome-text"></div>
+      <div class="settings-row"><label data-i18n="themes.uiMuted">UI Muted</label><input type="color" id="sc-chrome-muted"></div>
+      <div class="settings-row"><label data-i18n="themes.accent">Accent</label><input type="color" id="sc-accent"></div>
 
-      <div class="settings-section-title">Song Card Colours</div>
-      <div class="settings-row"><label>Card BG</label><input type="color" id="sc-card-bg"></div>
-      <div class="settings-row"><label>Card Text</label><input type="color" id="sc-card-text"></div>
-      <div class="settings-row"><label>Card Title</label><input type="color" id="sc-card-title"></div>
-      <div class="settings-row"><label>Card Artist</label><input type="color" id="sc-card-artist"></div>
-      <div class="settings-row"><label>Chord Text</label><input type="color" id="sc-chord-text"></div>
+      <div class="settings-section-title" data-i18n="themes.songCardColours">Song Card Colours</div>
+      <div class="settings-row"><label data-i18n="themes.cardBg">Card BG</label><input type="color" id="sc-card-bg"></div>
+      <div class="settings-row"><label data-i18n="themes.cardText">Card Text</label><input type="color" id="sc-card-text"></div>
+      <div class="settings-row"><label data-i18n="themes.cardTitle">Card Title</label><input type="color" id="sc-card-title"></div>
+      <div class="settings-row"><label data-i18n="themes.cardArtist">Card Artist</label><input type="color" id="sc-card-artist"></div>
+      <div class="settings-row"><label data-i18n="themes.chordText">Chord Text</label><input type="color" id="sc-chord-text"></div>
 
-      <div class="settings-section-title">Background Image</div>
+      <div class="settings-section-title" data-i18n="themes.backgroundImage">Background Image</div>
       <div class="settings-row">
-        <label>Image file</label>
-        <button id="btn-sc-bg-browse" style="font-size:0.68rem;padding:2px 8px;flex-shrink:0;">📂 Browse…</button>
-        <span id="sc-bg-filename" style="font-size:0.68rem;color:var(--c-chrome-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">(none)</span>
+        <label data-i18n="themes.imageFile">Image file</label>
+        <button id="btn-sc-bg-browse" style="font-size:0.68rem;padding:2px 8px;flex-shrink:0;" data-i18n="themes.browse">📂 Browse…</button>
+        <span id="sc-bg-filename" style="font-size:0.68rem;color:var(--c-chrome-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;" data-i18n="themes.none">(none)</span>
         <input type="file" id="sc-bg-file" accept="image/*" style="display:none">
     <input type="file" id="custom-font-file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" style="display:none">
         <input type="hidden" id="sc-bg-image">
       </div>
       <div class="settings-row">
-        <label>Image scale</label>
+        <label data-i18n="themes.imageScale">Image scale</label>
         <select id="sc-bg-size" style="font-size:0.72rem;">
-          <option value="300px">Small (300px tile)</option>
-          <option value="500px" selected>Medium (500px tile)</option>
-          <option value="800px">Large (800px tile)</option>
-          <option value="1200px">XL (1200px tile)</option>
-          <option value="100%">Full width</option>
-          <option value="cover">Cover (stretch)</option>
+          <option value="300px" data-i18n="themes.scaleSmall">Small (300px tile)</option>
+          <option value="500px" selected data-i18n="themes.scaleMedium">Medium (500px tile)</option>
+          <option value="800px" data-i18n="themes.scaleLarge">Large (800px tile)</option>
+          <option value="1200px" data-i18n="themes.scaleXL">XL (1200px tile)</option>
+          <option value="100%" data-i18n="themes.scaleFullWidth">Full width</option>
+          <option value="cover" data-i18n="themes.scaleCover">Cover (stretch)</option>
         </select>
       </div>
       <div class="settings-row">
-        <label>Scroll with page</label>
+        <label data-i18n="themes.scrollWithPage">Scroll with page</label>
         <input type="checkbox" id="sc-bg-scroll" checked style="width:auto;height:auto;accent-color:var(--c-accent);">
       </div>
       <div class="settings-row">
-        <label>Clear image</label>
-        <button id="btn-sc-bg-clear" style="font-size:0.68rem;padding:2px 8px;">✕ Clear</button>
+        <label data-i18n="themes.clearImage">Clear image</label>
+        <button id="btn-sc-bg-clear" style="font-size:0.68rem;padding:2px 8px;" data-i18n="themes.clearBtn">✕ Clear</button>
       </div>
 
-      <div class="settings-section-title">Fonts</div>
-      <div class="settings-row"><label>Body / Tab</label><select id="sf-mono"></select></div>
-      <div class="settings-row"><label>Chord Tokens</label><select id="sf-chord"></select></div>
-      <div class="settings-row"><label>Song Title</label><select id="sf-display"></select></div>
-      <div class="settings-row"><label>App UI</label><select id="sf-ui"></select></div>
+      <div class="settings-section-title" data-i18n="themes.fonts">Fonts</div>
+      <div class="settings-row"><label data-i18n="themes.fontBodyTab">Body / Tab</label><select id="sf-mono"></select></div>
+      <div class="settings-row"><label data-i18n="themes.fontChordTokens">Chord Tokens</label><select id="sf-chord"></select></div>
+      <div class="settings-row"><label data-i18n="themes.fontSongTitle">Song Title</label><select id="sf-display"></select></div>
+      <div class="settings-row"><label data-i18n="themes.fontAppUI">App UI</label><select id="sf-ui"></select></div>
 
-      <div class="settings-section-title">Display Options</div>
+      <div class="settings-section-title" data-i18n="themes.displayOptions">Display Options</div>
       <div class="settings-row">
-        <label>Monospace chord/lyric spacing</label>
-        <button id="btn-mono-spacing" style="font-size:0.68rem;padding:2px 8px;" title="Render chord and lyric lines in a true monospace font so chords line up exactly above their lyrics">⇔ Off</button>
+        <label data-i18n="themes.monoSpacing">Monospace chord/lyric spacing</label>
+        <button id="btn-mono-spacing" style="font-size:0.68rem;padding:2px 8px;" title="Render chord and lyric lines in a true monospace font so chords line up exactly above their lyrics" data-i18n-title="themes.monoSpacingTitle" data-i18n="themes.monoSpacingOff">⇔ Off</button>
       </div>
 
       <div class="settings-actions">
-        <button id="btn-sc-apply">Apply</button>
-        <button id="btn-sc-save-theme">Save as Theme</button>
-        <button id="btn-sc-reset">Reset Colours</button>
-        <button id="btn-sf-reset">Reset Fonts</button>
+        <button id="btn-sc-apply" data-i18n="themes.apply">Apply</button>
+        <button id="btn-sc-save-theme" data-i18n="themes.saveAsTheme">Save as Theme</button>
+        <button id="btn-sc-reset" data-i18n="themes.resetColours">Reset Colours</button>
+        <button id="btn-sf-reset" data-i18n="themes.resetFonts">Reset Fonts</button>
       </div>
       <div class="settings-actions">
-        <button id="btn-theme-export" title="Download your saved custom themes as a file you can share">⇩ Export Themes</button>
-        <button id="btn-theme-import" title="Load custom themes shared by someone else">⇧ Import Themes</button>
+        <button id="btn-theme-export" title="Download your saved custom themes as a file you can share" data-i18n-title="themes.exportTitle" data-i18n="themes.export">⇩ Export Themes</button>
+        <button id="btn-theme-import" title="Load custom themes shared by someone else" data-i18n-title="themes.importTitle" data-i18n="themes.import">⇧ Import Themes</button>
         <input type="file" id="theme-import-file" accept="application/json,.json" style="display:none">
       </div>
     </div>
   </div>
   <span class="sep">|</span>
   <div class="ctrl-group" id="topbar-scroll-group">
-    <span class="ctrl-label">Scroll</span>
-    <input type="range" id="scroll-speed" min="1" max="10" value="3" title="Scroll speed">
+    <span class="ctrl-label" data-i18n="topbar.scrollLabel">Scroll</span>
+    <input type="range" id="scroll-speed" min="1" max="10" value="3" title="Scroll speed" data-i18n-title="topbar.scrollSpeedTitle">
     <button id="btn-scroll" aria-pressed="false" data-i18n="topbar.scroll">▶︎ Scroll</button>
   </div>
-  <button id="btn-settings-menu" class="topbar-cat-trigger" title="Size, theme &amp; print" style="display:none;">⚙ Options</button>
+  <button id="btn-settings-menu" class="topbar-cat-trigger" title="Size, theme &amp; print" data-i18n-title="topbar.optionsTitle" data-i18n="topbar.options" style="display:none;">⚙ Options</button>
   <span class="sep">|</span>
   <span class="sep">|</span>
-  <button id="btn-diagrams" aria-pressed="false">Chord Diagrams</button>
+  <button id="btn-diagrams" aria-pressed="false" data-i18n="diagrams.title">Chord Diagrams</button>
   <div class="ctrl-group settings-btn" id="metronome-wrap">
-    <button id="btn-metro-toggle" title="Open metronome" aria-pressed="false">♩ Metronome</button>
+    <button id="btn-metro-toggle" title="Open metronome" data-i18n-title="metronome.openTitle" aria-pressed="false" data-i18n="metronome.toggle">♩ Metronome</button>
     <div id="metro-panel">
-      <h5>♩ Metronome</h5>
+      <h5 data-i18n="metronome.toggle">♩ Metronome</h5>
       <div class="metro-row">
-        <label>BPM</label>
+        <label data-i18n="playbar.bpm">BPM</label>
         <input type="number" id="bpm-input" min="20" max="300" value="120">
       </div>
       <div class="metro-row">
-        <label>Time sig</label>
+        <label data-i18n="metronome.timeSig">Time sig</label>
         <select id="time-sig-sel">
           <option>4/4</option>
           <option>3/4</option>
@@ -3899,26 +3899,26 @@
         </select>
       </div>
       <div class="metro-row">
-        <label>Beat</label>
+        <label data-i18n="metronome.beat">Beat</label>
         <div id="beat-dots"></div>
       </div>
       <div class="metro-actions">
-        <button id="btn-tap" title="Tap to set tempo">Tap tempo</button>
-        <button id="btn-metro" title="Start / stop">▶︎ Start</button>
+        <button id="btn-tap" title="Tap to set tempo" data-i18n-title="metronome.tapTempoTitle" data-i18n="metronome.tapTempo">Tap tempo</button>
+        <button id="btn-metro" title="Start / stop" data-i18n-title="metronome.startStopTitle" data-i18n="metronome.start">▶︎ Start</button>
       </div>
     </div>
   </div>
   <span class="sep">|</span>
   <div class="ctrl-group settings-btn" id="tuner-wrap">
-    <button id="btn-tuner-toggle" title="Chromatic tuner (uses microphone)">𝄞 Tuner</button>
+    <button id="btn-tuner-toggle" title="Chromatic tuner (uses microphone)" data-i18n-title="tuner.toggleTitle" data-i18n="tuner.toggle">𝄞 Tuner</button>
     <div class="settings-panel" id="tuner-panel">
-      <h5>Chromatic Tuner</h5>
+      <h5 data-i18n="tuner.panelTitle">Chromatic Tuner</h5>
       <div class="settings-row">
-        <label>Instrument</label>
+        <label data-i18n="tuner.instrument">Instrument</label>
         <select id="tuner-instrument" style="font-size:0.75rem;">
-          <option value="primary">Primary Instrument</option>
-          <option value="secondary">Secondary Instrument</option>
-          <option value="chromatic">Chromatic</option>
+          <option value="primary" data-i18n="tuner.primaryInstrument">Primary Instrument</option>
+          <option value="secondary" data-i18n="tuner.secondaryInstrument">Secondary Instrument</option>
+          <option value="chromatic" data-i18n="tuner.chromatic">Chromatic</option>
         </select>
       </div>
 
@@ -3954,20 +3954,20 @@
       </div>
 
       <div class="settings-row">
-        <label>Sensitivity</label>
+        <label data-i18n="tuner.sensitivity">Sensitivity</label>
         <select id="tuner-sensitivity" style="font-size:0.75rem;">
-          <option value="high">High (quiet rooms)</option>
-          <option value="medium" selected>Medium</option>
-          <option value="low">Low (noisy rooms)</option>
+          <option value="high" data-i18n="tuner.sensitivityHigh">High (quiet rooms)</option>
+          <option value="medium" selected data-i18n="tuner.sensitivityMedium">Medium</option>
+          <option value="low" data-i18n="tuner.sensitivityLow">Low (noisy rooms)</option>
         </select>
       </div>
       <div class="settings-row">
-        <label>A4 reference</label>
+        <label data-i18n="tuner.a4reference">A4 reference</label>
         <select id="tuner-a4" style="font-size:0.75rem;">
           <option value="432">432 Hz</option>
           <option value="436">436 Hz</option>
           <option value="438">438 Hz</option>
-          <option value="440" selected>440 Hz (standard)</option>
+          <option value="440" selected data-i18n="tuner.a4standard">440 Hz (standard)</option>
           <option value="441">441 Hz</option>
           <option value="442">442 Hz</option>
           <option value="443">443 Hz</option>
@@ -3976,20 +3976,20 @@
         </select>
       </div>
       <div class="settings-actions">
-        <button id="btn-tuner-mic">🎤 Start Listening</button>
+        <button id="btn-tuner-mic" data-i18n="tuner.startListening">🎤 Start Listening</button>
       </div>
     </div>
   </div>
   <div class="ctrl-group settings-btn" id="print-settings-wrap">
-    <button id="btn-print-open" title="Print options">Print</button>
+    <button id="btn-print-open" title="Print options" data-i18n-title="printPanel.optionsTitle" data-i18n="printPanel.print">Print</button>
     <div class="settings-panel" id="print-panel">
-      <h5>Print options</h5>
+      <h5 data-i18n="printPanel.panelTitle">Print options</h5>
 
-      <div class="settings-section-title">Font</div>
+      <div class="settings-section-title" data-i18n="printPanel.font">Font</div>
       <div class="settings-row">
-        <label>Font choice</label>
+        <label data-i18n="printPanel.fontChoice">Font choice</label>
         <select id="pp-font">
-          <option value="default">Page fonts (user-defined)</option>
+          <option value="default" data-i18n="printPanel.fontDefault">Page fonts (user-defined)</option>
           <option value="georgia">Georgia (serif)</option>
           <option value="arial">Arial (sans-serif)</option>
           <option value="times">Times New Roman</option>
@@ -3997,49 +3997,49 @@
         </select>
       </div>
 
-      <div class="settings-section-title">Chord Diagrams</div>
+      <div class="settings-section-title" data-i18n="diagrams.title">Chord Diagrams</div>
       <div class="settings-row">
-        <label>Include diagrams</label>
+        <label data-i18n="printPanel.includeDiagrams">Include diagrams</label>
         <input type="checkbox" id="pp-diagrams" checked
                style="width:auto;height:auto;accent-color:var(--c-accent);">
-        <span style="font-size:0.65rem;color:var(--c-chrome-muted);">(primary instrument)</span>
+        <span style="font-size:0.65rem;color:var(--c-chrome-muted);" data-i18n="printPanel.primaryInstrumentNote">(primary instrument)</span>
       </div>
 
-      <div class="settings-section-title">Layout</div>
+      <div class="settings-section-title" data-i18n="printPanel.layout">Layout</div>
       <div class="settings-row">
-        <label>Fit to one page</label>
+        <label data-i18n="printPanel.fitOnePage">Fit to one page</label>
         <input type="checkbox" id="pp-onepage" checked
                style="width:auto;height:auto;accent-color:var(--c-accent);">
         <span style="font-size:0.65rem;color:var(--c-chrome-muted);">(8.5×11 in)</span>
       </div>
       <div class="settings-row">
-        <label>Multi-column</label>
+        <label data-i18n="printPanel.multiColumn">Multi-column</label>
         <input type="checkbox" id="pp-columns" checked
                style="width:auto;height:auto;accent-color:var(--c-accent);">
-        <span style="font-size:0.65rem;color:var(--c-chrome-muted);">(reduces blank space)</span>
+        <span style="font-size:0.65rem;color:var(--c-chrome-muted);" data-i18n="printPanel.reducesBlankSpace">(reduces blank space)</span>
       </div>
       <div class="settings-row">
-        <label>Skip repeated choruses</label>
+        <label data-i18n="printPanel.skipChoruses">Skip repeated choruses</label>
         <input type="checkbox" id="pp-skip-chorus" checked
                style="width:auto;height:auto;accent-color:var(--c-accent);">
       </div>
       <div class="settings-row">
-        <label>Condensed view</label>
+        <label data-i18n="toolbar.chordView">Condensed view</label>
         <input type="checkbox" id="pp-condensed"
                style="width:auto;height:auto;accent-color:var(--c-accent);">
-        <span style="font-size:0.65rem;color:var(--c-chrome-muted);">(chords inline in brackets, more per page)</span>
+        <span style="font-size:0.65rem;color:var(--c-chrome-muted);" data-i18n="printPanel.condensedNote">(chords inline in brackets, more per page)</span>
       </div>
 
       <!-- Shown only for multi-tune ABC files -->
       <div id="pp-tune-row" class="settings-row" style="display:none">
-        <label>Which tune</label>
+        <label data-i18n="printPanel.whichTune">Which tune</label>
         <select id="pp-tune-idx" style="font-size:0.72rem;"></select>
       </div>
-      <p style="font-size:0.65rem;color:var(--c-chrome-muted);line-height:1.5;margin:10px 0 6px;">
+      <p style="font-size:0.65rem;color:var(--c-chrome-muted);line-height:1.5;margin:10px 0 6px;" data-i18n="printPanel.fittingHint">
         Fitting everything on one page in a nice, legible format can be difficult! It might be worth duplicating the song file to make a print-ready version that's edited to remove any redundant/unnecessary information (song titles, flavour text, hyperlinks).
       </p>
       <div class="settings-actions">
-        <button id="btn-print-go">🖨 Print now</button>
+        <button id="btn-print-go" data-i18n="printPanel.printNow">🖨 Print now</button>
       </div>
     </div>
   </div>
@@ -4054,60 +4054,60 @@
   <div class="topbar-cat-panel" id="settings-menu-panel">
     <div class="topbar-cat-panel-inner" id="settings-menu-content"></div>
   </div>
-  <button id="btn-topbar-collapse" title="Hide controls (click ▼ strip to restore)">▲ hide</button>
+  <button id="btn-topbar-collapse" title="Hide controls (click ▼ strip to restore)" data-i18n-title="topbar.collapseTitle" data-i18n="topbar.collapseLabel">▲ hide</button>
 </div>
-<button id="topbar-toggle" title="Show controls (tap to restore)">▼ <span class="topbar-toggle-label">Magic Scroll</span></button>
+<button id="topbar-toggle" title="Show controls (tap to restore)" data-i18n-title="topbar.restoreTitle">▼ <span class="topbar-toggle-label">Magic Scroll</span></button>
 
 <div id="layout">
   <div id="sidebar">
     <div id="sidebar-header">
-      <span>Library</span>
-      <button id="btn-multiselect" title="Select multiple songs">☑</button>
-      <button id="btn-clear-all" class="danger" style="font-size:0.65rem;padding:2px 6px;">🗑 Empty library</button>
+      <span data-i18n="sidebar.libraryHeader">Library</span>
+      <button id="btn-multiselect" title="Select multiple songs" data-i18n-title="sidebar.multiselectTitle">☑</button>
+      <button id="btn-clear-all" class="danger" style="font-size:0.65rem;padding:2px 6px;" data-i18n="sidebar.emptyLibrary">🗑 Empty library</button>
     </div>
     <div id="sidebar-search">
       <input type="search" id="search-input" placeholder="Search…" data-i18n-placeholder="sidebar.searchPlaceholder" autocomplete="off" spellcheck="false">
-      <button id="btn-search-clear" title="Clear search">✕</button>
-      <button id="btn-filter" title="Filter library by type"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 2h14l-5.5 6.5V14l-3 1V8.5z"/></svg></button>
-      <button id="btn-online-toggle" title="Online search is on — click to disable">☁</button>
+      <button id="btn-search-clear" title="Clear search" data-i18n-title="sidebar.clearSearchTitle">✕</button>
+      <button id="btn-filter" title="Filter library by type" data-i18n-title="sidebar.filterTitle"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 2h14l-5.5 6.5V14l-3 1V8.5z"/></svg></button>
+      <button id="btn-online-toggle" title="Online search is on — click to disable" data-i18n-title="sidebar.onlineSearchOn">☁</button>
     </div>
-    <button id="btn-select-random" title="Open a random song from your library">🎲 Select Random</button>
-    <button id="btn-join-collab" title="Join a live collaboration using a code someone shared with you">🔗 Join Collaboration…</button>
+    <button id="btn-select-random" title="Open a random song from your library" data-i18n="sidebar.selectRandom" data-i18n-title="sidebar.selectRandomTitle">🎲 Select Random</button>
+    <button id="btn-join-collab" title="Join a live collaboration using a code someone shared with you" data-i18n="sidebar.joinCollab" data-i18n-title="sidebar.joinCollabTitle">🔗 Join Collaboration…</button>
     <div id="song-list"></div>
     <div id="bulk-bar">
       <span id="bulk-count">0 selected</span>
-      <button id="btn-bulk-select-all" title="Select all visible songs">All</button>
-      <button id="btn-bulk-publish" title="Publish selected songs to online library">☁ Publish</button>
-      <button id="btn-bulk-folder" title="Move selected to folder">📁 Folder</button>
-      <button id="btn-bulk-delete" class="danger" title="Delete selected">✕ Delete</button>
-      <button id="btn-bulk-cancel" title="Cancel selection">Cancel</button>
+      <button id="btn-bulk-select-all" title="Select all visible songs" data-i18n="filter.all" data-i18n-title="sidebar.bulkSelectAllTitle">All</button>
+      <button id="btn-bulk-publish" title="Publish selected songs to online library" data-i18n="editor.publish" data-i18n-title="sidebar.bulkPublishTitle">☁ Publish</button>
+      <button id="btn-bulk-folder" title="Move selected to folder" data-i18n="sidebar.folder" data-i18n-title="sidebar.bulkFolderTitle">📁 Folder</button>
+      <button id="btn-bulk-delete" class="danger" title="Delete selected" data-i18n="sidebar.bulkDelete" data-i18n-title="sidebar.bulkDeleteTitle">✕ Delete</button>
+      <button id="btn-bulk-cancel" title="Cancel selection" data-i18n="sidebar.cancel" data-i18n-title="sidebar.bulkCancelTitle">Cancel</button>
     </div>
     <label id="drop-zone" style="cursor:pointer;">
-      <div>Open files here</div>
+      <div data-i18n="sidebar.openFilesHere">Open files here</div>
       <div style="margin-top:4px;font-size:0.6rem;opacity:0.7;">.txt · .html · .json · .abc · .mid · .mxl · .mscz · .mslead</div>
     </label>
     <input type="file" id="file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,.mscz,.mslead,text/plain,text/html" multiple>
     <input type="file" id="refresh-file-input" accept=".html,.htm,.json,.txt,.abc,.mid,.midi,.xml,.mxl,text/plain,text/html" style="display:none">
     <input type="file" id="import-config-input" accept=".json" style="display:none">
     <div id="sidebar-footer">
-      <button id="btn-new-song-sidebar" title="Create a new blank song">✦ New</button>
-      <button id="btn-new-folder" title="Create a new folder to organise songs into">📁 Folder</button>
-      <button id="btn-export-config" title="Save library to file · Shift+click for Save As">Export library</button>
-      <button id="btn-collections" title="Browse and add song collections">📦 Collections</button>
+      <button id="btn-new-song-sidebar" title="Create a new blank song" data-i18n="sidebar.new" data-i18n-title="sidebar.newTitle">✦ New</button>
+      <button id="btn-new-folder" title="Create a new folder to organise songs into" data-i18n="sidebar.folder" data-i18n-title="sidebar.newFolderTitle">📁 Folder</button>
+      <button id="btn-export-config" title="Save library to file · Shift+click for Save As" data-i18n="sidebar.exportLibrary" data-i18n-title="sidebar.exportLibraryTitle">Export library</button>
+      <button id="btn-collections" title="Browse and add song collections" data-i18n="sidebar.collections" data-i18n-title="sidebar.collectionsTitle">📦 Collections</button>
     </div>
     <div id="sidebar-brand">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
     </div>
   </div>
 
-  <div id="sidebar-resize-handle" title="Drag to resize sidebar"></div>
+  <div id="sidebar-resize-handle" title="Drag to resize sidebar" data-i18n-title="sidebar.resizeHandleTitle"></div>
 
   <div id="main">
     <div id="empty-state">
       <div id="empty-state-box">
         <div class="big-glyph"><svg class="logo-glyph-empty" viewBox="0 0 243.04 563.1" aria-label="Magic Scroll logomark"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg></div>
         <h2 data-i18n="emptyState.title">No song loaded</h2>
-        <p>Drop .txt, .json, or .html files into the sidebar, or click <strong>✦ New Song</strong> to write one.</p>
+        <p data-i18n-html="emptyState.body">Drop .txt, .json, or .html files into the sidebar, or click <strong>✦ New Song</strong> to write one.</p>
       </div>
     </div>
     <!-- ABC sheet music card — shown for .abc tune files -->
@@ -4115,31 +4115,31 @@
     <div id="ireal-song-card" style="display:none"><div id="ireal-content"></div></div>
     <div id="abc-toolbar" style="display:none;">
 
-        <button id="btn-abc-edit">✎ Edit</button>
-        <button id="btn-abc-edit-cancel" title="Discard all changes made since entering edit mode" style="display:none">✕ Cancel</button>
-        <button id="btn-abc-save-menu-trigger" title="Save options">💾 Save ▾</button>
+        <button id="btn-abc-edit" data-i18n="editor.editToggle" data-i18n-title="editor.editToggleTitle" title="Toggle between edit and read mode">✎ Edit</button>
+        <button id="btn-abc-edit-cancel" title="Discard all changes made since entering edit mode" data-i18n-title="editor.cancelTitle" data-i18n="editor.cancel" style="display:none">✕ Cancel</button>
+        <button id="btn-abc-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
         <div id="abc-save-menu" class="song-kebab-menu tb-menu">
-          <button id="btn-abc-save-as">⬇ Save As…</button>
-          <button id="btn-publish-abc" title="Publish this sheet music to the online library">☁ Publish</button>
+          <button id="btn-abc-save-as" data-i18n="editor.saveAs">⬇ Save As…</button>
+          <button id="btn-publish-abc" title="Publish this sheet music to the online library" data-i18n-title="toolbar.publishSheetMusicTitle" data-i18n="editor.publish">☁ Publish</button>
         </div>
-        <button id="btn-abc-set" title="Stack other tunes from your library under this one to make a set">⛓ Create set</button>
-        <button id="btn-abc-sheetmusic-menu-trigger" title="Sheet music options">🎼 Sheet music ▾</button>
+        <button id="btn-abc-set" title="Stack other tunes from your library under this one to make a set" data-i18n-title="toolbar.createSetTitle" data-i18n="toolbar.createSet">⛓ Create set</button>
+        <button id="btn-abc-sheetmusic-menu-trigger" title="Sheet music options" data-i18n-title="toolbar.sheetMusicOptionsTitle" data-i18n="toolbar.sheetMusicMenu">🎼 Sheet music ▾</button>
         <div id="abc-sheetmusic-menu" class="song-kebab-menu tb-menu">
-          <button id="btn-abc-soundfont" title="Load SF2 or SFZ soundfont">🎵 Soundfont</button>
+          <button id="btn-abc-soundfont" title="Load SF2 or SFZ soundfont" data-i18n-title="toolbar.soundfontTitle" data-i18n="toolbar.soundfont">🎵 Soundfont</button>
           <span id="abc-soundfont-name"></span>
-          <button id="btn-abc-soundfont-clear" title="Unload soundfont (revert to the default sound)" style="display:none;">✕ Unload Soundfont</button>
+          <button id="btn-abc-soundfont-clear" title="Unload soundfont (revert to the default sound)" data-i18n-title="toolbar.unloadSoundfontTitle" data-i18n="toolbar.unloadSoundfont" style="display:none;">✕ Unload Soundfont</button>
           <div class="skm-sep"></div>
-          <button id="btn-whistle-tab" title="Toggle tin whistle fingering diagrams">🪈 Whistle Tabs</button>
-          <select id="whistle-tab-key" title="Whistle key" style="display:none;">
-            <option value="62">D whistle</option>
-            <option value="60">C whistle</option>
-            <option value="67">G whistle</option>
-            <option value="70">Bb whistle</option>
-            <option value="63">Eb whistle</option>
+          <button id="btn-whistle-tab" title="Toggle tin whistle fingering diagrams" data-i18n-title="toolbar.whistleTabsTitle" data-i18n="toolbar.whistleTabs">🪈 Whistle Tabs</button>
+          <select id="whistle-tab-key" title="Whistle key" data-i18n-title="toolbar.whistleKeyTitle" style="display:none;">
+            <option value="62" data-i18n="toolbar.whistleD">D whistle</option>
+            <option value="60" data-i18n="toolbar.whistleC">C whistle</option>
+            <option value="67" data-i18n="toolbar.whistleG">G whistle</option>
+            <option value="70" data-i18n="toolbar.whistleBb">Bb whistle</option>
+            <option value="63" data-i18n="toolbar.whistleEb">Eb whistle</option>
           </select>
           <div class="skm-sep"></div>
-          <button id="btn-abc-hide-chords" title="Hide the chord symbols marked in this ABC file">🎼 Hide Chords</button>
-          <button id="btn-abc-note-names" title="Show the letter name under each note">🔤 Note Names</button>
+          <button id="btn-abc-hide-chords" title="Hide the chord symbols marked in this ABC file" data-i18n-title="toolbar.hideChordsTitle" data-i18n="toolbar.hideChords">🎼 Hide Chords</button>
+          <button id="btn-abc-note-names" title="Show the letter name under each note" data-i18n-title="toolbar.noteNamesTitle" data-i18n="toolbar.noteNames">🔤 Note Names</button>
         </div>
         <!-- Single-file picker for SF2 or SFZ; SFZ then re-prompts for folder -->
         <input type="file" id="abc-sf-input" accept=".sf2,.sfz" style="display:none">
@@ -4150,10 +4150,10 @@
 
       <div id="abc-edit-hint" class="ls-edit-hint" style="display:none;" data-i18n="editor.abcHint">Editing raw ABC notation — notes are letters A-G (lowercase = higher octave; add ' after a note for another octave up, or , for an octave down); a number after a note changes its length (C2 = twice as long, C/2 = half); | marks a bar line. Chord symbols go in quotes above the note they fall on, e.g. "G7". K: sets the key, M: sets the meter, Q: sets the tempo.</div>
       <div id="abc-transpose-bar" style="display:none;">
-        <span class="abc-transpose-lbl">Transpose</span>
+        <span class="abc-transpose-lbl" data-i18n="editor.transpose">Transpose</span>
         <div class="edit-transpose-btns">
-          <button type="button" id="abc-tr-down" title="Move every note in this tune down a semitone (permanent) — updates K: and the note pitches">♭ −</button>
-          <button type="button" id="abc-tr-up" title="Move every note in this tune up a semitone (permanent) — updates K: and the note pitches">♯ +</button>
+          <button type="button" id="abc-tr-down" title="Move every note in this tune down a semitone (permanent) — updates K: and the note pitches" data-i18n-title="editor.transposeDownAbcTitle">♭ −</button>
+          <button type="button" id="abc-tr-up" title="Move every note in this tune up a semitone (permanent) — updates K: and the note pitches" data-i18n-title="editor.transposeUpAbcTitle">♯ +</button>
         </div>
       </div>
       <div id="abc-editor-wrap" style="display:none;width:100%;margin-bottom:16px;">
@@ -4179,15 +4179,15 @@
       <button id="btn-edit-toggle" title="Toggle between edit and read mode" data-i18n-title="editor.editToggleTitle" aria-pressed="false" data-i18n="editor.editToggle">✎ Edit</button>
       <button id="btn-edit-cancel" title="Discard all changes made since entering edit mode" data-i18n-title="editor.cancelTitle" style="display:none" data-i18n="editor.cancel">✕ Cancel</button>
       <button id="btn-save" title="Save changes to this song (Ctrl+S)" data-i18n-title="editor.saveTitle" data-i18n="editor.save">💾 Save</button>
-      <button id="btn-edit-save-menu-trigger" title="Save options">💾 Save ▾</button>
+      <button id="btn-edit-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
       <div id="edit-save-menu" class="song-kebab-menu tb-menu">
         <button id="btn-save-as" title="Download this song as a .txt file" data-i18n="editor.saveAs">⬇ Save As…</button>
         <button id="btn-publish-song" title="Publish this song to the online library" data-i18n="editor.publish">☁ Publish</button>
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites" data-i18n="editor.exportMonospace">⬇ Export monospace</button>
       </div>
-      <button id="btn-collaborate-toolbar" title="Start or manage a live collaboration on this song">🔗 Collaborate</button>
+      <button id="btn-collaborate-toolbar" title="Start or manage a live collaboration on this song" data-i18n-title="toolbar.collaborateTitle" data-i18n="toolbar.collaborate">🔗 Collaborate</button>
       <span id="save-status"></span>
-      <button id="btn-chordview" title="Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)" style="margin-left:auto;">≡ Condensed</button>
+      <button id="btn-chordview" title="Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)" data-i18n-title="toolbar.chordViewTitle" data-i18n="toolbar.chordView" style="margin-left:auto;">≡ Condensed</button>
     </div>
     <div id="song-card">
       <div class="song-header">
@@ -4201,28 +4201,28 @@
       <div id="edit-pane">
         <div id="editor-meta">
           <div class="editor-field">
-            <label>Title</label>
+            <label data-i18n="editor.titleLabel">Title</label>
             <input type="text" id="edit-title" placeholder="Song title" data-i18n-placeholder="editor.titlePlaceholder">
           </div>
           <div class="editor-field">
-            <label>Artist</label>
+            <label data-i18n="editor.artistLabel">Artist</label>
             <input type="text" id="edit-artist" placeholder="Artist name" data-i18n-placeholder="editor.artistPlaceholder">
           </div>
           <div class="editor-field editor-field-split">
             <div class="editor-subfield">
-              <label>Key</label>
+              <label data-i18n="editor.keyLabel">Key</label>
               <input type="text" id="edit-key" placeholder="e.g. Am" data-i18n-placeholder="editor.keyPlaceholder">
             </div>
             <div class="editor-subfield">
-              <label>Time Sig.</label>
+              <label data-i18n="editor.timeSigLabel">Time Sig.</label>
               <input type="text" id="edit-time-sig" placeholder="e.g. 4/4" data-i18n-placeholder="editor.timeSigPlaceholder">
             </div>
           </div>
           <div class="editor-field">
-            <label>Transpose</label>
+            <label data-i18n="editor.transpose">Transpose</label>
             <div class="edit-transpose-btns">
-              <button type="button" id="edit-tr-down" title="Move every chord in the text down a semitone (permanent)">♭ −</button>
-              <button type="button" id="edit-tr-up" title="Move every chord in the text up a semitone (permanent)">♯ +</button>
+              <button type="button" id="edit-tr-down" title="Move every chord in the text down a semitone (permanent)" data-i18n-title="editor.transposeDownTitle">♭ −</button>
+              <button type="button" id="edit-tr-up" title="Move every chord in the text up a semitone (permanent)" data-i18n-title="editor.transposeUpTitle">♯ +</button>
             </div>
           </div>
         </div>
@@ -4273,26 +4273,26 @@ I hope you enjoy using your magic scroll!"></textarea>
   <input type="text" id="pp-chord-input" placeholder="Chord, e.g. Am7" data-i18n-placeholder="precision.chordInputPlaceholder" spellcheck="false" autocomplete="off">
   <div class="pp-chips" id="pp-chips"></div>
   <div class="pp-row">
-    <button type="button" id="pp-save">Add</button>
-    <button type="button" id="pp-delete" style="display:none;">Remove</button>
-    <button type="button" id="pp-cancel">Cancel</button>
+    <button type="button" id="pp-save" data-i18n="precision.add">Add</button>
+    <button type="button" id="pp-delete" style="display:none;" data-i18n="precision.remove">Remove</button>
+    <button type="button" id="pp-cancel" data-i18n="sidebar.cancel">Cancel</button>
   </div>
 </div>
 
 <!-- Diagram panel -->
 <div id="diagram-panel">
   <h4>
-    <span>Chord Diagrams</span>
+    <span data-i18n="diagrams.title">Chord Diagrams</span>
     <div style="display:flex;gap:4px;align-items:center;">
-      <button id="btn-diag-smaller" title="Smaller diagrams (also affects text)" aria-label="Smaller diagrams">⊖</button>
-      <button id="btn-diag-larger"  title="Larger diagrams (also affects text)"  aria-label="Larger diagrams">⊕</button>
-      <button id="btn-close-diagrams" aria-label="Close chord diagrams">✕</button>
+      <button id="btn-diag-smaller" title="Smaller diagrams (also affects text)" data-i18n-title="diagrams.smallerTitle" aria-label="Smaller diagrams">⊖</button>
+      <button id="btn-diag-larger"  title="Larger diagrams (also affects text)"  data-i18n-title="diagrams.largerTitle" aria-label="Larger diagrams">⊕</button>
+      <button id="btn-close-diagrams" aria-label="Close chord diagrams" data-i18n-title="diagrams.closeTitle">✕</button>
     </div>
   </h4>
   <div class="inst-section">
     <div class="inst-section-bar">
-      <button type="button" class="inst-section-head" data-target="primary" aria-expanded="true"><span class="caret">▾</span> Primary instrument</button>
-      <span class="capo-ctrl" title="Capo / pre-transpose this instrument (−11 to 11): shows the shape to finger so it sounds like the page chord">Capo
+      <button type="button" class="inst-section-head" data-target="primary" aria-expanded="true"><span class="caret">▾</span> <span data-i18n="diagrams.primaryInstrument">Primary instrument</span></button>
+      <span class="capo-ctrl" title="Capo / pre-transpose this instrument (−11 to 11): shows the shape to finger so it sounds like the page chord" data-i18n-title="diagrams.capoTitle"><span data-i18n="diagrams.capo">Capo</span>
         <button type="button" class="capo-btn" data-capo="primary" data-capo-dir="-1" aria-label="Lower primary capo">−</button>
         <span class="capo-val" data-capo-val="primary">0</span>
         <button type="button" class="capo-btn" data-capo="primary" data-capo-dir="1" aria-label="Raise primary capo">+</button>
@@ -4356,13 +4356,13 @@ I hope you enjoy using your magic scroll!"></textarea>
       <option value="mel_bbeb">Melodeon: B♭/E♭</option>
       <option value="mel_bc">Melodeon: B/C (chromatic)</option>
     </select>
-    <button class="inst-btn" data-inst="custom" id="btn-inst-custom" title="Define your own instrument &amp; tuning">⚙ Custom…</button>
-    <button class="inst-btn" data-inst="none" title="Hide chord diagrams">None</button>
+    <button class="inst-btn" data-inst="custom" id="btn-inst-custom" title="Define your own instrument &amp; tuning" data-i18n-title="diagrams.customTitle" data-i18n="diagrams.customBtn">⚙ Custom…</button>
+    <button class="inst-btn" data-inst="none" title="Hide chord diagrams" data-i18n-title="diagrams.hideTitle" data-i18n="diagrams.none">None</button>
   </div></div>
   <div class="inst-section">
     <div class="inst-section-bar">
-      <button type="button" class="inst-section-head" data-target="secondary" aria-expanded="false"><span class="caret">▸</span> Secondary instrument <span class="inst-section-cur" data-role-cur="secondary">None</span></button>
-      <span class="capo-ctrl" title="Capo / pre-transpose this instrument (−11 to 11): shows the shape to finger so it sounds like the page chord">Capo
+      <button type="button" class="inst-section-head" data-target="secondary" aria-expanded="false"><span class="caret">▸</span> <span data-i18n="diagrams.secondaryInstrument">Secondary instrument</span> <span class="inst-section-cur" data-role-cur="secondary" data-i18n="diagrams.none">None</span></button>
+      <span class="capo-ctrl" title="Capo / pre-transpose this instrument (−11 to 11): shows the shape to finger so it sounds like the page chord" data-i18n-title="diagrams.capoTitle"><span data-i18n="diagrams.capo">Capo</span>
         <button type="button" class="capo-btn" data-capo="secondary" data-capo-dir="-1" aria-label="Lower secondary capo">−</button>
         <span class="capo-val" data-capo-val="secondary">0</span>
         <button type="button" class="capo-btn" data-capo="secondary" data-capo-dir="1" aria-label="Raise secondary capo">+</button>
@@ -4376,18 +4376,18 @@ I hope you enjoy using your magic scroll!"></textarea>
 <!-- ── CREATE SET MODAL (stack multiple tunes) ──────────────────────────────── -->
 <div id="abc-set-modal">
   <div class="ci-box">
-    <h3>⛓ Create set</h3>
-    <p class="ci-hint">Tick tunes to stack them on the page. They appear in the order you select them — the order is shown below.</p>
+    <h3 data-i18n="toolbar.createSet">⛓ Create set</h3>
+    <p class="ci-hint" data-i18n="createSet.hint">Tick tunes to stack them on the page. They appear in the order you select them — the order is shown below.</p>
     <div class="abc-set-filters">
       <input type="search" id="abc-set-search" placeholder="Search tunes or type (jig, reel, waltz…)" data-i18n-placeholder="createSet.searchPlaceholder" autocomplete="off" spellcheck="false">
-      <select id="abc-set-type-filter" title="Filter by tune type"><option value="">All types</option></select>
+      <select id="abc-set-type-filter" title="Filter by tune type" data-i18n-title="createSet.filterTypeTitle"><option value="" data-i18n="createSet.allTypes">All types</option></select>
     </div>
     <div id="abc-set-order" class="abc-set-order"></div>
     <div id="abc-set-list" class="abc-set-list"></div>
-    <div id="abc-set-empty" class="abc-set-empty" style="display:none;">No tunes match this search / type.</div>
+    <div id="abc-set-empty" class="abc-set-empty" style="display:none;" data-i18n="createSet.noMatch">No tunes match this search / type.</div>
     <div class="ci-actions">
-      <button id="abc-set-cancel" type="button">Cancel</button>
-      <button id="abc-set-apply" type="button">Show set</button>
+      <button id="abc-set-cancel" type="button" data-i18n="sidebar.cancel">Cancel</button>
+      <button id="abc-set-apply" type="button" data-i18n="createSet.showSet">Show set</button>
     </div>
   </div>
 </div>
@@ -4395,10 +4395,10 @@ I hope you enjoy using your magic scroll!"></textarea>
 <!-- ── CUSTOM INSTRUMENT MODAL ──────────────────────────────────────────────── -->
 <div id="custom-inst-modal">
   <div class="ci-box">
-    <h3>⚙ Custom instrument</h3>
-    <p class="ci-hint">Pick the number of strings (1–8) and each string's tuning, lowest string first. Chord diagrams are computed for this tuning.</p>
+    <h3 data-i18n="diagrams.customInstrumentTitle">⚙ Custom instrument</h3>
+    <p class="ci-hint" data-i18n="diagrams.customHint">Pick the number of strings (1–8) and each string's tuning, lowest string first. Chord diagrams are computed for this tuning.</p>
     <div class="ci-row">
-      <label for="ci-count">Strings</label>
+      <label for="ci-count" data-i18n="diagrams.strings">Strings</label>
       <select id="ci-count">
         <option>1</option><option>2</option><option>3</option><option>4</option>
         <option>5</option><option selected>6</option><option>7</option><option>8</option>
@@ -4406,49 +4406,49 @@ I hope you enjoy using your magic scroll!"></textarea>
     </div>
     <div id="ci-strings"></div>
     <div class="ci-actions">
-      <button id="ci-cancel" type="button">Cancel</button>
-      <button id="ci-apply" type="button">Use instrument</button>
+      <button id="ci-cancel" type="button" data-i18n="sidebar.cancel">Cancel</button>
+      <button id="ci-apply" type="button" data-i18n="diagrams.useInstrument">Use instrument</button>
     </div>
   </div>
 </div>
 
 <div id="chord-popup">
-  <h4>Chords in this song</h4>
+  <h4 data-i18n="diagrams.chordsInSong">Chords in this song</h4>
   <div class="chord-list" id="chord-list-content"></div>
 </div>
 
 <div id="new-song-modal">
   <div id="new-song-box">
-    <h3>✦ New Song</h3>
-    <p>Fill in the details, then write or paste your song in the editor that opens.</p>
+    <h3 data-i18n="newSong.title">✦ New Song</h3>
+    <p data-i18n="newSong.hint">Fill in the details, then write or paste your song in the editor that opens.</p>
     <div class="modal-fields">
       <div class="modal-field" style="grid-column:1/-1">
-        <label>Type</label>
+        <label data-i18n="newSong.typeLabel">Type</label>
         <select id="ns-type" style="font-size:0.82rem;padding:5px 8px;border-radius:2px;border:1px solid var(--c-chrome-border);background:var(--c-chrome-bg3);color:var(--c-chrome-text);">
-          <option value="song">Song / Chord Sheet</option>
-          <option value="abc">ABC Notation (sheet music)</option>
-          <option value="ireal">🎼 Lead Sheet(s) (iReal Pro URL)</option>
-          <option value="blank-lead">🎼 Lead Sheet (Blank)</option>
+          <option value="song" data-i18n="newSong.typeSong">Song / Chord Sheet</option>
+          <option value="abc" data-i18n="newSong.typeAbc">ABC Notation (sheet music)</option>
+          <option value="ireal" data-i18n="newSong.typeIreal">🎼 Lead Sheet(s) (iReal Pro URL)</option>
+          <option value="blank-lead" data-i18n="newSong.typeBlankLead">🎼 Lead Sheet (Blank)</option>
         </select>
       </div>
       <div class="modal-field" style="grid-column:1/-1">
-        <label>Title</label>
+        <label data-i18n="editor.titleLabel">Title</label>
         <input type="text" id="ns-title" placeholder="Song title" data-i18n-placeholder="editor.titlePlaceholder" autocomplete="off">
       </div>
       <div class="modal-field" style="grid-column:1/-1">
-        <label>Artist</label>
+        <label data-i18n="editor.artistLabel">Artist</label>
         <input type="text" id="ns-artist" placeholder="Artist name" data-i18n-placeholder="editor.artistPlaceholder" autocomplete="off">
       </div>
       <div class="modal-field" style="grid-column:1/-1">
-        <label>Key (optional)</label>
+        <label data-i18n="newSong.keyOptional">Key (optional)</label>
         <input type="text" id="ns-key" placeholder="e.g. Am" data-i18n-placeholder="editor.keyPlaceholder" autocomplete="off">
       </div>
     </div>
-    <div id="new-song-format">
+    <div id="new-song-format" data-i18n-html="newSong.format">
       Just type your lyrics — the editor that opens has an <strong>Add Chords</strong> button, tap a word to drop a chord right on it. (Old two-line sheets with chords on their own line still paste in fine — they get converted automatically.)
     </div>
     <div id="ns-abc-section" style="display:none;">
-      <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste ABC Notation below — title and composer are extracted automatically</label>
+      <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;" data-i18n="newSong.abcPasteLabel">Paste ABC Notation below — title and composer are extracted automatically</label>
       <textarea id="ns-abc-content" rows="8" data-i18n-placeholder="newSong.abcPlaceholder"
         placeholder="X:1&#10;T:My Tune&#10;C:Composer&#10;M:4/4&#10;L:1/8&#10;K:G&#10;..."
         style="width:100%;font-size:0.7rem;font-family:var(--font-mono);resize:vertical;
@@ -4458,7 +4458,7 @@ I hope you enjoy using your magic scroll!"></textarea>
       <div id="ns-abc-status" style="font-size:0.68rem;color:var(--c-chrome-muted);margin-top:3px;min-height:1em;"></div>
     </div>
     <div id="ns-ireal-section" style="display:none;">
-      <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;">Paste an <code>irealb://</code> URL — single songs and full playlists are supported</label>
+      <label style="font-size:0.75rem;color:var(--c-chrome-muted);display:block;margin-bottom:5px;" data-i18n-html="newSong.irealPasteLabel">Paste an <code>irealb://</code> URL — single songs and full playlists are supported</label>
       <textarea id="ns-ireal-url" rows="4" data-i18n-placeholder="newSong.irealPlaceholder"
         placeholder="irealb://SongTitle%3DComposer%3D%3DStyle%3DKey..."
         style="width:100%;font-size:0.7rem;font-family:var(--font-mono);resize:vertical;
@@ -4468,8 +4468,8 @@ I hope you enjoy using your magic scroll!"></textarea>
       <div id="ns-ireal-status" style="font-size:0.68rem;color:var(--c-chrome-muted);margin-top:3px;min-height:1em;"></div>
     </div>
     <div class="modal-actions">
-      <button id="btn-ns-cancel">Cancel</button>
-      <button id="btn-ns-create" style="background:var(--c-accent);color:var(--c-chrome-bg);border-color:var(--c-accent);">Open Editor</button>
+      <button id="btn-ns-cancel" data-i18n="sidebar.cancel">Cancel</button>
+      <button id="btn-ns-create" style="background:var(--c-accent);color:var(--c-chrome-bg);border-color:var(--c-accent);" data-i18n="newSong.openEditor">Open Editor</button>
     </div>
   </div>
 </div>
@@ -4506,7 +4506,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     <!-- ── App identity / version / platform links (always shown) ──── -->
     <div class="contact-app-header">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
-      <span class="contact-app-version">version 1.2</span>
+      <span class="contact-app-version" data-i18n="contact.version">version 1.2</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -4518,35 +4518,35 @@ I hope you enjoy using your magic scroll!"></textarea>
       </div>
     </div>
     <!-- ── Contact info (always shown) ─────────────────────────────── -->
-    <h5 style="margin:0 0 8px;">Bug Reports / Donations</h5>
-    <div>Found an issue? Get in touch:</div>
+    <h5 style="margin:0 0 8px;" data-i18n="contact.bugReportsHeading">Bug Reports / Donations</h5>
+    <div data-i18n="contact.getInTouch">Found an issue? Get in touch:</div>
     <div style="margin-top:6px;">
       📱 <a href="https://www.instagram.com/spencer.california/">@Spencer.California</a>
     </div>
-    <div class="contact-muted">
+    <div class="contact-muted" data-i18n="contact.includeDescription">
       Please include the song file and a description of what went wrong.
     </div>
-    <div><a href="https://ko-fi.com/spencercalifornia" target="_blank">Like the project? A donation would mean the world! ☕ 🌍</a></div>
+    <div><a href="https://ko-fi.com/spencercalifornia" target="_blank" data-i18n="contact.likeProject">Like the project? A donation would mean the world! ☕ 🌍</a></div>
     <!-- ── FAQ / Credits loaded from FAQ.txt ────────────────────────── -->
     <hr id="contact-faq-divider" style="border:none;border-top:1px solid var(--c-chrome-border);margin:14px 0;">
-    <div id="contact-faq-text" style="white-space:pre-wrap;font-size:0.78rem;line-height:1.6;color:var(--c-chrome-text);">Loading…</div>
+    <div id="contact-faq-text" style="white-space:pre-wrap;font-size:0.78rem;line-height:1.6;color:var(--c-chrome-text);" data-i18n="contact.loading">Loading…</div>
   </div>
-  <button id="contact-tab-toggle">♩ Magic Scroll - by Spencer California<br>(Your favourite bard's favourite bard)</br></button>
+  <button id="contact-tab-toggle" data-i18n-html="contact.tabToggle">♩ Magic Scroll - by Spencer California<br>(Your favourite bard's favourite bard)</br></button>
 </div>
 
 <!-- ── Collections browser modal ────────────────────────────────────────────── -->
 <div id="collections-modal" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;">
   <div style="background:var(--c-chrome-bg);border:1px solid var(--c-chrome-border);border-radius:8px;width:min(94vw,640px);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.6);">
     <div style="padding:14px 18px 10px;border-bottom:1px solid var(--c-chrome-border);display:flex;justify-content:space-between;align-items:center;">
-      <h5 style="margin:0;font-size:0.85rem;">📦 Collections</h5>
+      <h5 style="margin:0;font-size:0.85rem;" data-i18n="sidebar.collections">📦 Collections</h5>
       <button id="btn-collections-close" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--c-chrome-muted);">✕</button>
     </div>
     <!-- Tab bar -->
     <div id="collections-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--c-chrome-border);">
-      <button id="col-tab-builtin" class="col-tab col-tab-active" style="flex:1;padding:7px 0;font-size:0.72rem;background:none;border:none;border-bottom:2px solid var(--c-accent);color:var(--c-chrome-text);cursor:pointer;">📦 Built-in</button>
-      <button id="col-tab-community" class="col-tab" style="flex:1;padding:7px 0;font-size:0.72rem;background:none;border:none;border-bottom:2px solid transparent;color:var(--c-chrome-muted);cursor:pointer;">☁ Community</button>
+      <button id="col-tab-builtin" class="col-tab col-tab-active" style="flex:1;padding:7px 0;font-size:0.72rem;background:none;border:none;border-bottom:2px solid var(--c-accent);color:var(--c-chrome-text);cursor:pointer;" data-i18n="collections.builtin">📦 Built-in</button>
+      <button id="col-tab-community" class="col-tab" style="flex:1;padding:7px 0;font-size:0.72rem;background:none;border:none;border-bottom:2px solid transparent;color:var(--c-chrome-muted);cursor:pointer;" data-i18n="collections.community">☁ Community</button>
     </div>
-    <div id="col-desc" style="padding:8px 14px;font-size:0.65rem;color:var(--c-chrome-muted);">
+    <div id="col-desc" style="padding:8px 14px;font-size:0.65rem;color:var(--c-chrome-muted);" data-i18n="collections.desc">
       Pre-made sets of songs. Adding one creates a new folder in your library.
     </div>
     <!-- Community search bar (hidden on built-in tab) -->
@@ -4555,7 +4555,7 @@ I hope you enjoy using your magic scroll!"></textarea>
         style="width:100%;box-sizing:border-box;font-size:0.72rem;padding:5px 8px;background:var(--c-chrome-bg2);border:1px solid var(--c-chrome-border);border-radius:4px;color:var(--c-chrome-text);">
     </div>
     <div id="collections-list" style="overflow-y:auto;padding:6px 14px 14px;flex:1;">
-      <div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">Loading…</div>
+      <div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;" data-i18n="contact.loading">Loading…</div>
     </div>
   </div>
 </div>
@@ -4565,10 +4565,10 @@ I hope you enjoy using your magic scroll!"></textarea>
 <!-- ── PUBLISH WARNING MODAL ──────────────────────────────────────────────── -->
 <div id="publish-modal">
   <div class="pub-box">
-    <h3>☁ Publish to Online Library</h3>
+    <h3 data-i18n="publish.title">☁ Publish to Online Library</h3>
     <div class="pub-song-name" id="pub-song-name"></div>
     <div class="pub-many-notice" id="pub-many-notice" style="display:none;"></div>
-    <div class="pub-warning">
+    <div class="pub-warning" data-i18n-html="publish.checklist">
       <strong>Before you publish, please confirm:</strong>
       <ul>
         <li>Publishing is <strong>final</strong> — the published version can't be changed or removed without an administrator.</li>
@@ -4582,8 +4582,8 @@ I hope you enjoy using your magic scroll!"></textarea>
       </div>
     </div>
     <div class="pub-actions">
-      <button id="pub-cancel-btn">Cancel</button>
-      <button id="pub-confirm-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Publish</button>
+      <button id="pub-cancel-btn" data-i18n="sidebar.cancel">Cancel</button>
+      <button id="pub-confirm-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);" data-i18n="editor.publish2">Publish</button>
     </div>
     <div class="pub-status" id="pub-status"></div>
   </div>
@@ -4592,11 +4592,11 @@ I hope you enjoy using your magic scroll!"></textarea>
 <!-- ── COLLABORATE MODAL (local multiplayer via join code) ───────────────── -->
 <div id="collab-modal">
   <div class="pub-box" id="collab-box">
-    <h3 id="collab-modal-title">Collaborate</h3>
+    <h3 id="collab-modal-title" data-i18n="toolbar.collaborate">Collaborate</h3>
     <div class="pub-song-name" id="collab-song-name"></div>
 
     <div id="collab-start-view">
-      <div class="pub-warning">
+      <div class="pub-warning" data-i18n="collab.startExplainer">
         Start a live collaboration session for this song. Anyone you share the join code
         with can add it to their own library and edit alongside you in real time — no
         accounts, nothing to sign up for. When you end the session, the final version is
@@ -4604,22 +4604,22 @@ I hope you enjoy using your magic scroll!"></textarea>
       </div>
       <input type="text" id="collab-start-name-input" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Your name" data-i18n-placeholder="collab.namePlaceholder">
       <div class="pub-actions">
-        <button id="collab-cancel-btn-1">Cancel</button>
-        <button id="collab-start-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Start Collaborating</button>
+        <button id="collab-cancel-btn-1" data-i18n="sidebar.cancel">Cancel</button>
+        <button id="collab-start-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);" data-i18n="collab.startBtn">Start Collaborating</button>
       </div>
     </div>
 
     <div id="collab-active-view" style="display:none;">
-      <div class="pub-warning">Share this code with others so they can join:</div>
+      <div class="pub-warning" data-i18n="collab.shareCode">Share this code with others so they can join:</div>
       <div id="collab-code-display"></div>
       <div class="pub-actions" style="justify-content:center;margin-bottom:4px;">
-        <button id="collab-copy-btn">Copy Code</button>
+        <button id="collab-copy-btn" data-i18n="collab.copyCode">Copy Code</button>
       </div>
       <div id="collab-peer-count"></div>
-      <div id="collab-host-only-note" style="display:none;">Only the host can end this collaboration.</div>
+      <div id="collab-host-only-note" style="display:none;" data-i18n="collab.hostOnlyNote">Only the host can end this collaboration.</div>
       <div class="pub-actions">
-        <button id="collab-close-btn">Close</button>
-        <button id="collab-end-btn" class="danger" style="display:none;">End Collaboration</button>
+        <button id="collab-close-btn" data-i18n="collections.close">Close</button>
+        <button id="collab-end-btn" class="danger" style="display:none;" data-i18n="collab.endCollab">End Collaboration</button>
       </div>
     </div>
 
@@ -4631,14 +4631,14 @@ I hope you enjoy using your magic scroll!"></textarea>
      in installed PWAs and WebView app shells on mobile) ────────────────────── -->
 <div id="join-collab-modal">
   <div class="pub-box" id="join-collab-box">
-    <h3>Join Collaboration</h3>
-    <div class="pub-warning">Enter the 6-character collaboration code shared with you.</div>
+    <h3 data-i18n="sidebar.joinCollab2">Join Collaboration</h3>
+    <div class="pub-warning" data-i18n="collab.enterCode">Enter the 6-character collaboration code shared with you.</div>
     <input type="text" id="join-collab-code-input" maxlength="6" autocomplete="off"
            autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="ABCDEF" data-i18n-placeholder="collab.codePlaceholder">
     <div class="pub-status" id="join-collab-status"></div>
     <div class="pub-actions">
-      <button id="join-collab-cancel-btn">Cancel</button>
-      <button id="join-collab-confirm-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);">Join</button>
+      <button id="join-collab-cancel-btn" data-i18n="sidebar.cancel">Cancel</button>
+      <button id="join-collab-confirm-btn" style="background:var(--c-accent);color:var(--c-chrome-bg);" data-i18n="collab.join">Join</button>
     </div>
   </div>
 </div>
@@ -4718,6 +4718,13 @@ function applyI18nStrings() {
   document.querySelectorAll('[data-i18n]').forEach(function(el) { el.textContent = t(el.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-title]').forEach(function(el) { el.title = t(el.getAttribute('data-i18n-title')); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+  // Same idea as data-i18n, but for the handful of strings that need an
+  // inline tag inside them (e.g. "...click <strong>New Song</strong> to
+  // write one") — data-i18n's textContent write would strip that markup.
+  // The dictionary value carries the HTML directly; keep it trusted/static
+  // (no user data ever flows into these keys), same trust level as any
+  // other hard-coded markup in this file.
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
 }
 applyI18nStrings();
 
@@ -4731,6 +4738,53 @@ applyI18nStrings();
     if (typeof setLanguage === 'function') setLanguage(sel.value);
   });
 })();
+
+// Extra cleanup after a language switch (called by setLanguage() in
+// strings-en.js, via this global hook — never during initial boot, since
+// isEditMode/isScrolling below aren't declared yet that early and setLanguage()
+// is only ever triggered by the user, well after boot finishes).
+//
+// Two real bugs this fixes:
+//  1. #btn-edit-toggle / #btn-scroll / #btn-abc-edit each show ONE of two
+//     labels depending on live state (editing vs read, scrolling vs
+//     stopped) — only the "off" label matches their static data-i18n key,
+//     so applyI18nStrings()'s blanket textContent sweep snapped an ACTIVE
+//     toggle back to its inactive label (while leaving its .active class
+//     and the real underlying state untouched) — e.g. autoscroll kept
+//     running with a button that now read "Scroll" instead of "Stop".
+//  2. --sidebar-compensate (#main's padding-right) and --topbar-h
+//     (#topbar.scroll-hidden's margin-bottom) are both measured once at
+//     boot/resize and cached as CSS vars. Chinese labels are different
+//     widths than English and can wrap the topbar to an extra row, but
+//     nothing re-measured either variable after a switch — so toggling
+//     Library (which changes whether #main's compensation padding applies)
+//     or Scroll (which shows/hides the topbar, using --topbar-h to pull
+//     content up by exactly its height) used a stale measurement and made
+//     the main content visibly jump to the wrong size/position.
+window._afterLanguageSwitch = function() {
+  var eb = document.getElementById('btn-edit-toggle');
+  if (eb) eb.textContent = isEditMode ? t('editor.editToggleActive') : t('editor.editToggle');
+  var bs = document.getElementById('btn-scroll');
+  if (bs) bs.textContent = isScrolling ? t('topbar.scrollStop') : t('topbar.scroll');
+  var ab = document.getElementById('btn-abc-edit');
+  if (ab) {
+    var wrap = document.getElementById('abc-editor-wrap');
+    var abcEditing = !!(wrap && wrap.style.display !== 'none');
+    ab.textContent = abcEditing ? t('editor.editToggleActive') : t('editor.editToggle');
+  }
+  var mb = document.getElementById('btn-metro');
+  if (mb && typeof metroRunning !== 'undefined') mb.textContent = metroRunning ? t('metronome.stop') : t('metronome.start');
+  var mt = document.getElementById('btn-metro-toggle');
+  if (mt && typeof metroRunning !== 'undefined') {
+    mt.textContent = metroRunning
+      ? t('metronome.runningLabel', { bpm: document.getElementById('bpm-input').value })
+      : t('metronome.toggle');
+  }
+  var tm = document.getElementById('btn-tuner-mic');
+  if (tm && typeof tunerActive !== 'undefined') tm.textContent = tunerActive ? t('tuner.stopListening') : t('tuner.startListening');
+  if (typeof _syncSidebarCompensation === 'function') _syncSidebarCompensation();
+  if (typeof window._updateTopbarHeightVar === 'function') window._updateTopbarHeightVar();
+};
 
 // ── DATA — songs array, folders, scroll state, instrument ───────────────────
 let songs = [];
@@ -7624,7 +7678,7 @@ function renderSong(idx) {
     var _oldCard = document.getElementById('song-card');
     if (_oldCard) _oldCard.style.display = '';
     var _editBtn = document.getElementById('btn-edit-toggle');
-    if (_editBtn) { _editBtn.classList.remove('active'); _editBtn.setAttribute('aria-pressed', 'false'); _editBtn.textContent = '✎ Edit'; }
+    if (_editBtn) { _editBtn.classList.remove('active'); _editBtn.setAttribute('aria-pressed', 'false'); _editBtn.textContent = t('editor.editToggle'); }
     var _cancelBtn = document.getElementById('btn-edit-cancel');
     if (_cancelBtn) _cancelBtn.style.display = 'none';
     var _saveBtn = document.getElementById('btn-save');
@@ -7687,7 +7741,7 @@ function renderSong(idx) {
   document.getElementById('edit-split').classList.remove('visible');
   document.getElementById('song-card').style.display = '';
   const _eb = document.getElementById('btn-edit-toggle');
-  if (_eb) { _eb.classList.remove('active'); _eb.textContent = '✎ Edit'; }
+  if (_eb) { _eb.classList.remove('active'); _eb.textContent = t('editor.editToggle'); }
   const _sb = document.getElementById('btn-save');
   if (_sb) _sb.style.display = 'none';
   } catch(e) {
@@ -7925,14 +7979,14 @@ function makeSongItem(i, q) {
 
   const badge = song._source === 'html' ? ' <span style="font-size:0.6rem;opacity:0.5;">HTML</span>' : '';
   const collabBadge = (song._collab && song._collab.active)
-    ? ' <span style="font-size:0.68rem;opacity:0.65;" title="Live collaboration">🔗</span>' : '';
+    ? ' <span style="font-size:0.68rem;opacity:0.65;" title="' + escapeHtml(t('kebab.liveCollaboration')) + '">🔗</span>' : '';
   const titleRe = q ? new RegExp('(' + escapeRegex(q) + ')', 'gi') : null;
   const rawTitle  = escapeHtml(song.title  || 'Untitled') + badge + collabBadge;
   const rawArtist = escapeHtml(song.artist || '');
   const dispTitle  = titleRe && match.type === 'title'  ? rawTitle.replace(titleRe,  '<mark>$1</mark>') : rawTitle;
   const dispArtist = titleRe && match.type === 'artist' ? rawArtist.replace(titleRe, '<mark>$1</mark>') : rawArtist;
 
-  const favMark = song.favourite ? '<span class="s-fav" title="Favourite">★</span> ' : '';
+  const favMark = song.favourite ? '<span class="s-fav" title="' + escapeHtml(t('kebab.favourite')) + '">★</span> ' : '';
   let inner = '<div class="s-title">' + favMark + dispTitle + '</div><div class="s-artist">' + dispArtist + '</div>';
   if (match.type === 'lyric') inner += '<div class="s-match">' + match.snippet + '</div>';
   textDiv.innerHTML = inner;
@@ -7945,7 +7999,7 @@ function makeSongItem(i, q) {
   const kebab = document.createElement('button');
   kebab.className = 'kebab-btn';
   kebab.textContent = '⋮';
-  kebab.title = 'Song options';
+  kebab.title = t('kebab.songOptions');
   actions.appendChild(kebab);
 
   // The dropdown menu — created once per item, positioned on open
@@ -7989,14 +8043,14 @@ function makeSongItem(i, q) {
   });
 
   // ── Menu items ───────────────────────────────────────────────────────────
-  menu.appendChild(makeMenuItem(song.favourite ? '☆ Remove Favourite' : '★ Favourite', '', () => {
+  menu.appendChild(makeMenuItem(song.favourite ? t('kebab.removeFavourite') : t('kebab.favourite'), '', () => {
     song.favourite = !song.favourite;
     saveSongs();
     buildSongList(document.getElementById('search-input').value);
   }));
-  menu.appendChild(makeMenuItem('✎ Rename', '', () => renameSong(i)));
-  menu.appendChild(makeMenuItem('📁 Move to folder', '', () => showMoveToFolderMenu(i, kebab)));
-  menu.appendChild(makeMenuItem('⧉ Duplicate', '', () => {
+  menu.appendChild(makeMenuItem(t('kebab.rename'), '', () => renameSong(i)));
+  menu.appendChild(makeMenuItem(t('kebab.moveToFolder'), '', () => showMoveToFolderMenu(i, kebab)));
+  menu.appendChild(makeMenuItem(t('kebab.duplicate'), '', () => {
     const src  = songs[i];
     const raw  = src.title || 'Untitled';
     // Strip existing version suffix to get the base name
@@ -8027,14 +8081,14 @@ function makeSongItem(i, q) {
     saveSongs();
     buildSongList(document.getElementById('search-input').value);
   }));
-  menu.appendChild(makeMenuItem('☁ Publish…', '', () => showPublishModal([i])));
+  menu.appendChild(makeMenuItem(t('kebab.publishEllipsis'), '', () => showPublishModal([i])));
   menu.appendChild(makeMenuItem(
-    (song._collab && song._collab.active) ? ('⇄ Collaborating (' + song._collab.code + ')…') : '⇄ Collaborate…',
+    (song._collab && song._collab.active) ? t('kebab.collaborating', { code: song._collab.code }) : t('kebab.collaborateEllipsis'),
     '',
     () => showCollabModal(i)
   ));
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'skm-sep' }));
-  menu.appendChild(makeMenuItem('✕ Remove', 'danger', () => removeSong(i)));
+  menu.appendChild(makeMenuItem(t('kebab.remove'), 'danger', () => removeSong(i)));
 
   // Append menu to body so it's not clipped by sidebar overflow
   document.body.appendChild(menu);
@@ -8076,7 +8130,7 @@ function showMoveToFolderMenu(songIdx, anchorEl) {
   const currentFolder = folderForSong(songIdx);
   // "No folder" option
   const none = document.createElement('div');
-  none.textContent = '— No folder';
+  none.textContent = t('kebab.noFolder');
   none.style.cssText = 'padding:5px 12px;cursor:pointer;color:' + (currentFolder ? 'var(--c-chrome-muted)' : 'var(--c-accent)');
   none.addEventListener('click', () => { moveSongToFolder(songIdx, null); menu.remove(); });
   menu.appendChild(none);
@@ -8093,7 +8147,7 @@ function showMoveToFolderMenu(songIdx, anchorEl) {
 
   if (folders.length === 0) {
     const hint = document.createElement('div');
-    hint.textContent = 'No folders yet — make one below';
+    hint.textContent = t('kebab.noFoldersYet');
     hint.style.cssText = 'padding:5px 12px;color:var(--c-chrome-muted);font-size:0.68rem;';
     menu.appendChild(hint);
   }
@@ -8222,17 +8276,17 @@ function _buildFilterPanel() {
   var _allKeys = [];     // every filter key present, so "None" can turn them all off
   var _cbByKey = {};     // key -> checkbox, so selecting a subtype can re-check its parent
   var head = document.createElement('div'); head.className = 'filter-head';
-  var lbl = document.createElement('span'); lbl.textContent = 'Filter by type'; head.appendChild(lbl);
+  var lbl = document.createElement('span'); lbl.textContent = t('sidebar.filterTitle'); head.appendChild(lbl);
   var actions = document.createElement('div'); actions.className = 'filter-actions';
-  var allBtn = document.createElement('button'); allBtn.className = 'filter-reset'; allBtn.textContent = 'All';
-  allBtn.title = 'Select every type';
+  var allBtn = document.createElement('button'); allBtn.className = 'filter-reset'; allBtn.textContent = t('filter.all');
+  allBtn.title = t('filter.allTitle');
   allBtn.addEventListener('click', function(e){
     e.stopPropagation();                 // keep the panel open
     _libFilterOff.clear(); _buildFilterPanel(); _refreshFilterBtn();
     buildSongList(document.getElementById('search-input').value);
   });
-  var none = document.createElement('button'); none.className = 'filter-reset'; none.textContent = 'None';
-  none.title = 'Deselect every type';
+  var none = document.createElement('button'); none.className = 'filter-reset'; none.textContent = t('filter.none');
+  none.title = t('filter.noneTitle');
   none.addEventListener('click', function(e){
     e.stopPropagation();                 // keep the panel open
     _allKeys.forEach(function(k){ _libFilterOff.add(k); });
@@ -8269,23 +8323,28 @@ function _buildFilterPanel() {
   }
 
   var CAT_ORDER = ['Chords', 'Tabs', 'Sheet Music', 'Lead Sheets'];
+  // Display label only — the filter bookkeeping (_libFilterOff, _cbByKey) keys
+  // off the ENGLISH category name unconditionally (row()'s 2nd arg), so
+  // translating just what row() shows on screen (1st arg) can't desync state
+  // that's already saved/compared against these English strings elsewhere.
+  var CAT_I18N = { 'Chords':'filter.catChords', 'Tabs':'filter.catTabs', 'Sheet Music':'filter.catSheetMusic', 'Lead Sheets':'filter.catLeadSheets' };
   var any = false;
   CAT_ORDER.forEach(function(c){
     if (!catsPresent[c]) return;
     any = true;
-    row(c, 'cat:' + c, false);
+    row(t(CAT_I18N[c]), 'cat:' + c, false);
     if (c === 'Sheet Music') {
       Object.keys(rhythmsPresent).sort().forEach(function(r){ row(r, 'sub:' + r, true); });
-      if (sheetNoR) row('(Unspecified)', 'sub:(Unspecified)', true);
+      if (sheetNoR) row(t('filter.unspecified'), 'sub:(Unspecified)', true);
     }
     if (c === 'Lead Sheets') {
       Object.keys(stylesPresent).sort().forEach(function(st){ row(st, 'style:' + st, true); });
-      if (leadNoStyle) row('(Unspecified)', 'style:(Unspecified)', true);
+      if (leadNoStyle) row(t('filter.unspecified'), 'style:(Unspecified)', true);
     }
   });
   if (!any) {
     var e = document.createElement('div'); e.className = 'filter-empty';
-    e.textContent = 'Library is empty'; panel.appendChild(e);
+    e.textContent = t('filter.libraryEmpty'); panel.appendChild(e);
   }
 }
 
@@ -8351,13 +8410,13 @@ function buildSongList(query) {
     row.style.paddingLeft = indent + 'px';
     row.innerHTML = '<span class="folder-icon">' + (f.collapsed ? '▶' : '▼') + '</span>'
       + '<span class="folder-name">' + escapeHtml(f.name) + '</span>'
-      + '<button class="folder-kebab" title="Folder options">⋮</button>'
+      + '<button class="folder-kebab" title="' + escapeHtml(t('kebab.folderOptions')) + '">⋮</button>'
       + '<div class="folder-menu" style="display:none">'
-      + '<button class="folder-menu-item" data-action="rename">✎ Rename</button>'
-      + '<button class="folder-menu-item" data-action="export">⬇ Export</button>'
-      + '<button class="folder-menu-item" data-action="publish-collection">☁ Publish collection…</button>'
-      + '<button class="folder-menu-item folder-menu-danger" data-action="delete">✕ Delete Folder (Keep Songs)</button>'
-      + '<button class="folder-menu-item folder-menu-danger" data-action="delete-with-songs">✕ Delete Folder + Songs</button>'
+      + '<button class="folder-menu-item" data-action="rename">✎ ' + escapeHtml(t('kebab.rename')) + '</button>'
+      + '<button class="folder-menu-item" data-action="export">⬇ ' + escapeHtml(t('kebab.export')) + '</button>'
+      + '<button class="folder-menu-item" data-action="publish-collection">☁ ' + escapeHtml(t('kebab.publishCollection')) + '</button>'
+      + '<button class="folder-menu-item folder-menu-danger" data-action="delete">✕ ' + escapeHtml(t('kebab.deleteFolderKeepSongs')) + '</button>'
+      + '<button class="folder-menu-item folder-menu-danger" data-action="delete-with-songs">✕ ' + escapeHtml(t('kebab.deleteFolderAndSongs')) + '</button>'
       + '</div>';
 
     row.querySelector('.folder-icon').addEventListener('click', (e) => {
@@ -8550,8 +8609,8 @@ document.getElementById('btn-select-random').addEventListener('click', () => {
   function refresh() {
     const on = onlineSearchEnabled();
     btn.classList.toggle('off', !on);
-    btn.title = on ? 'Online search is on — click to disable'
-                   : 'Online search is off — click to enable';
+    btn.title = on ? t('sidebar.onlineSearchOn')
+                   : t('sidebar.onlineSearchOff');
   }
   refresh();
   btn.addEventListener('click', () => {
@@ -13041,7 +13100,7 @@ function updateBulkBar() {
   // Bar is visible as soon as select mode is on (even with nothing selected).
   const inMode = document.body.classList.contains('multiselect-mode');
   bar.classList.toggle('visible', inMode);
-  document.getElementById('bulk-count').textContent = n + ' selected';
+  document.getElementById('bulk-count').textContent = t('sidebar.nSelected', { n: n });
   // Actions that need at least one selected song are greyed out until then.
   ['btn-bulk-publish', 'btn-bulk-folder', 'btn-bulk-delete'].forEach(id => {
     const b = document.getElementById(id);
@@ -13432,6 +13491,17 @@ document.getElementById('btn-settings-menu').addEventListener('click', function(
   }
   updateTopbarHeightVar();
   window.addEventListener('resize', updateTopbarHeightVar);
+  // Also exposed globally so anything that changes the topbar's rendered
+  // height WITHOUT resizing the window (the only case that was covered
+  // before) can keep --topbar-h honest. Switching language is exactly that:
+  // Chinese labels are a different width than English ones and can wrap the
+  // topbar to an extra row, but nothing re-measured it, so --topbar-h stayed
+  // stuck at the pre-switch value. #topbar.scroll-hidden's margin-bottom
+  // (right above) leans on that variable to pull content up by exactly the
+  // topbar's real height when it slides away — a stale value there is what
+  // made the page content jump to the wrong size/position specifically when
+  // toggling something (Library, Scroll, ...) that shows/hides the topbar.
+  window._updateTopbarHeightVar = updateTopbarHeightVar;
 
   function setHidden(next) {
     if (hidden === next) return;
@@ -13620,7 +13690,7 @@ function setEditMode(on) {
   // it clear this button is the safe, deliberate way out (as opposed to
   // Cancel, which discards). It only persists in-app; only Save As… downloads
   // a file.
-  editBtn.textContent = on ? '✎ Save' : '✎ Edit';
+  editBtn.textContent = on ? t('editor.editToggleActive') : t('editor.editToggle');
   editBtn.title = on ? 'Save changes and exit edit mode (in-app only — use Save As… for a file)' : 'Edit this song';
   cancelBtn.style.display = on ? '' : 'none';
   // Changes persist automatically; a file is only written via "Save As…".
@@ -15204,19 +15274,19 @@ function startMetro() {
   metroRunning  = true;
   metroSchedule();
   metroTimer = setInterval(metroSchedule, 50);
-  document.getElementById('btn-metro').textContent = '■ Stop';
+  document.getElementById('btn-metro').textContent = t('metronome.stop');
   document.getElementById('btn-metro').classList.add('running');
   document.getElementById('btn-metro-toggle').classList.add('running');
-  document.getElementById('btn-metro-toggle').textContent = '♩ ' + document.getElementById('bpm-input').value + ' BPM ●';
+  document.getElementById('btn-metro-toggle').textContent = t('metronome.runningLabel', { bpm: document.getElementById('bpm-input').value });
 }
 
 function stopMetro() {
   clearInterval(metroTimer); metroTimer = null;
   metroRunning = false;
-  document.getElementById('btn-metro').textContent = '▶︎ Start';
+  document.getElementById('btn-metro').textContent = t('metronome.start');
   document.getElementById('btn-metro').classList.remove('running');
   document.getElementById('btn-metro-toggle').classList.remove('running');
-  document.getElementById('btn-metro-toggle').textContent = '♩ Metronome';
+  document.getElementById('btn-metro-toggle').textContent = t('metronome.toggle');
   document.querySelectorAll('.beat-dot').forEach(d => d.classList.remove('active'));
 }
 
@@ -17314,7 +17384,7 @@ function _abcSetEditing(on) {
   // Keep the pencil icon + active highlight — "Save" makes it clear this is
   // the safe, deliberate way out (Cancel discards instead). In-app only; only
   // Save As… writes a file.
-  btn.textContent = on ? '✎ Save' : '✎ Edit';
+  btn.textContent = on ? t('editor.editToggleActive') : t('editor.editToggle');
   btn.classList.toggle('active', on);
 }
 
@@ -17885,8 +17955,8 @@ function tunerUpdate() {
 async function startTuner() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     var msg = location.protocol === 'http:' && location.hostname !== 'localhost'
-      ? 'Microphone requires HTTPS — open via your https:// URL.'
-      : 'Microphone not available in this browser or context.';
+      ? t('tuner.requiresHttps')
+      : t('tuner.notAvailable');
     document.getElementById('tuner-status').textContent = msg;
     return;
   }
@@ -17899,10 +17969,10 @@ async function startTuner() {
     tunerBuf = new Float32Array(tunerAnalyser.fftSize);
     src.connect(tunerAnalyser);
     tunerActive = true;
-    document.getElementById('btn-tuner-mic').textContent = '⏹︎ Stop Listening';
+    document.getElementById('btn-tuner-mic').textContent = t('tuner.stopListening');
     tunerUpdate();
   } catch(e) {
-    showToast('⚠ Microphone access denied: ' + e.message);
+    showToast(t('tuner.micDenied', { msg: e.message }));
   }
 }
 
@@ -17912,7 +17982,7 @@ function stopTuner() {
   if (tunerStream) { tunerStream.getTracks().forEach(function(t){ t.stop(); }); tunerStream = null; }
   if (tunerAudioCtx) { tunerAudioCtx.close().catch(function(){}); tunerAudioCtx = null; }
   tunerAnalyser = null;
-  document.getElementById('btn-tuner-mic').textContent = '🎤 Start Listening';
+  document.getElementById('btn-tuner-mic').textContent = t('tuner.startListening');
   const noteEl = document.getElementById('tuner-note');
   if (noteEl) { noteEl.textContent='—'; noteEl.style.color=''; }
   document.getElementById('tuner-octave').textContent = '';
@@ -19155,9 +19225,9 @@ function renderIRealSong(song, opts){
   // Keep the pencil icon + active highlight in edit mode — "Save" makes it
   // the obviously-safe way out (Cancel, next to it, discards instead). This
   // only persists in-app; only Save As… downloads a file.
-  editLsBtn.textContent=isLsEditMode?'✎ Save':'✎ Edit';
+  editLsBtn.textContent=isLsEditMode?t('editor.editToggleActive'):t('editor.editToggle');
   if(isLsEditMode)editLsBtn.classList.add('active');
-  editLsBtn.title=isLsEditMode?'Save changes and exit edit mode':'Edit this lead sheet';
+  editLsBtn.title=isLsEditMode?t('editor.lsEditToggleTitleActive'):t('editor.lsEditToggleTitle');
   editLsBtn.addEventListener('click',()=>{
     document.querySelectorAll('.ls-bar.ls-editing').forEach(c=>c.dispatchEvent(new Event('blur',{bubbles:true})));
     if (!isLsEditMode) {

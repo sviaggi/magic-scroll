@@ -100,6 +100,7 @@ window.MS_STRINGS_EN = {
   'editor.embedTitle':          'Embed a video or link',
   'editor.precisionHint':       'Click on the word (or the spot) where you want a chord, then type it into the box that appears. Click an existing chord to edit or remove it.',
   'editor.editToggle':          '✎ Edit',
+  'editor.editToggleActive':    '✎ Save',
   'editor.editToggleTitle':     'Toggle between edit and read mode',
   'editor.cancel':              '✕ Cancel',
   'editor.cancelTitle':         'Discard all changes made since entering edit mode',
@@ -120,6 +121,8 @@ window.MS_STRINGS_EN = {
   // ── LEAD-SHEET EDITOR ──────────────────────────────────────────────────
   'editor.lsHint': 'Editing — change the title, author, style, BPM and time signature above; click a bar to change its chords, or use its ⋮ menu for barlines, mid-piece time changes, sections and inserting/deleting bars. '
     + 'Chord shorthand: b/# for flat/sharp (Bb, F#) · m or - for minor (Dm) · maj7 or ^ for major 7th (Cmaj7) · 7 for dominant 7th (G7) · sus2/sus4 for suspended · dim or o for diminished · aug or + for augmented — e.g. F#m7b5, Bbmaj7, Caug.',
+  'editor.lsEditToggleTitle':       'Edit this lead sheet',
+  'editor.lsEditToggleTitleActive': 'Save changes and exit edit mode',
 
   // ── ABC SHEET-MUSIC EDITOR ─────────────────────────────────────────────
   'editor.abcHint': 'Editing raw ABC notation — notes are letters A-G (lowercase = higher octave; add \' after a note for another octave up, or , for an octave down); a number after a note changes its length (C2 = twice as long, C/2 = half); | marks a bar line. Chord symbols go in quotes above the note they fall on, e.g. "G7". K: sets the key, M: sets the meter, Q: sets the tempo.',
@@ -140,6 +143,29 @@ window.MS_STRINGS_EN = {
   // ── COLLABORATION ─────────────────────────────────────────────────────────
   'collab.namePlaceholder': 'Your name',
   'collab.codePlaceholder': 'ABCDEF',
+
+  // ── PLAYBACK BARS (ABC sheet-music player + lead-sheet backing track) ───
+  'playbar.play':                 'Play',
+  'playbar.stop':                 'Stop',
+  'playbar.playPause':            'Play / Pause',
+  'playbar.stopReturn':           'Stop and return to start',
+  'playbar.bpm':                  'BPM',
+  'playbar.meter':                'Meter',
+  'playbar.meterAuto':            'N/A',
+  'playbar.meterTitle':           'Meter — N/A follows the sheet (and any meter changes within it); pick a value to force a fixed meter',
+  'playbar.plays':                'Plays',
+  'playbar.playsTitle':           'Number of times to play through the chart',
+  'playbar.bar':                  'Bar {n}',
+  'playbar.mute':                 'Mute {inst}',
+  'playbar.unmute':               'Unmute {inst}',
+  'playbar.perInstSettings':      'Per-instrument settings',
+  'playbar.loading':              'Loading…',
+  'playbar.openLeadSheetToUse':   'Open a lead sheet to use the backing track',
+  'playbar.noChordData':          'No chord data in this lead sheet',
+  'playbar.instDrums':            'Drums',
+  'playbar.instKeys':             'Keys',
+  'playbar.instBass':             'Bass',
+  'playbar.instGuitar':           'Guitar',
 
   // ── CHORD DIAGRAMS ─────────────────────────────────────────────────────
   'diagrams.fabTitle':          'Chord Diagrams',
@@ -202,6 +228,301 @@ window.MS_STRINGS_EN = {
   'prompt.embedLink':                 'Paste a link to embed (YouTube video, or any web link):',
   'prompt.embedLinkText':             'Link text (optional):',
   'prompt.copyIrealUrl':              'Copy this irealb:// URL:',
+
+  // ── TOPBAR (additional) ─────────────────────────────────────────────────
+  'topbar.options':             '⚙ Options',
+  'topbar.optionsTitle':        'Size, theme & print',
+  'topbar.scrollLabel':         'Scroll',
+  'topbar.scrollSpeedTitle':    'Scroll speed',
+  'topbar.detectedKeyTitle':    'Detected key — click ♭/♯ to transpose',
+  'topbar.collapseLabel':       '▲ hide',
+  'topbar.collapseTitle':       'Hide controls (click ▼ strip to restore)',
+  'topbar.restoreTitle':        'Show controls (tap to restore)',
+
+  // ── SIDEBAR (additional) ────────────────────────────────────────────────
+  'sidebar.libraryHeader':      'Library',
+  'sidebar.emptyLibrary':       '🗑 Empty library',
+  'sidebar.clearSearchTitle':   'Clear search',
+  'sidebar.onlineSearchOn':     'Online search is on — click to disable',
+  'sidebar.onlineSearchOff':    'Online search is off — click to enable',
+  'sidebar.selectRandom':       '🎲 Select Random',
+  'sidebar.selectRandomTitle':  'Open a random song from your library',
+  'sidebar.joinCollab':         '🔗 Join Collaboration…',
+  'sidebar.joinCollab2':        'Join Collaboration',
+  'sidebar.joinCollabTitle':    'Join a live collaboration using a code someone shared with you',
+  'sidebar.nSelected':          '{n} selected',
+  'sidebar.bulkSelectAllTitle': 'Select all visible songs',
+  'sidebar.bulkPublishTitle':   'Publish selected songs to online library',
+  'sidebar.folder':             '📁 Folder',
+  'sidebar.bulkFolderTitle':    'Move selected to folder',
+  'sidebar.bulkDelete':         '✕ Delete',
+  'sidebar.bulkDeleteTitle':    'Delete selected',
+  'sidebar.cancel':             'Cancel',
+  'sidebar.bulkCancelTitle':    'Cancel selection',
+  'sidebar.openFilesHere':      'Open files here',
+  'sidebar.new':                '✦ New',
+  'sidebar.newTitle':           'Create a new blank song',
+  'sidebar.newFolderTitle':     'Create a new folder to organise songs into',
+  'sidebar.exportLibrary':      'Export library',
+  'sidebar.exportLibraryTitle': 'Save library to file · Shift+click for Save As',
+  'sidebar.collections':        '📦 Collections',
+  'sidebar.collectionsTitle':   'Browse and add song collections',
+  'sidebar.resizeHandleTitle':  'Drag to resize sidebar',
+
+  // ── FILTER PANEL ─────────────────────────────────────────────────────────
+  'filter.all':                 'All',
+  'filter.allTitle':            'Show all types',
+  'filter.none':                'None',
+  'filter.noneTitle':           'Hide all types',
+  'filter.unspecified':         '(Unspecified)',
+  'filter.libraryEmpty':        'Library is empty',
+
+  // ── EMPTY STATE (additional) ────────────────────────────────────────────
+  'emptyState.body':            'Drop .txt, .json, or .html files into the sidebar, or click <strong>✦ New Song</strong> to write one.',
+
+  // ── SONG/CHORD-SHEET EDITOR (additional) ────────────────────────────────
+  'editor.titleLabel':          'Title',
+  'editor.artistLabel':         'Artist',
+  'editor.keyLabel':            'Key',
+  'editor.timeSigLabel':        'Time Sig.',
+  'editor.transpose':           'Transpose',
+  'editor.transposeDownTitle':  'Move every chord in the text down a semitone (permanent)',
+  'editor.transposeUpTitle':    'Move every chord in the text up a semitone (permanent)',
+  'editor.transposeDownAbcTitle': 'Move every note in this tune down a semitone (permanent) — updates K: and the note pitches',
+  'editor.transposeUpAbcTitle':   'Move every note in this tune up a semitone (permanent) — updates K: and the note pitches',
+  'editor.saveMenu':            '💾 Save ▾',
+  'editor.publish2':            'Publish',
+
+  // ── PRECISION POPUP (additional) ────────────────────────────────────────
+  'precision.add':              'Add',
+  'precision.remove':           'Remove',
+
+  // ── TOOLBARS (song/lead-sheet/ABC shared chrome) ────────────────────────
+  'toolbar.saveOptionsTitle':          'Save options',
+  'toolbar.publishSheetMusicTitle':    'Publish this sheet music to the online library',
+  'toolbar.createSet':                 '⛓ Create set',
+  'toolbar.createSetTitle':            'Stack other tunes from your library under this one to make a set',
+  'toolbar.sheetMusicMenu':            '🎼 Sheet music ▾',
+  'toolbar.sheetMusicOptionsTitle':    'Sheet music options',
+  'toolbar.soundfont':                 '🎵 Soundfont',
+  'toolbar.soundfontTitle':            'Load SF2 or SFZ soundfont',
+  'toolbar.unloadSoundfont':           '✕ Unload Soundfont',
+  'toolbar.unloadSoundfontTitle':      'Unload soundfont (revert to the default sound)',
+  'toolbar.whistleTabs':               '🪈 Whistle Tabs',
+  'toolbar.whistleTabsTitle':          'Toggle tin whistle fingering diagrams',
+  'toolbar.whistleKeyTitle':           'Whistle key',
+  'toolbar.whistleD':                  'D whistle',
+  'toolbar.whistleC':                  'C whistle',
+  'toolbar.whistleG':                  'G whistle',
+  'toolbar.whistleBb':                 'Bb whistle',
+  'toolbar.whistleEb':                 'Eb whistle',
+  'toolbar.hideChords':                '🎼 Hide Chords',
+  'toolbar.hideChordsTitle':           'Hide the chord symbols marked in this ABC file',
+  'toolbar.noteNames':                 '🔤 Note Names',
+  'toolbar.noteNamesTitle':            'Show the letter name under each note',
+  'toolbar.collaborate':               '🔗 Collaborate',
+  'toolbar.collaborateTitle':          'Start or manage a live collaboration on this song',
+  'toolbar.chordView':                 '≡ Condensed',
+  'toolbar.chordViewTitle':            'Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)',
+
+  // ── CHORD DIAGRAMS PANEL ─────────────────────────────────────────────────
+  'diagrams.title':              'Chord Diagrams',
+  'diagrams.smallerTitle':       'Smaller diagrams (also affects text)',
+  'diagrams.largerTitle':        'Larger diagrams (also affects text)',
+  'diagrams.closeTitle':         'Close chord diagrams',
+  'diagrams.primaryInstrument':  'Primary instrument',
+  'diagrams.secondaryInstrument':'Secondary instrument',
+  'diagrams.capo':               'Capo',
+  'diagrams.capoTitle':          'Capo / pre-transpose this instrument (−11 to 11): shows the shape to finger so it sounds like the page chord',
+  'diagrams.customBtn':          '⚙ Custom…',
+  'diagrams.customTitle':        'Define your own instrument & tuning',
+  'diagrams.none':               'None',
+  'diagrams.hideTitle':          'Hide chord diagrams',
+  'diagrams.customInstrumentTitle': '⚙ Custom instrument',
+  'diagrams.customHint':         'Pick the number of strings (1–8) and each string\'s tuning, lowest string first. Chord diagrams are computed for this tuning.',
+  'diagrams.strings':            'Strings',
+  'diagrams.useInstrument':      'Use instrument',
+  'diagrams.chordsInSong':       'Chords in this song',
+
+  // ── CREATE SET MODAL (additional) ───────────────────────────────────────
+  'createSet.hint':              'Tick tunes to stack them on the page. They appear in the order you select them — the order is shown below.',
+  'createSet.filterTypeTitle':   'Filter by tune type',
+  'createSet.allTypes':          'All types',
+  'createSet.noMatch':           'No tunes match this search / type.',
+  'createSet.showSet':           'Show set',
+
+  // ── NEW SONG MODAL (additional) ─────────────────────────────────────────
+  'newSong.title':               '✦ New Song',
+  'newSong.hint':                'Fill in the details, then write or paste your song in the editor that opens.',
+  'newSong.typeLabel':           'Type',
+  'newSong.typeSong':            'Song / Chord Sheet',
+  'newSong.typeAbc':             'ABC Notation (sheet music)',
+  'newSong.typeIreal':           '🎼 Lead Sheet(s) (iReal Pro URL)',
+  'newSong.typeBlankLead':       '🎼 Lead Sheet (Blank)',
+  'newSong.keyOptional':         'Key (optional)',
+  'newSong.format':              'Just type your lyrics — the editor that opens has an <strong>Add Chords</strong> button, tap a word to drop a chord right on it. (Old two-line sheets with chords on their own line still paste in fine — they get converted automatically.)',
+  'newSong.abcPasteLabel':       'Paste ABC Notation below — title and composer are extracted automatically',
+  'newSong.irealPasteLabel':     'Paste an <code>irealb://</code> URL — single songs and full playlists are supported',
+  'newSong.openEditor':          'Open Editor',
+
+  // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
+  'contact.version':             'version 1.2',
+  'contact.bugReportsHeading':   'Bug Reports / Donations',
+  'contact.getInTouch':          'Found an issue? Get in touch:',
+  'contact.includeDescription':  'Please include the song file and a description of what went wrong.',
+  'contact.likeProject':         'Like the project? A donation would mean the world! ☕ 🌍',
+  'contact.loading':             'Loading…',
+  'contact.tabToggle':           '♩ Magic Scroll - by Spencer California<br>(Your favourite bard\'s favourite bard)</br>',
+
+  // ── COLLECTIONS MODAL ────────────────────────────────────────────────────
+  'collections.builtin':         '📦 Built-in',
+  'collections.community':       '☁ Community',
+  'collections.desc':            'Pre-made sets of songs. Adding one creates a new folder in your library.',
+  'collections.close':           'Close',
+
+  // ── PUBLISH MODAL ─────────────────────────────────────────────────────────
+  'publish.title':                '☁ Publish to Online Library',
+  'publish.checklist':
+    '<strong>Before you publish, please confirm:</strong>'
+    + '<ul>'
+    + '<li>Publishing is <strong>final</strong> — the published version can\'t be changed or removed without an administrator.</li>'
+    + '<li>Don\'t submit a minor edit or revised version if a similar song already exists in the library.</li>'
+    + '<li>Don\'t publish something that isn\'t useful to other players — personal annotations, incomplete drafts, or private variations aren\'t a good fit. Remember there are offline functions if you need to share something with a small group-- You can just save the file to your device and send it over Whatsapp, Discord, or other messaging apps instead!</li>'
+    + '<li>Make sure the song is <strong>complete</strong>: lyrics, chords, key/capo info, and any other details should be thoroughly checked before committing.</li>'
+    + '<li><strong>Do not submit copyrighted material.</strong> Only publish songs you have the right to share — original compositions, traditional or public domain songs, or content with an open licence.</li>'
+    + '</ul>'
+    + '<div style="margin-top:10px;padding:8px 10px;background:var(--c-chrome-bg);border-radius:4px;font-size:0.74rem;color:var(--c-chrome-muted);line-height:1.5;">'
+    + '🔒 Submissions are <strong>anonymous</strong> — no account, name, or identifying information is attached to anything you publish.'
+    + '</div>',
+
+  // ── COLLABORATION (additional) ──────────────────────────────────────────
+  'collab.startExplainer': 'Start a live collaboration session for this song. Anyone you share the join code with can add it to their own library and edit alongside you in real time — no accounts, nothing to sign up for. When you end the session, the final version is saved for everyone who joined.',
+  'collab.startBtn':       'Start Collaborating',
+  'collab.shareCode':      'Share this code with others so they can join:',
+  'collab.copyCode':       'Copy Code',
+  'collab.hostOnlyNote':   'Only the host can end this collaboration.',
+  'collab.endCollab':      'End Collaboration',
+  'collab.enterCode':      'Enter the 6-character collaboration code shared with you.',
+  'collab.join':           'Join',
+
+  // ── KEBAB MENUS (song list + folders) ────────────────────────────────────
+  'kebab.songOptions':          'Song options',
+  'kebab.favourite':            '★ Favourite',
+  'kebab.removeFavourite':      '☆ Remove Favourite',
+  'kebab.rename':                '✎ Rename',
+  'kebab.moveToFolder':         '📁 Move to folder',
+  'kebab.duplicate':            '⧉ Duplicate',
+  'kebab.publishEllipsis':      '☁ Publish…',
+  'kebab.collaborateEllipsis':  '⇄ Collaborate…',
+  'kebab.collaborating':        '⇄ Collaborating ({code})…',
+  'kebab.remove':                '✕ Remove',
+  'kebab.noFolder':             '— No folder',
+  'kebab.noFoldersYet':         'No folders yet — make one below',
+  'kebab.folderOptions':        'Folder options',
+  'kebab.export':                '⬇ Export',
+  'kebab.publishCollection':    'Publish collection…',
+  'kebab.deleteFolderKeepSongs':  'Delete Folder (Keep Songs)',
+  'kebab.deleteFolderAndSongs':   'Delete Folder + Songs',
+  'kebab.liveCollaboration':    'Live collaboration',
+
+  // ── METRONOME ─────────────────────────────────────────────────────────────
+  'metronome.toggle':           '♩ Metronome',
+  'metronome.openTitle':        'Open metronome',
+  'metronome.timeSig':          'Time sig',
+  'metronome.beat':             'Beat',
+  'metronome.tapTempo':         'Tap tempo',
+  'metronome.tapTempoTitle':    'Tap to set tempo',
+  'metronome.start':            '▶︎ Start',
+  'metronome.stop':             '■ Stop',
+  'metronome.startStopTitle':   'Start / stop',
+  'metronome.runningLabel':     '♩ {bpm} BPM ●',
+
+  // ── TUNER ──────────────────────────────────────────────────────────────────
+  'tuner.toggle':                '𝄞 Tuner',
+  'tuner.toggleTitle':           'Chromatic tuner (uses microphone)',
+  'tuner.panelTitle':            'Chromatic Tuner',
+  'tuner.instrument':            'Instrument',
+  'tuner.primaryInstrument':     'Primary Instrument',
+  'tuner.secondaryInstrument':   'Secondary Instrument',
+  'tuner.chromatic':             'Chromatic',
+  'tuner.sensitivity':           'Sensitivity',
+  'tuner.sensitivityHigh':       'High (quiet rooms)',
+  'tuner.sensitivityMedium':     'Medium',
+  'tuner.sensitivityLow':        'Low (noisy rooms)',
+  'tuner.a4reference':           'A4 reference',
+  'tuner.a4standard':            '440 Hz (standard)',
+  'tuner.startListening':        '🎤 Start Listening',
+  'tuner.stopListening':         '⏹︎ Stop Listening',
+  'tuner.requiresHttps':         'Microphone requires HTTPS — open via your https:// URL.',
+  'tuner.notAvailable':          'Microphone not available in this browser or context.',
+  'tuner.micDenied':             '⚠ Microphone access denied: {msg}',
+
+  // ── PRINT PANEL ────────────────────────────────────────────────────────────
+  'printPanel.print':                   'Print',
+  'printPanel.optionsTitle':            'Print options',
+  'printPanel.panelTitle':              'Print options',
+  'printPanel.font':                    'Font',
+  'printPanel.fontChoice':              'Font choice',
+  'printPanel.fontDefault':             'Page fonts (user-defined)',
+  'printPanel.includeDiagrams':         'Include diagrams',
+  'printPanel.primaryInstrumentNote':   '(primary instrument)',
+  'printPanel.layout':                  'Layout',
+  'printPanel.fitOnePage':              'Fit to one page',
+  'printPanel.multiColumn':             'Multi-column',
+  'printPanel.reducesBlankSpace':       '(reduces blank space)',
+  'printPanel.skipChoruses':            'Skip repeated choruses',
+  'printPanel.condensedNote':           '(chords inline in brackets, more per page)',
+  'printPanel.whichTune':               'Which tune',
+  'printPanel.fittingHint':             'Fitting everything on one page in a nice, legible format can be difficult! It might be worth duplicating the song file to make a print-ready version that\'s edited to remove any redundant/unnecessary information (song titles, flavour text, hyperlinks).',
+  'printPanel.printNow':                '🖨 Print now',
+
+  // ── THEMES PANEL ─────────────────────────────────────────────────────────
+  'themes.panelTitle':           '🎨 Themes',
+  'themes.presetThemes':         'Preset Themes',
+  'themes.uiColours':            'UI Colours',
+  'themes.uiBg':                 'UI BG',
+  'themes.uiBgAlt':              'UI BG Alt',
+  'themes.uiBorder':             'UI Border',
+  'themes.uiText':               'UI Text',
+  'themes.uiMuted':              'UI Muted',
+  'themes.accent':               'Accent',
+  'themes.songCardColours':      'Song Card Colours',
+  'themes.cardBg':               'Card BG',
+  'themes.cardText':             'Card Text',
+  'themes.cardTitle':            'Card Title',
+  'themes.cardArtist':           'Card Artist',
+  'themes.chordText':            'Chord Text',
+  'themes.backgroundImage':      'Background Image',
+  'themes.imageFile':            'Image file',
+  'themes.browse':               '📂 Browse…',
+  'themes.none':                 '(none)',
+  'themes.imageScale':           'Image scale',
+  'themes.scaleSmall':           'Small (300px tile)',
+  'themes.scaleMedium':          'Medium (500px tile)',
+  'themes.scaleLarge':           'Large (800px tile)',
+  'themes.scaleXL':              'XL (1200px tile)',
+  'themes.scaleFullWidth':       'Full width',
+  'themes.scaleCover':           'Cover (stretch)',
+  'themes.scrollWithPage':       'Scroll with page',
+  'themes.clearImage':           'Clear image',
+  'themes.clearBtn':             '✕ Clear',
+  'themes.fonts':                'Fonts',
+  'themes.fontBodyTab':          'Body / Tab',
+  'themes.fontChordTokens':      'Chord Tokens',
+  'themes.fontSongTitle':        'Song Title',
+  'themes.fontAppUI':            'App UI',
+  'themes.displayOptions':       'Display Options',
+  'themes.monoSpacing':          'Monospace chord/lyric spacing',
+  'themes.monoSpacingTitle':     'Render chord and lyric lines in a true monospace font so chords line up exactly above their lyrics',
+  'themes.monoSpacingOff':       '⇔ Off',
+  'themes.apply':                'Apply',
+  'themes.saveAsTheme':          'Save as Theme',
+  'themes.resetColours':         'Reset Colours',
+  'themes.resetFonts':           'Reset Fonts',
+  'themes.export':               '⇩ Export Themes',
+  'themes.exportTitle':          'Download your saved custom themes as a file you can share',
+  'themes.import':               '⇧ Import Themes',
+  'themes.importTitle':          'Load custom themes shared by someone else',
 };
 
 // ── Active language ──────────────────────────────────────────────────────
@@ -245,4 +566,8 @@ window.setLanguage = function setLanguage(lang) {
   window.MS_LANG = lang;
   try { localStorage.setItem('ug_lang', lang); } catch (e) {}
   if (typeof applyI18nStrings === 'function') applyI18nStrings();
+  // Fixes up stateful toggle-button labels (Edit/Save, Scroll/Stop, ...) and
+  // re-measures cached layout CSS vars that a text-width/height change can
+  // invalidate — see this hook's own comment in the main HTML file for why.
+  if (typeof window._afterLanguageSwitch === 'function') window._afterLanguageSwitch();
 };
