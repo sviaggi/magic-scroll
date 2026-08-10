@@ -5005,8 +5005,10 @@ dc | "G"B3dBA | "D"F2A3D | "A"E3FED
 }
 // Returning user init: deferred so all `let` declarations (currentIdx etc.) are in
 // scope. Skipped during first-run seeding — commit() handles that selection.
+// Opens whatever was last viewed (see _resolveLastViewedIdx above) instead of
+// always the first song in the library.
 if (songs.length > 0 && !_demoLoading) {
-  setTimeout(function() { buildSongList(''); renderSong(0); }, 0);
+  setTimeout(function() { buildSongList(''); renderSong(_resolveLastViewedIdx()); }, 0);
 }
 let currentIdx      = -1;
 let transposeAmount = 0;
@@ -5074,6 +5076,29 @@ function saveFolders() {
   try { localStorage.setItem('ug_folders', JSON.stringify(folders)); } catch(e) {}
 }
 function saveAll() { saveSongs(); saveFolders(); }
+
+// ── LAST-VIEWED SONG — remember what was open when the app was closed, so
+// reopening lands back on it instead of always the first song in the
+// library. Songs have no stable id (state like .favourite lives directly on
+// the object and persists via the whole-songs-array save), so this stores
+// the index PLUS a title/artist fingerprint: the index is checked first
+// (cheap, right in the common case where nothing changed), and only falls
+// back to a title/artist search if the song at that index doesn't match —
+// e.g. an earlier song was deleted and everything after it shifted down.
+function _saveLastViewedSong(idx) {
+  const s = songs[idx];
+  if (!s) return;
+  try { localStorage.setItem('ug_last_song', JSON.stringify({ idx: idx, title: s.title || '', artist: s.artist || '' })); } catch(e) {}
+}
+function _resolveLastViewedIdx() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem('ug_last_song') || 'null'); } catch(e) {}
+  if (!raw) return 0;
+  const atIdx = songs[raw.idx];
+  if (atIdx && (atIdx.title || '') === raw.title && (atIdx.artist || '') === raw.artist) return raw.idx;
+  const found = songs.findIndex(s => (s.title || '') === raw.title && (s.artist || '') === raw.artist);
+  return found >= 0 ? found : 0;
+}
 
 // ── THEME — applies body class + tries to load a matching background image ───
 // Stems are Title Case to match the (case-sensitive) image filenames in the repo:
@@ -7808,6 +7833,7 @@ function renderSong(idx) {
     if (_saveBtn) _saveBtn.style.display = 'none';
   }
   currentIdx=idx;
+  _saveLastViewedSong(idx);
   // Capo + transpose reset per song, but restore this song's cached state if it
   // was visited earlier this session.
   _restoreSongState(songs[idx]);
