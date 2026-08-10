@@ -7728,9 +7728,9 @@ function renderSong(idx) {
   document.getElementById('display-artist').textContent=song.artist||'';
   const meta=document.getElementById('display-meta'); meta.innerHTML='';
   const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
-  [['Type',_dispType],['Key',song.key?_keyWithCapo(song.key):null],['Time',song.timeSig||null],['Tuning',song.tuning],['Capo',song.capo?'Fret '+song.capo:null]].forEach(([l,v])=>{
+  [[t('meta.type'),_dispType],[t('meta.key'),song.key?_keyWithCapo(song.key):null],[t('meta.time'),song.timeSig||null],[t('meta.tuning'),song.tuning],[t('meta.capo'),song.capo?t('meta.fret',{n:song.capo}):null]].forEach(([l,v])=>{
     if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
-    p.innerHTML=l+': <span>'+v+'</span>'; meta.appendChild(p);
+    p.innerHTML=escapeHtml(l)+': <span>'+v+'</span>'; meta.appendChild(p);
   });
   updateTransposeButtons(); renderTabContent(); updateSidebarActive();
   window.scrollTo(0, 0); updateScrollProgress();
@@ -13187,6 +13187,17 @@ function _syncSidebarCompensation() {
   }
 }
 window.addEventListener('resize', _syncSidebarCompensation);
+// #sidebar's width is CSS-transitioned (0.2s), so a compensation reading
+// taken the instant .collapsed is toggled can catch the box mid-animation.
+// The immediate call elsewhere still fires (so the visible correction starts
+// right away rather than waiting the full 0.2s), but re-run once the
+// transition actually finishes so the value settles on the true final width.
+(function() {
+  var sb = document.getElementById('sidebar');
+  if (sb) sb.addEventListener('transitionend', function(e) {
+    if (e.propertyName === 'width') _syncSidebarCompensation();
+  });
+})();
 
 // ── SIDEBAR RESIZE ────────────────────────────────────────────────────────────
 (function() {
@@ -13239,7 +13250,26 @@ document.getElementById('btn-sidebar').addEventListener('click', function() {
   if (window.innerWidth <= 520) {
     document.body.classList.toggle('sidebar-open');
   } else {
-    document.getElementById('sidebar').classList.toggle('collapsed');
+    const sidebar = document.getElementById('sidebar');
+    const collapsing = !sidebar.classList.contains('collapsed');
+    sidebar.classList.toggle('collapsed', collapsing);
+    // The resize handle (below) persists a user-dragged width as an INLINE
+    // style on #sidebar — inline styles always win over the .collapsed
+    // class's `width: 0` rule regardless of CSS specificity, so once someone
+    // has ever dragged the handle, toggling .collapsed alone stopped doing
+    // anything visible (the sidebar just sat at its dragged width forever).
+    // Clear the inline width while collapsed so the CSS rule can apply, and
+    // restore the saved/dragged width when expanding again.
+    if (collapsing) {
+      sidebar.style.width = '';
+      sidebar.style.minWidth = '';
+    } else {
+      const savedW = parseInt(localStorage.getItem('ms_sidebar_w') || '0');
+      if (savedW >= 140) {
+        sidebar.style.width = savedW + 'px';
+        sidebar.style.minWidth = savedW + 'px';
+      }
+    }
   }
   _syncSidebarCompensation();
 });
@@ -16691,7 +16721,7 @@ function stopABCSynth(keepPause) {
   // If keepPause is set the caller will handle button text (pause scenario)
   if (!keepPause) _pausedFrac = null;
   const btn = document.getElementById('abc-play-btn');
-  if (btn && !keepPause) { btn.textContent = '▶︎'; btn.title = 'Play'; btn.disabled = false; }
+  if (btn && !keepPause) { btn.textContent = '▶︎'; btn.title = t('playbar.play'); btn.disabled = false; }
   else if (btn && keepPause) { btn.disabled = false; }
   const stat = document.getElementById('abc-status');
   if (stat) stat.textContent = '';
@@ -16933,7 +16963,7 @@ function startABCSynth(tuneIdx, seekFrac) {
 
   abcPlaying = true;
   document.getElementById('abc-play-btn').textContent = '⏸︎';
-  document.getElementById('abc-play-btn').title = 'Pause';
+  document.getElementById('abc-play-btn').title = t('playbar.pause');
   document.getElementById('abc-status').textContent = '';
 
   // ── Sheet music cursor ────────────────────────────────────────────────────
@@ -17078,7 +17108,7 @@ function renderABCSong(song) {
   const _dispKey = _normKey ? _keyWithCapo(_normKey) : '';
   const _abcMetaEl = document.getElementById('abc-meta');
   _abcMetaEl.innerHTML = '';
-  [['Type', song.type||null], ['Key', _dispKey||null]].forEach(([l,v])=>{
+  [[t('meta.type'), song.type||null], [t('meta.key'), _dispKey||null]].forEach(([l,v])=>{
     if(!v)return;
     const p=document.createElement('div');p.className='meta-pill';
     p.innerHTML=escapeHtml(l)+': <span>'+escapeHtml(v)+'</span>';
@@ -17174,9 +17204,9 @@ function renderABCSong(song) {
       '<div class="song-main-title"><span class="abc-now-playing" style="display:none;color:var(--c-accent);margin-right:6px;">&#9654;</span>' + escapeHtml(T) + '</div>' +
       (Cm ? '<div class="song-artist">' + escapeHtml(Cm) + '</div>' : '') +
       '<div class="song-meta">' +
-        (Rt ? '<div class="meta-pill">Type: <span>' + escapeHtml(Rt) + '</span></div>' : '') +
-        '<div class="meta-pill abc-key-pill">Key: <select class="abc-key-sel">' + keyOpts + '</select></div>' +
-        '<button class="abc-ctrl-btn abc-item-play" style="font-size:0.72rem;padding:3px 10px;">▶︎ Play</button>' +
+        (Rt ? '<div class="meta-pill">' + escapeHtml(t('meta.type')) + ': <span>' + escapeHtml(Rt) + '</span></div>' : '') +
+        '<div class="meta-pill abc-key-pill">' + escapeHtml(t('meta.key')) + ': <select class="abc-key-sel">' + keyOpts + '</select></div>' +
+        '<button class="abc-ctrl-btn abc-item-play" style="font-size:0.72rem;padding:3px 10px;">▶︎ ' + escapeHtml(t('playbar.play')) + '</button>' +
       '</div>';
     var notDiv = document.createElement('div');
     notDiv.id = 'abc-notation-' + i;
@@ -17584,7 +17614,7 @@ document.getElementById('abc-play-btn').addEventListener('click', function() {
     _pausedFrac = progressEl ? parseFloat(progressEl.value) / 100 : 0;
     stopABCSynth(true);   // keepPause=true so button text is managed below
     document.getElementById('abc-play-btn').textContent = '▶︎';
-    document.getElementById('abc-play-btn').title = 'Resume';
+    document.getElementById('abc-play-btn').title = t('playbar.resume');
     return;
   }
   // Play / Resume from saved position (or beginning)
@@ -17598,7 +17628,7 @@ document.getElementById('abc-stop-btn').addEventListener('click', function() {
   stopABCSynth();
   // Reset button to ▶ Play (not ▶ Resume)
   var btn = document.getElementById('abc-play-btn');
-  if (btn) { btn.textContent = '▶︎'; btn.title = 'Play'; }
+  if (btn) { btn.textContent = '▶︎'; btn.title = t('playbar.play'); }
 });
 document.getElementById('abc-tempo').addEventListener('input', function() {
   const v = this.value;
@@ -18468,7 +18498,7 @@ function _setCollectionsTab(tab) {
     tabBuiltin.style.color               = 'var(--c-chrome-text)';
     tabCommunity.style.borderBottomColor = 'transparent';
     tabCommunity.style.color             = 'var(--c-chrome-muted)';
-    desc.textContent = 'Pre-made sets of songs. Adding one creates a new folder in your library.';
+    desc.textContent = t('collections.desc');
     searchBar.style.display = 'none';
     _loadBuiltinCollections();
   } else {
@@ -18476,7 +18506,7 @@ function _setCollectionsTab(tab) {
     tabCommunity.style.color             = 'var(--c-chrome-text)';
     tabBuiltin.style.borderBottomColor   = 'transparent';
     tabBuiltin.style.color               = 'var(--c-chrome-muted)';
-    desc.textContent = 'Collections shared by other Magic Scroll users.';
+    desc.textContent = t('collections.communityDesc');
     searchBar.style.display = '';
     _loadCommunityCollections('');
   }
@@ -18495,10 +18525,10 @@ document.getElementById('col-community-q').addEventListener('input', function() 
 
 function _loadBuiltinCollections() {
   var list = document.getElementById('collections-list');
-  list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">Loading…</div>';
+  list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">' + escapeHtml(t('contact.loading')) + '</div>';
   if (location.protocol === 'file:') {
     list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
-      + 'Collections require an HTTP server.</div>';
+      + escapeHtml(t('collections.requiresHttp')) + '</div>';
     return;
   }
   fetch(COLLECTIONS_MANIFEST_URL + '?_=' + Date.now())
@@ -18506,7 +18536,7 @@ function _loadBuiltinCollections() {
     .then(function(data) {
       var cols = data.collections || [];
       if (!cols.length) {
-        list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">No built-in collections available.</div>';
+        list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">' + escapeHtml(t('collections.noBuiltin')) + '</div>';
         return;
       }
       list.innerHTML = '';
@@ -18514,7 +18544,7 @@ function _loadBuiltinCollections() {
     })
     .catch(function() {
       list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">'
-        + 'Could not load collections manifest.</div>';
+        + escapeHtml(t('collections.manifestLoadFailed')) + '</div>';
     });
 }
 
@@ -18523,7 +18553,7 @@ function _loadCommunityCollections(query) {
   var list = document.getElementById('collections-list');
   if (!FUNCTIONS_BASE) {
     console.warn('[Magic Scroll] FUNCTIONS_BASE is not set — community library is disabled.');
-    list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">Community library not configured for this build.</div>';
+    list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">' + escapeHtml(t('collections.communityNotConfigured')) + '</div>';
     return;
   }
   list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;"><span class="online-spinner"></span></div>';
@@ -18536,14 +18566,14 @@ function _loadCommunityCollections(query) {
       list.innerHTML = '';
       if (!cols.length) {
         list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:20px 0;text-align:center;">'
-          + (query ? 'No matching collections.' : 'No community collections yet — be the first to publish one!') + '</div>';
+          + escapeHtml(query ? t('collections.noMatching') : t('collections.noneYet')) + '</div>';
         return;
       }
       cols.forEach(function(col) { _renderCollectionRow(list, col, 'community'); });
     })
     .catch(function() {
       if (_collectionsTab !== 'community') return;
-      list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">Could not reach the community library.</div>';
+      list.innerHTML = '<div style="color:var(--c-chrome-muted);font-size:0.72rem;padding:16px 0;text-align:center;">' + escapeHtml(t('collections.communityUnreachable')) + '</div>';
     });
 }
 
@@ -18554,11 +18584,11 @@ function _renderCollectionRow(list, col, source) {
   info.style.flex = '1';
   var title = document.createElement('div');
   title.style.cssText = 'font-size:0.75rem;font-weight:bold;color:var(--c-chrome-text);';
-  title.textContent = col.name || 'Unnamed';
+  title.textContent = col.name || t('collections.unnamed');
   var subtitle = document.createElement('div');
   subtitle.style.cssText = 'font-size:0.65rem;color:var(--c-chrome-muted);';
   var count = col.song_count || (Array.isArray(col.songs) ? col.songs.length : null);
-  subtitle.textContent = (count != null ? count + ' song' + (count !== 1 ? 's' : '') : '') +
+  subtitle.textContent = (count != null ? t(count === 1 ? 'collections.songCountOne' : 'collections.songCount', {n: count}) : '') +
     (col.description ? (count != null ? ' · ' : '') + col.description : '');
   info.appendChild(title); info.appendChild(subtitle);
   // get-collections?q=... (search_collections_ranked RPC) also matches
@@ -18570,15 +18600,15 @@ function _renderCollectionRow(list, col, source) {
     matchLine.className = 's-match';
     matchLine.style.cssText = 'font-size:0.65rem;color:var(--c-chrome-muted);font-style:italic;margin-top:2px;';
     var shown = col.matched_songs.slice(0, 3).join(', ');
-    var more = col.matched_songs.length > 3 ? ' +' + (col.matched_songs.length - 3) + ' more' : '';
-    matchLine.textContent = 'Contains: ' + shown + more;
+    var more = col.matched_songs.length > 3 ? t('collections.moreCount', {n: col.matched_songs.length - 3}) : '';
+    matchLine.textContent = t('collections.contains', {list: shown}) + more;
     info.appendChild(matchLine);
   }
   var btn = document.createElement('button');
-  btn.textContent = '+ Add';
+  btn.textContent = t('collections.add');
   btn.style.cssText = 'font-size:0.7rem;padding:3px 10px;flex-shrink:0;';
   btn.addEventListener('click', function() {
-    btn.disabled = true; btn.textContent = 'Adding…';
+    btn.disabled = true; btn.textContent = t('collections.adding');
     if (source === 'community') {
       _fetchAndAddCommunityCollection(col, btn);
     } else {
@@ -18593,7 +18623,7 @@ function _renderCollectionRow(list, col, source) {
       .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
       .then(function(d) {
         var n = Array.isArray(d.songs) ? d.songs.length : 0;
-        if (n > 0) subtitle.textContent = n + ' song' + (n !== 1 ? 's' : '');
+        if (n > 0) subtitle.textContent = t(n === 1 ? 'collections.songCountOne' : 'collections.songCount', {n: n});
       }).catch(function(){});
   }
 }
@@ -18606,10 +18636,10 @@ function _fetchAndAddCommunityCollection(col, btn) {
       if (!data.songs || !Array.isArray(data.songs)) throw new Error('Invalid collection data');
       var config = { name: data.name, songs: data.songs };
       importMagicScrollConfig(config, data.name);
-      btn.textContent = '✓ Added';
+      btn.textContent = t('collections.added');
     })
     .catch(function(e) {
-      btn.textContent = 'Failed'; btn.disabled = false;
+      btn.textContent = t('collections.failed'); btn.disabled = false;
       console.error('Community collection fetch failed:', e);
     });
 }
@@ -18628,18 +18658,18 @@ function fetchAndAddCollection(col, btn) {
         }
       });
       if (addedIndices.length > 0) {
-        var folderName = col.name || config.name || 'Collection';
+        var folderName = col.name || config.name || t('collections.defaultFolderName');
         folders.push({ id: makeFolderId(), name: folderName, songIndices: addedIndices, collapsed: false });
         saveAll(); buildSongList('');
         if (currentIdx < 0 && songs.length > 0) renderSong(0);
-        btn.textContent = '✓ Added (' + addedIndices.length + ')';
+        btn.textContent = t('collections.addedCount', {n: addedIndices.length});
       } else {
-        btn.textContent = 'Already in library';
+        btn.textContent = t('collections.alreadyInLibrary');
         btn.disabled = false;
       }
     })
     .catch(function(e) {
-      btn.textContent = 'Failed'; btn.disabled = false;
+      btn.textContent = t('collections.failed'); btn.disabled = false;
       console.error('Collection fetch failed:', e);
     });
 }
@@ -18834,10 +18864,10 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
       lbl.appendChild(inp);box.appendChild(lbl);inputs.push({key:f.key,inp});
     });
     const btnsRow=document.createElement('div');btnsRow.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:16px;';
-    const cancel=document.createElement('button');cancel.textContent='Cancel';
+    const cancel=document.createElement('button');cancel.textContent=t('sidebar.cancel');
     cancel.style.cssText='font-family:var(--font-chord);font-size:0.8rem;padding:5px 14px;cursor:pointer;';
     cancel.addEventListener('click',()=>ov.remove());
-    const ok=document.createElement('button');ok.textContent='Apply';
+    const ok=document.createElement('button');ok.textContent=t('themes.apply');
     ok.style.cssText='font-family:var(--font-chord);font-size:0.8rem;padding:5px 14px;cursor:pointer;background:var(--c-accent);color:#fff;border:none;border-radius:4px;';
     ok.addEventListener('click',()=>{
       const vals={};inputs.forEach(({key,inp})=>vals[key]=inp.value.trim());
@@ -18865,25 +18895,25 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   function emptyBar(){return{chords:[],section:null,endingNum:null,timeChange:null,openRepeat:false,closeRepeat:false,sectionStart:false,sectionEnd:false,final:false};}
 
   // Time signature
-  menu.appendChild(row('♪', bar.timeChange ? 'Time: '+bar.timeChange : 'Set time sig', '', ()=>{
-    openModal('Set time signature',
-      [{label:'Time signature',placeholder:'e.g. 4/4',value:bar.timeChange||'',key:'t'}],
-      ({t})=>{bar.timeChange=t||null;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}
+  menu.appendChild(row('♪', bar.timeChange ? t('lsEdit.timeColon',{v:bar.timeChange}) : t('lsEdit.setTimeSig'), '', ()=>{
+    openModal(t('lsEdit.setTimeSigModalTitle'),
+      [{label:t('editor.timeSigLabel'),placeholder:'e.g. 4/4',value:bar.timeChange||'',key:'t'}],
+      ({t:tv})=>{bar.timeChange=tv||null;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}
     );
   }));
 
   // Section marker
-  menu.appendChild(row('§', bar.section ? 'Section: '+bar.section : 'Set section', '', ()=>{
-    openModal('Set section marker',
-      [{label:'Section label',key:'s'}],
+  menu.appendChild(row('§', bar.section ? t('lsEdit.sectionColon',{v:bar.section}) : t('lsEdit.setSection'), '', ()=>{
+    openModal(t('lsEdit.setSectionModalTitle'),
+      [{label:t('lsEdit.sectionLabelField'),key:'s'}],
       ({s})=>{bar.section=s||null;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}
     );
   }));
 
   // Ending number
-  menu.appendChild(row('①', bar.endingNum ? 'Ending: '+bar.endingNum : 'Set ending', '', ()=>{
-    openModal('Set ending number',
-      [{label:'Ending (e.g. 1, 2)',placeholder:'1',value:bar.endingNum||'',key:'e'}],
+  menu.appendChild(row('①', bar.endingNum ? t('lsEdit.endingColon',{v:bar.endingNum}) : t('lsEdit.setEnding'), '', ()=>{
+    openModal(t('lsEdit.setEndingModalTitle'),
+      [{label:t('lsEdit.endingField'),placeholder:'1',value:bar.endingNum||'',key:'e'}],
       ({e})=>{bar.endingNum=e||null;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}
     );
   }));
@@ -18891,21 +18921,21 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   menu.appendChild(sep());
 
   // Repeat markers
-  menu.appendChild(row('𝄆', bar.openRepeat  ? '✓ Open repeat'  : 'Open repeat',  bar.openRepeat ?'active':'', ()=>{bar.openRepeat=!bar.openRepeat;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
-  menu.appendChild(row('𝄇', bar.closeRepeat ? '✓ Close repeat' : 'Close repeat', bar.closeRepeat?'active':'', ()=>{bar.closeRepeat=!bar.closeRepeat;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
-  menu.appendChild(row('𝄁', bar.sectionEnd  ? '✓ Double barline (end)' : 'Double barline (end)', bar.sectionEnd?'active':'', ()=>{bar.sectionEnd=!bar.sectionEnd;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
-  menu.appendChild(row('𝄁', bar.sectionStart? '✓ Double barline (start)' : 'Double barline (start)', bar.sectionStart?'active':'', ()=>{bar.sectionStart=!bar.sectionStart;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
-  menu.appendChild(row('||', bar.final ? '✓ Final barline' : 'Final barline', bar.final?'active':'', ()=>{bar.final=!bar.final;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
+  menu.appendChild(row('𝄆', bar.openRepeat  ? t('lsEdit.openRepeatOn')  : t('lsEdit.openRepeat'),  bar.openRepeat ?'active':'', ()=>{bar.openRepeat=!bar.openRepeat;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
+  menu.appendChild(row('𝄇', bar.closeRepeat ? t('lsEdit.closeRepeatOn') : t('lsEdit.closeRepeat'), bar.closeRepeat?'active':'', ()=>{bar.closeRepeat=!bar.closeRepeat;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
+  menu.appendChild(row('𝄁', bar.sectionEnd  ? t('lsEdit.doubleBarEndOn') : t('lsEdit.doubleBarEnd'), bar.sectionEnd?'active':'', ()=>{bar.sectionEnd=!bar.sectionEnd;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
+  menu.appendChild(row('𝄁', bar.sectionStart? t('lsEdit.doubleBarStartOn') : t('lsEdit.doubleBarStart'), bar.sectionStart?'active':'', ()=>{bar.sectionStart=!bar.sectionStart;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
+  menu.appendChild(row('||', bar.final ? t('lsEdit.finalBarlineOn') : t('lsEdit.finalBarline'), bar.final?'active':'', ()=>{bar.final=!bar.final;saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });}));
 
   menu.appendChild(sep());
 
   // Insert bar before / after
-  menu.appendChild(row('+', 'Insert bar before', '', ()=>{
+  menu.appendChild(row('+', t('lsEdit.insertBarBefore'), '', ()=>{
     closeMenu();
     chart.bars.splice(bidx,0,emptyBar());
     saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });
   }));
-  menu.appendChild(row('+', 'Insert bar after', '', ()=>{
+  menu.appendChild(row('+', t('lsEdit.insertBarAfter'), '', ()=>{
     closeMenu();
     chart.bars.splice(bidx+1,0,emptyBar());
     saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });
@@ -18914,7 +18944,7 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
   menu.appendChild(sep());
 
   // Delete bar
-  menu.appendChild(row('✕', 'Delete bar', 'danger', ()=>{
+  menu.appendChild(row('✕', t('lsEdit.deleteBar'), 'danger', ()=>{
     closeMenu();
     if(chart.bars.length>1){chart.bars.splice(bidx,1);}
     saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });
@@ -18966,8 +18996,8 @@ function renderIRealSong(song, opts){
   const _artistEl=document.createElement('div');_artistEl.className='song-artist';
   _artistEl.textContent=song.artist||'';
   const _metaEl=document.createElement('div');_metaEl.className='song-meta';
-  [['Type','Lead'],['Style',song.style],['Key',_dispKey||null],['BPM',song.bpm?String(song.bpm):null],
-   ['Transpose',transposeAmount?(transposeAmount>0?'+':'')+transposeAmount:null]
+  [[t('meta.type'),t('meta.lead')],[t('meta.style'),song.style],[t('meta.key'),_dispKey||null],[t('playbar.bpm'),song.bpm?String(song.bpm):null],
+   [t('editor.transpose'),transposeAmount?(transposeAmount>0?'+':'')+transposeAmount:null]
   ].forEach(([l,v])=>{
     if(!v)return;
     const p=document.createElement('div');p.className='meta-pill';
@@ -18998,9 +19028,9 @@ function renderIRealSong(song, opts){
     // Transpose — rather than one tall stacked field spanning both.
     const _mkStyleField=(value, onInput)=>{
       const w=document.createElement('label');w.className='ls-ef ls-style-select-field';
-      const lb=document.createElement('span');lb.className='ls-ef-lbl';lb.textContent='Style';
+      const lb=document.createElement('span');lb.className='ls-ef-lbl';lb.textContent=t('lsEdit.style');
       const sel=document.createElement('select');
-      const custOpt=document.createElement('option');custOpt.value='__custom__';custOpt.textContent='Custom…';
+      const custOpt=document.createElement('option');custOpt.value='__custom__';custOpt.textContent=t('lsEdit.customEllipsis');
       sel.appendChild(custOpt);
       const allPresets=[];
       (window.IREAL_STYLES||[]).forEach(grp=>{
@@ -19013,7 +19043,7 @@ function renderIRealSong(song, opts){
       });
       const wCust=document.createElement('div');wCust.className='ls-ef ls-style-custom-field';
       const custInp=document.createElement('input');custInp.type='text';
-      custInp.placeholder='Custom style name';
+      custInp.placeholder=t('lsEdit.customStylePlaceholder');
       wCust.appendChild(custInp);
       const trimmed=String(value||'').trim();
       const match=allPresets.find(s=>s.toLowerCase()===trimmed.toLowerCase());
@@ -19027,14 +19057,14 @@ function renderIRealSong(song, opts){
       w.appendChild(lb);w.appendChild(sel);
       return {sel:w, custom:wCust};
     };
-    eh.appendChild(_mkField('Title', song.title||'', v=>{
+    eh.appendChild(_mkField(t('editor.titleLabel'), song.title||'', v=>{
       song.title=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
       _scheduleLsCollabEditBroadcast(song);
-    }, {placeholder:'Song title', cls:'ls-field-title'}));
-    eh.appendChild(_mkField('Artist', song.artist||'', v=>{
+    }, {placeholder:t('editor.titlePlaceholder'), cls:'ls-field-title'}));
+    eh.appendChild(_mkField(t('editor.artistLabel'), song.artist||'', v=>{
       song.artist=v.trim(); saveSongs(); buildSongList(document.getElementById('search-input').value);
       _scheduleLsCollabEditBroadcast(song);
-    }, {placeholder:'Composer / artist', cls:'ls-field-artist'}));
+    }, {placeholder:t('lsEdit.composerArtistPlaceholder'), cls:'ls-field-artist'}));
     const _styleFields=_mkStyleField(song.style||'', v=>{
       song.style=v.trim(); saveSongs();
       _scheduleLsCollabEditBroadcast(song);
@@ -19043,23 +19073,23 @@ function renderIRealSong(song, opts){
     // Time Sig edits the chart's OPENING time signature (bars[0].timeChange);
     // per-bar time changes elsewhere in the piece still use each bar's ⋮ menu.
     const bpmTimeWrap=document.createElement('div');bpmTimeWrap.className='ls-ef-split';
-    bpmTimeWrap.appendChild(_mkField('BPM', song.bpm||'', v=>{
+    bpmTimeWrap.appendChild(_mkField(t('playbar.bpm'), song.bpm||'', v=>{
       const n=parseInt(v,10); song.bpm=(n>0?n:null); saveSongs();
       _scheduleLsCollabEditBroadcast(song);
     }, {type:'number', placeholder:'120', cls:'bpm'}));
-    bpmTimeWrap.appendChild(_mkField('Time Sig', (chart.bars&&chart.bars[0]&&chart.bars[0].timeChange)||'', v=>{
+    bpmTimeWrap.appendChild(_mkField(t('editor.timeSigLabel'), (chart.bars&&chart.bars[0]&&chart.bars[0].timeChange)||'', v=>{
       if(chart.bars&&chart.bars[0]) chart.bars[0].timeChange=v.trim()||null;
       saveSongs();
       _scheduleLsCollabEditBroadcast(song);
-    }, {placeholder:'e.g. 4/4', cls:'timesig'}));
+    }, {placeholder:t('editor.timeSigPlaceholder'), cls:'timesig'}));
     const trField=document.createElement('div');trField.className='ls-ef ls-transpose-field';
-    const trLbl=document.createElement('span');trLbl.className='ls-ef-lbl';trLbl.textContent='Transpose';
+    const trLbl=document.createElement('span');trLbl.className='ls-ef-lbl';trLbl.textContent=t('editor.transpose');
     const trBtns=document.createElement('div');trBtns.className='edit-transpose-btns';
     const trDown=document.createElement('button');trDown.type='button';trDown.textContent='♭ −';
-    trDown.title='Move every chord in this chart down a semitone (permanent)';
+    trDown.title=t('lsEdit.transposeDownTitle');
     trDown.addEventListener('click',()=>_lsTransposeChart(song,-1));
     const trUp=document.createElement('button');trUp.type='button';trUp.textContent='♯ +';
-    trUp.title='Move every chord in this chart up a semitone (permanent)';
+    trUp.title=t('lsEdit.transposeUpTitle');
     trUp.addEventListener('click',()=>_lsTransposeChart(song,1));
     trBtns.appendChild(trDown);trBtns.appendChild(trUp);
     trField.appendChild(trLbl);trField.appendChild(trBtns);
@@ -19158,7 +19188,7 @@ function renderIRealSong(song, opts){
     if(isLsEditMode){
       const kbtn=document.createElement('button');
       kbtn.type='button';kbtn.className='ls-kebab-btn';kbtn.textContent='⋮';
-      kbtn.title='Bar options (barlines, time signature, insert/delete…)';
+      kbtn.title=t('lsEdit.barOptionsTitle');
       kbtn.addEventListener('click',e=>{e.stopPropagation();_irealCellMenu(kbtn,cell,bar,song,chart);});
       cell.appendChild(kbtn);
       cell.addEventListener('click',e=>{
@@ -19251,8 +19281,8 @@ function renderIRealSong(song, opts){
   let cancelLsBtn = null;
   if (isLsEditMode) {
     cancelLsBtn = document.createElement('button');
-    cancelLsBtn.textContent = '✕ Cancel';
-    cancelLsBtn.title = 'Discard all changes made since entering edit mode';
+    cancelLsBtn.textContent = t('editor.cancel');
+    cancelLsBtn.title = t('editor.cancelTitle');
     cancelLsBtn.addEventListener('click', () => {
       document.querySelectorAll('.ls-bar.ls-editing').forEach(c=>c.dispatchEvent(new Event('blur',{bubbles:true})));
       if (_lsEditSnapshot) {
@@ -19269,15 +19299,15 @@ function renderIRealSong(song, opts){
 
   const saveMenuBtn=document.createElement('button');
   saveMenuBtn.id='btn-ls-save-menu-trigger';
-  saveMenuBtn.title='Save options';
-  saveMenuBtn.textContent='💾 Save ▾';
+  saveMenuBtn.title=t('toolbar.saveOptionsTitle');
+  saveMenuBtn.textContent=t('editor.saveMenu');
 
   const saveMenu=document.createElement('div');
   saveMenu.id='ls-save-menu';
   saveMenu.className='song-kebab-menu tb-menu';
 
-  const saveBtn=document.createElement('button');saveBtn.textContent='⬇ Save As…';
-  saveBtn.title='Download this lead sheet as a .mslead file';
+  const saveBtn=document.createElement('button');saveBtn.textContent=t('editor.saveAs');
+  saveBtn.title=t('lsEdit.downloadMsleadTitle');
   saveBtn.addEventListener('click',()=>{
     // Persist the tempo the user currently has set on the player (falls back to
     // the song's stored BPM, then 120).
@@ -19290,19 +19320,19 @@ function renderIRealSong(song, opts){
     a.click();URL.revokeObjectURL(a.href);
   });
 
-  const urlBtn=document.createElement('button');urlBtn.textContent='🔗 iReal URL';
-  urlBtn.title='Copy this lead sheet as an irealb:// URL (re-importable here or in iReal Pro)';
+  const urlBtn=document.createElement('button');urlBtn.textContent=t('lsEdit.irealUrlBtn');
+  urlBtn.title=t('lsEdit.irealUrlTitle');
   urlBtn.addEventListener('click',()=>{
     let url;
     try { url=exportIRealURL(song); } catch(e){ alert(t('alert.irealUrlFailed', {message: e.message})); return; }
-    const done=()=>{ const t=urlBtn.textContent; urlBtn.textContent='✓ Copied'; setTimeout(()=>urlBtn.textContent=t,1500); };
+    const done=()=>{ const origLabel=urlBtn.textContent; urlBtn.textContent=t('lsEdit.copied'); setTimeout(()=>urlBtn.textContent=origLabel,1500); };
     if(navigator.clipboard&&navigator.clipboard.writeText){
       navigator.clipboard.writeText(url).then(done).catch(()=>window.prompt(t('prompt.copyIrealUrl'),url));
     } else { window.prompt(t('prompt.copyIrealUrl'),url); }
   });
 
-  const pubLsBtn=document.createElement('button');pubLsBtn.textContent='☁ Publish';
-  pubLsBtn.title='Publish this lead sheet to the online library';
+  const pubLsBtn=document.createElement('button');pubLsBtn.textContent=t('editor.publish');
+  pubLsBtn.title=t('lsEdit.publishLeadSheetTitle');
   pubLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) showPublishModal([currentIdx]); });
 
   saveMenu.appendChild(saveBtn);
@@ -19315,15 +19345,15 @@ function renderIRealSong(song, opts){
   // save menu and before the Condensed toggle.
   const collabLsBtn=document.createElement('button');
   collabLsBtn.id='btn-ls-collaborate-toolbar';
-  collabLsBtn.textContent='🔗 Collaborate';
-  collabLsBtn.title='Start or manage a live collaboration on this lead sheet';
+  collabLsBtn.textContent=t('toolbar.collaborate');
+  collabLsBtn.title=t('lsEdit.collaborateLeadSheetTitle');
   collabLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) showCollabModal(currentIdx); });
 
   // Rebuilt every render (this whole toolbar is), so reflect current global
   // state each time rather than needing a separate sync call.
   const chordViewBtn=document.createElement('button');
   chordViewBtn.id='btn-ls-chordview';
-  chordViewBtn.textContent='≡ Condensed';
+  chordViewBtn.textContent=t('toolbar.chordView');
   chordViewBtn.style.marginLeft='auto';
   // Hidden while editing, same treatment as the plaintext toolbar's
   // #btn-chordview (body.editing-song #btn-chordview) — condensed view isn't
@@ -19331,8 +19361,8 @@ function renderIRealSong(song, opts){
   if (isLsEditMode) chordViewBtn.style.display='none';
   chordViewBtn.classList.toggle('active', isBracketChordView);
   chordViewBtn.title = isBracketChordView
-    ? 'Showing chords inline in [brackets] — click to float them above the words instead'
-    : 'Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)';
+    ? t('lsEdit.chordViewBracketsTitle')
+    : t('toolbar.chordViewTitle');
   chordViewBtn.addEventListener('click',()=>{ applyChordView(!isBracketChordView); });
 
   irealTb.appendChild(editLsBtn);
