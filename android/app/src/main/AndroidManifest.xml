@@ -19,6 +19,50 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- NEW: "Share…" from another app (ACTION_SEND) — lets Magic
+                 Scroll appear in the Android share sheet for these file
+                 types. Mirrors the file types registered in the web app's
+                 manifest.json share_target/file_handlers and the iOS
+                 CFBundleDocumentTypes list, so all three platforms agree on
+                 what Magic Scroll can receive. No <uses-permission> needed:
+                 the OS auto-grants temporary read access to exactly the
+                 content:// URI in the intent when it routes a matched
+                 SEND/VIEW intent here — see MainActivity.java's
+                 handleShareIntent() for the read side of this. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="audio/midi" />
+                <data android:mimeType="audio/mid" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <!-- NEW: "Open with…" / tapping a matching file directly
+                 (ACTION_VIEW) — both content:// (Files app, Mail
+                 attachments, etc.) and file:// (older apps/download
+                 managers) sources. category.BROWSABLE lets a link tap from
+                 a browser or another app route here too. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="audio/midi" />
+                <data android:mimeType="audio/mid" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
         </activity>
 
         <provider
