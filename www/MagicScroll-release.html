@@ -188,7 +188,12 @@
     --c-card-meta:      #7860a0;
     --c-card-meta-val:  #c0b0e8;
     --c-card-border:    rgba(100,80,160,0.18);
-    --c-chord-text:     #b090e8;
+    /* Was #b090e8 — only ~5° of hue away from --c-card-text (#c0b0e8, the
+       lyric colour), so chords and lyrics read as nearly the same purple.
+       Shifted toward violet-magenta (25° hue separation, WCAG 5.6:1 against
+       the card) so the two are clearly distinguishable at a glance while
+       staying in the same purple family as the rest of the theme. */
+    --c-chord-text:     #c060e8;
     --c-notation-ink:   #c8b8f0;  /* lavender — readable on dark card */
     --c-notation-bg:    transparent;
     --c-notation-border:#c8c0e8;
@@ -215,7 +220,12 @@
     --c-card-meta:      #609050;
     --c-card-meta-val:  #a0d090;
     --c-card-border:    rgba(32,64,32,0.5);
-    --c-chord-text:     #90e060;
+    /* Was #90e060 — only ~10° of hue away from --c-card-text (#80c070, the
+       lyric colour), so chords and lyrics read as nearly the same green.
+       Shifted toward yellow-green/chartreuse (40° hue separation, WCAG
+       14.5:1 against the card) for a clear at-a-glance distinction while
+       staying moss-green in spirit. */
+    --c-chord-text:     #d8ec50;
     --theme-image:      'green';
     --c-notation-ink:   #a0e090;   /* pale green on dark card */
     --c-inset-ov:       rgba(255,255,255,0.05);  /* lighter than the dark card */
@@ -284,7 +294,11 @@
     --c-card-meta:      #6e8438;
     --c-card-meta-val:  #364618;
     --c-card-border:    rgba(94,136,40,0.20);
-    --c-chord-text:     #ba7c16;
+    /* Was #ba7c16 — a dark gold/amber that doesn't stand out against the
+       cream card or the theme's own gold accent (#dbbd42). Swapped for a
+       forest green that pops against the cream page while keeping the
+       gold accent everywhere else (chrome, buttons) untouched. */
+    --c-chord-text:     #0f6b34;
     --theme-image:      'parchment';
     --c-notation-ink:   #1a0800;   /* matches card-text for consistent ink weight */
   }
@@ -314,7 +328,11 @@
     --c-card-meta:      #3238a9;
     --c-card-meta-val:  #101350;
     --c-card-border:    rgba(45,53,205,0.20);
-    --c-chord-text:     #ad841c;
+    /* Was #ad841c — a dark gold/amber that doesn't stand out against the
+       cream card or the theme's own gold accent (#e0c040). Swapped for a
+       blue that pops against the cream page while keeping the gold accent
+       everywhere else (chrome, buttons) untouched. */
+    --c-chord-text:     #1567b8;
     --theme-image:      'parchment';
     --c-notation-ink:   #1a0800;   /* matches card-text for consistent ink weight */
   }
@@ -2503,19 +2521,29 @@
      (that class now applies at every width, see the topbar reorg JS below).
      On a screen with room to spare, the panel keeps docking on the far right
      like a normal sidebar so the lyrics/notation stay visible while it's
-     open. Only below this width — the same phone-width threshold the old
-     topbar-mobile mode used to gate on — does it switch to the compact
-     overlay-under-the-button treatment (JS sets top/max-height to match);
-     this keeps the current phone behaviour completely unchanged. */
+     open. Below this width — the same phone-width threshold the old
+     topbar-mobile mode used to gate on — it instead docks at a fixed spot
+     just under the topbar, same treatment as #theme-settings-panel above
+     (search "--topbar-h is kept live"). Previously this anchored off
+     whichever button opened it (Chords-menu button vs. the floating circle,
+     which sits near the bottom edge) and grew UPWARD from there when the
+     panel had a lot of chords to show — tall enough, on some songs/devices,
+     to push its own close button up under the OS status bar/notch, exactly
+     the "can't close it" report this fixed spot avoids: it's always
+     reachable regardless of which button opened it or how tall the content
+     gets. */
   @media (max-width: 520px) {
     #diagram-panel {
       bottom: auto !important;
-      top: 0;                 /* JS overrides with the button's actual position */
+      top: var(--topbar-h, 49px) !important;
       left: 8px !important;
       right: 8px !important;
       width: auto !important;
+      max-width: calc(100vw - 16px) !important;
       transform: none !important;
       height: auto !important;
+      max-height: calc(100vh - var(--topbar-h, 49px) - 12px) !important;
+      overflow-y: auto !important;
       border-radius: 10px !important;
       border: 1px solid var(--c-chrome-border);
       z-index: 620;
@@ -5158,14 +5186,14 @@ const BUILTIN_THEMES = {
     '--c-chrome-text':'#d4c4a0','--c-chrome-muted':'#6a5a40','--c-accent':'#b07820',
     '--c-accent-dim':'#4a3000','--c-accent-glow':'rgba(176,120,32,0.12)',
     '--c-card-bg':'#12100c','--c-card-fallback':'#12100c','--c-card-text':'#c8b888',
-    '--c-card-title':'#d4c4a0','--c-card-artist':'#a08858','--c-chord-text':'#d4826a',
+    '--c-card-title':'#d4c4a0','--c-card-artist':'#a08858','--c-chord-text':'#c060e8',
   },
   'theme-green': {
     '--c-chrome-bg':'#050d05','--c-chrome-bg2':'#0a120a','--c-chrome-border':'#1a4020',
     '--c-chrome-text':'#a0d090','--c-chrome-muted':'#406040','--c-accent':'#50c050',
     '--c-accent-dim':'#1a5020','--c-accent-glow':'rgba(80,192,80,0.1)',
     '--c-card-bg':'#0a120a','--c-card-fallback':'#0a120a','--c-card-text':'#80c070',
-    '--c-card-title':'#c0e8b0','--c-card-artist':'#609050','--c-chord-text':'#90e060',
+    '--c-card-title':'#c0e8b0','--c-card-artist':'#609050','--c-chord-text':'#d8ec50',
   },
   'theme-session': {
     '--c-chrome-bg':'#660000','--c-chrome-bg2':'#550000','--c-chrome-border':'#aa4411',
@@ -5179,14 +5207,14 @@ const BUILTIN_THEMES = {
     '--c-chrome-text':'#eef2da','--c-chrome-muted':'#9eae7c','--c-accent':'#dbbd42',
     '--c-accent-dim':'#708420','--c-accent-glow':'rgba(219,189,66,0.18)',
     '--c-card-bg':'#f5f0e4','--c-card-fallback':'#f5f0e4','--c-card-text':'#1a0800',
-    '--c-card-title':'#1a0800','--c-card-artist':'#5c8228','--c-chord-text':'#ba7c16',
+    '--c-card-title':'#1a0800','--c-card-artist':'#5c8228','--c-chord-text':'#0f6b34',
   },
   'theme-ashbury': {
     '--c-chrome-bg':'#070931','--c-chrome-bg2':'#0d0f45','--c-chrome-border':'#2d35cd',
     '--c-chrome-text':'#e6e8f8','--c-chrome-muted':'#7f85c3','--c-accent':'#e0c040',
     '--c-accent-dim':'#292c99','--c-accent-glow':'rgba(224,192,64,0.18)',
     '--c-card-bg':'#f5f0e4','--c-card-fallback':'#f5f0e4','--c-card-text':'#1a0800',
-    '--c-card-title':'#1a0800','--c-card-artist':'#23299f','--c-chord-text':'#ad841c',
+    '--c-card-title':'#1a0800','--c-card-artist':'#23299f','--c-chord-text':'#1567b8',
   },
   'theme-avernus': {
     '--c-chrome-bg':'#1a0505','--c-chrome-bg2':'#240808','--c-chrome-border':'#7a2010',
@@ -6751,6 +6779,33 @@ function reflowPrecisionOverlaps(container) {
         // wrapped to a different visual row — full trailing gap is safe to reclaim
       }
       if (allowed > 0.5) ruby.style.marginRight = (-allowed) + 'px';
+    }
+    // ── SECOND PASS: catch direct <rt>-vs-<rt> collisions ─────────────────
+    // Everything above sizes its reclaim/top-up off each RUBY's own bounding
+    // box (rubyRect / ruby.getBoundingClientRect()) — but a chord label
+    // wider than its ruby box doesn't reliably grow that box on every
+    // rendering engine. With ruby-align:start, some engines (notably
+    // WKWebView on iOS) let the <rt> paint past its ruby's box as pure
+    // visual overflow without the box itself reporting the wider extent, so
+    // the math above can under-reclaim or under-top-up and still leave two
+    // chord labels visually touching or stacked — exactly the "chords stack
+    // together and clash" report. This pass compares the <rt> elements'
+    // own rendered rects directly — what a viewer's eye actually compares —
+    // and nudges them apart if they still overlap after the pass above.
+    for (let i = 0; i < rubies.length - 1; i++) {
+      const rt = rubies[i].querySelector('rt');
+      const nextRt = rubies[i + 1].querySelector('rt');
+      if (!rt || !nextRt) continue;
+      const rtRect = rt.getBoundingClientRect();
+      const nextRect = nextRt.getBoundingClientRect();
+      if (Math.abs(nextRect.top - rtRect.top) >= 4) continue;   // wrapped to a different row
+      const buffer2 = (rubies[i].classList.contains('chord-placeholder-ruby') || rubies[i + 1].classList.contains('chord-placeholder-ruby'))
+        ? CHORD_ADJACENT_BUFFER : BUFFER;
+      const overlap = (rtRect.right + buffer2) - nextRect.left;
+      if (overlap > 0.5) {
+        const current = parseFloat(rubies[i].style.marginRight) || 0;
+        rubies[i].style.marginRight = (current + overlap) + 'px';
+      }
     }
   });
 }
@@ -12807,28 +12862,17 @@ function toggleDiagramsPanel(triggerEl) {
   const open = panel.classList.contains('visible');
   _setDiagramsFabOpenState(open);
   if (open) {
-    if (window.innerWidth <= 520) {
-      // Narrow phone width: dock the panel right next to whichever button
-      // opened it (the Chords-tab button or the floating circle) instead of
-      // the normal right-docked #diagram-panel position, so it doesn't cover
-      // controls the trigger itself is next to. Anchors below the trigger
-      // normally; if that would run off the bottom of the screen (the
-      // floating circle sits near the bottom edge), anchors above it instead.
-      const anchor = (triggerEl && triggerEl.getBoundingClientRect) ? triggerEl : document.getElementById('btn-diagrams');
-      const r = anchor.getBoundingClientRect();
-      const MIN_H = 160;
-      panel.style.removeProperty('top');
-      panel.style.removeProperty('bottom');
-      if (r.bottom + 8 + MIN_H <= window.innerHeight) {
-        const top = Math.ceil(r.bottom + 8);
-        panel.style.setProperty('top', top + 'px', 'important');
-        panel.style.setProperty('max-height', Math.max(MIN_H, window.innerHeight - top - 12) + 'px', 'important');
-      } else {
-        const bottom = Math.ceil(window.innerHeight - r.top + 8);
-        panel.style.setProperty('bottom', bottom + 'px', 'important');
-        panel.style.setProperty('max-height', Math.max(MIN_H, r.top - 12) + 'px', 'important');
-      }
-    }
+    // Narrow phone width used to anchor the panel off whichever button
+    // opened it (the Chords-tab button, or the floating circle near the
+    // bottom edge) and could grow UPWARD from there far enough to push its
+    // own close button under the OS status bar/notch — see the CSS at
+    // "Chord Diagrams positioning" above, which now docks it at a fixed,
+    // always-reachable spot just under the topbar instead. Just clear any
+    // stale inline position a previous build's JS may have left behind so
+    // that CSS rule applies cleanly.
+    panel.style.removeProperty('top');
+    panel.style.removeProperty('bottom');
+    panel.style.removeProperty('max-height');
     renderDiagrams();
     const activeInstEl = panel.querySelector('.diagram-instrument-tabs[data-role="primary"] .inst-btn.active, .diagram-instrument-tabs[data-role="primary"] .inst-select.active');
     if(activeInstEl) activeInstEl.focus();
@@ -15933,8 +15977,17 @@ function _printReflowScript() {
         var rubies = Array.prototype.slice.call(lineEl.querySelectorAll(':scope > ruby'));
         rubies.forEach(function(r){ r.style.marginRight = ''; });
         var BUFFER = 3;
+        var CHORD_ADJACENT_BUFFER = 10;
         for (var i = 0; i < rubies.length; i++) {
           var ruby = rubies[i];
+          if (ruby.classList.contains('chord-placeholder-ruby')) {
+            var nextForPlaceholder = rubies[i + 1];
+            if (nextForPlaceholder && Math.abs(nextForPlaceholder.getBoundingClientRect().top - ruby.getBoundingClientRect().top) < 4) {
+              var rawGap = nextForPlaceholder.getBoundingClientRect().left - ruby.getBoundingClientRect().right;
+              if (rawGap < CHORD_ADJACENT_BUFFER) ruby.style.marginRight = (CHORD_ADJACENT_BUFFER - rawGap) + 'px';
+            }
+            continue;
+          }
           var rubyRect = ruby.getBoundingClientRect();
           var baseRect = _rubyBaseRect(ruby);
           if (!baseRect) continue;
@@ -15945,13 +15998,32 @@ function _printReflowScript() {
           if (next) {
             var sameLine = Math.abs(next.getBoundingClientRect().top - rubyRect.top) < 4;
             if (sameLine) {
+              var buffer = next.classList.contains('chord-placeholder-ruby') ? CHORD_ADJACENT_BUFFER : BUFFER;
               var r = document.createRange();
               r.setStartAfter(ruby); r.setEndBefore(next);
               var between = r.getBoundingClientRect().width;
-              allowed = Math.max(0, Math.min(trailingGap, between - BUFFER));
+              allowed = Math.max(0, Math.min(trailingGap, between - buffer));
             }
           }
           if (allowed > 0.5) ruby.style.marginRight = (-allowed) + 'px';
+        }
+        // SECOND PASS: direct <rt>-vs-<rt> collision check — see the comment
+        // on the equivalent pass in reflowPrecisionOverlaps() in the main
+        // app script for why this is needed in addition to the pass above.
+        for (var j = 0; j < rubies.length - 1; j++) {
+          var rt = rubies[j].querySelector('rt');
+          var nextRt = rubies[j + 1].querySelector('rt');
+          if (!rt || !nextRt) continue;
+          var rtRect = rt.getBoundingClientRect();
+          var nextRect = nextRt.getBoundingClientRect();
+          if (Math.abs(nextRect.top - rtRect.top) >= 4) continue;
+          var buffer2 = (rubies[j].classList.contains('chord-placeholder-ruby') || rubies[j + 1].classList.contains('chord-placeholder-ruby'))
+            ? CHORD_ADJACENT_BUFFER : BUFFER;
+          var overlap = (rtRect.right + buffer2) - nextRect.left;
+          if (overlap > 0.5) {
+            var current = parseFloat(rubies[j].style.marginRight) || 0;
+            rubies[j].style.marginRight = (current + overlap) + 'px';
+          }
         }
       });
     }
