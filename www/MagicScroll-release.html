@@ -2555,6 +2555,31 @@
     padding-bottom: 6px;
     border-bottom: 1px solid var(--c-chrome-border);
   }
+  /* Themes panel close (X) — top-right corner. Matters most on mobile, where
+     this panel docks as a near-full-viewport sheet (see the max-width:520px
+     rule for #theme-settings-panel) and there's otherwise no quick way out
+     short of tapping the Themes trigger button again. .settings-panel is
+     `position:fixed`, which is itself a positioned element, so this absolute
+     child positions relative to the panel's own box without needing an
+     extra wrapper. */
+  .settings-panel-close {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid var(--c-chrome-border);
+    border-radius: 3px;
+    color: var(--c-chrome-muted);
+    font-size: 0.8rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+  .settings-panel-close:hover { color: var(--c-accent); border-color: var(--c-accent); }
+  /* Keep the "🎨 Themes" title from running under the close button on
+     narrower panel widths. */
+  #theme-settings-panel h5 { padding-right: 32px; }
   .settings-row {
     display: flex;
     align-items: center;
@@ -3822,6 +3847,12 @@
   <div class="ctrl-group settings-btn" id="theme-settings-wrap">
     <button id="btn-theme-settings" title="Customise theme, colours, fonts &amp; background" data-i18n="topbar.themes" data-i18n-title="topbar.themesTitle">Themes</button>
     <div class="settings-panel" id="theme-settings-panel">
+      <!-- The panel spans most of the viewport on mobile (see the max-width:520px
+           CSS rule for #theme-settings-panel) with its own internal scroll, so an
+           always-visible close button matters here more than on the smaller
+           desktop dropdown — but it's harmless and useful on desktop too. -->
+      <button type="button" id="btn-theme-settings-close" class="settings-panel-close"
+        title="Close" data-i18n-title="themes.closeTitle" aria-label="Close">✕</button>
       <h5 data-i18n="themes.panelTitle">🎨 Themes</h5>
 
       <div class="settings-section-title" data-i18n="themes.presetThemes">Preset Themes</div>
@@ -4146,8 +4177,8 @@
         <button id="btn-abc-edit-cancel" title="Discard all changes made since entering edit mode" data-i18n-title="editor.cancelTitle" data-i18n="editor.cancel" style="display:none">✕ Cancel</button>
         <button id="btn-abc-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
         <div id="abc-save-menu" class="song-kebab-menu tb-menu">
-          <button id="btn-abc-save-as" data-i18n="editor.saveAs">⬇ Save As…</button>
           <button id="btn-abc-share" title="Share this sheet music with another app" data-i18n-title="share.buttonTitle" data-i18n="share.button">📤 Share…</button>
+          <button id="btn-abc-save-as" data-i18n="editor.saveAs">⬇ Save As…</button>
           <button id="btn-publish-abc" title="Publish this sheet music to the online library" data-i18n-title="toolbar.publishSheetMusicTitle" data-i18n="editor.publish">☁ Publish</button>
         </div>
         <button id="btn-abc-set" title="Stack other tunes from your library under this one to make a set" data-i18n-title="toolbar.createSetTitle" data-i18n="toolbar.createSet">⛓ Create set</button>
@@ -4213,8 +4244,8 @@
       <button id="btn-save" title="Save changes to this song (Ctrl+S)" data-i18n-title="editor.saveTitle" data-i18n="editor.save">💾 Save</button>
       <button id="btn-edit-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
       <div id="edit-save-menu" class="song-kebab-menu tb-menu">
-        <button id="btn-save-as" title="Download this song as a .txt file" data-i18n="editor.saveAs">⬇ Save As…</button>
         <button id="btn-share-song" title="Share this song with another app" data-i18n-title="share.buttonTitle" data-i18n="share.button">📤 Share…</button>
+        <button id="btn-save-as" title="Download this song as a .txt file" data-i18n="editor.saveAs">⬇ Save As…</button>
         <button id="btn-publish-song" title="Publish this song to the online library" data-i18n="editor.publish">☁ Publish</button>
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites" data-i18n="editor.exportMonospace">⬇ Export monospace</button>
       </div>
@@ -5479,6 +5510,10 @@ document.getElementById('btn-theme-settings').addEventListener('click', function
   if (tp.classList.contains('open')) { tp.classList.remove('open'); return; }
   syncColorPickersFromVars(); buildColorPresets(); buildFontSelects();
   openSettingsPanel(tp, e.currentTarget);
+});
+document.getElementById('btn-theme-settings-close').addEventListener('click', function(e) {
+  e.stopPropagation();
+  document.getElementById('theme-settings-panel').classList.remove('open');
 });
 
 document.getElementById('btn-sc-apply').addEventListener('click', () => {
@@ -8076,12 +8111,20 @@ function makeSongItem(i, q) {
   });
 
   // ── Menu items ───────────────────────────────────────────────────────────
+  // Order: Favourite, Share, Publish, Collaborate, Move to Folder, Duplicate,
+  // Rename, [separator], Remove.
   menu.appendChild(makeMenuItem(song.favourite ? t('kebab.removeFavourite') : t('kebab.favourite'), '', () => {
     song.favourite = !song.favourite;
     saveSongs();
     buildSongList(document.getElementById('search-input').value);
   }));
-  menu.appendChild(makeMenuItem(t('kebab.rename'), '', () => renameSong(i)));
+  menu.appendChild(makeMenuItem(t('share.button'), '', () => shareSong(song)));
+  menu.appendChild(makeMenuItem(t('kebab.publishEllipsis'), '', () => showPublishModal([i])));
+  menu.appendChild(makeMenuItem(
+    (song._collab && song._collab.active) ? t('kebab.collaborating', { code: song._collab.code }) : t('kebab.collaborateEllipsis'),
+    '',
+    () => showCollabModal(i)
+  ));
   menu.appendChild(makeMenuItem(t('kebab.moveToFolder'), '', () => showMoveToFolderMenu(i, kebab)));
   menu.appendChild(makeMenuItem(t('kebab.duplicate'), '', () => {
     const src  = songs[i];
@@ -8114,13 +8157,7 @@ function makeSongItem(i, q) {
     saveSongs();
     buildSongList(document.getElementById('search-input').value);
   }));
-  menu.appendChild(makeMenuItem(t('share.button'), '', () => shareSong(song)));
-  menu.appendChild(makeMenuItem(t('kebab.publishEllipsis'), '', () => showPublishModal([i])));
-  menu.appendChild(makeMenuItem(
-    (song._collab && song._collab.active) ? t('kebab.collaborating', { code: song._collab.code }) : t('kebab.collaborateEllipsis'),
-    '',
-    () => showCollabModal(i)
-  ));
+  menu.appendChild(makeMenuItem(t('kebab.rename'), '', () => renameSong(i)));
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'skm-sep' }));
   menu.appendChild(makeMenuItem(t('kebab.remove'), 'danger', () => removeSong(i)));
 
@@ -9898,8 +9935,15 @@ document.getElementById('line-spacing-sel').addEventListener('input', e => {
 // (dark, red & gold) if the system is in dark mode, Royal (light) otherwise.
 const _prefersDark = typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-color-scheme: dark)').matches;
-const savedTheme = localStorage.getItem('ug_theme') ||
-  (_prefersDark ? 'theme-avernus' : 'theme-session');
+// NOT `localStorage.getItem('ug_theme') || fallback` — Parchment's theme
+// class is the empty string '' (see THEME_GROUPS), which is falsy in JS, so
+// that `||` silently treated "the user chose Parchment" the same as
+// "nothing has been saved yet" and reverted to the OS light/dark default on
+// every single reload. Only fall back when the key is genuinely absent
+// (first-ever launch), which is what getItem() returning null means.
+const _rawSavedTheme = localStorage.getItem('ug_theme');
+const savedTheme = (_rawSavedTheme !== null) ? _rawSavedTheme
+  : (_prefersDark ? 'theme-avernus' : 'theme-session');
 if (savedTheme.indexOf('custom:') === 0) {
   const _customName = savedTheme.slice(7);
   const _customVals  = loadCustomThemes()[_customName];
@@ -19628,8 +19672,8 @@ function renderIRealSong(song, opts){
   shareLsBtn.title=t('share.buttonTitle');
   shareLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) shareSong(songs[currentIdx]); });
 
-  saveMenu.appendChild(saveBtn);
   saveMenu.appendChild(shareLsBtn);
+  saveMenu.appendChild(saveBtn);
   saveMenu.appendChild(urlBtn);
   saveMenu.appendChild(pubLsBtn);
 

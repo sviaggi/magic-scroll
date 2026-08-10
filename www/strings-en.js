@@ -478,6 +478,7 @@ window.MS_STRINGS_EN = {
 
   // ── THEMES PANEL ─────────────────────────────────────────────────────────
   'themes.panelTitle':           '🎨 Themes',
+  'themes.closeTitle':           'Close',
   'themes.presetThemes':         'Preset Themes',
   'themes.uiColours':            'UI Colours',
   'themes.uiBg':                 'UI BG',
@@ -603,7 +604,7 @@ window.MS_STRINGS_EN = {
   // ── SHARE (native share-sheet, toolbar + kebab menu) ────────────────────
   'share.button':                'Share…',
   'share.buttonTitle':           'Share this with another app',
-  'share.defaultMessage':        "I'm sharing a bit of music via Magic Scroll",
+  'share.defaultMessage':        "I'm sharing a bit of music via Magic Scroll!",
   'share.fallbackDownloaded':    'Downloaded {filename} (share not available on this device)',
   'download.toast':              'Downloaded: {filename}',
 

@@ -424,6 +424,7 @@ window.MS_STRINGS_ZH = {
 
   // ── THEMES PANEL ─────────────────────────────────────────────────────────
   'themes.panelTitle':           '🎨 主题',
+  'themes.closeTitle':           '关闭',
   'themes.presetThemes':         '预设主题',
   'themes.uiColours':            '界面颜色',
   'themes.uiBg':                 '界面背景',
@@ -549,7 +550,7 @@ window.MS_STRINGS_ZH = {
   // ── SHARE (native share-sheet, toolbar + kebab menu) ────────────────────
   'share.button':                '分享…',
   'share.buttonTitle':           '将其分享到其他应用',
-  'share.defaultMessage':        '我正在通过 Magic Scroll 分享一段音乐',
+  'share.defaultMessage':        '我正在通过 Magic Scroll 分享一段音乐！',
   'share.fallbackDownloaded':    '已下载 {filename}（此设备不支持分享）',
   'download.toast':              '已下载：{filename}',
 
