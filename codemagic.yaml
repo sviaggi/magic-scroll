@@ -41,7 +41,7 @@ workflows:
           echo "Latest: $LATEST, New: $NEW_BUILD"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" \
             "$CM_BUILD_DIR/ios/App/App/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.1.2" \
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.2" \
             "$CM_BUILD_DIR/ios/App/App/Info.plist"
 
       - name: Build IPA
