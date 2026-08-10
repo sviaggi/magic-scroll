@@ -2,7 +2,7 @@
 // Fixes offline support: shell files now cached dynamically from the
 // installing page's URL, so renaming the HTML file never breaks caching.
 
-const CACHE_VERSION = 'magic-scroll-v1.1.2';
+const CACHE_VERSION = 'magic-scroll-v1.2';
 
 // ── Install ───────────────────────────────────────────────────────────────────
 // Strategy: cache-on-navigate for the HTML shell (so renaming never breaks it),
@@ -24,6 +24,10 @@ self.addEventListener('install', function(event) {
       var companions = [
         './backing-track.js',
         './chord-engine.js',
+        './squeezebox-engine.js',
+        './irealpro-engine.js',
+        './strings-en.js',
+        './strings-zh.js',
         './abcjs-basic.js',
         './manifest.json',
         // Audio engine + bundled FluidR3 soundfonts (primary, higher quality)
