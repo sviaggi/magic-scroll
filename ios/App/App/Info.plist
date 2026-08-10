@@ -50,6 +50,17 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
   <true/>
 
+  <!-- The app only uses standard HTTPS/TLS (exempt) — no custom crypto
+       anywhere in MagicScroll-release.html or the Capacitor shell itself.
+       (The one SHA-256 hash in the project, in
+       supabase/functions/_shared/publishSong.ts, is a one-way content hash
+       for dedup, runs server-side in a Supabase Edge Function, and isn't
+       part of this app binary at all — irrelevant to this key either way.)
+       Setting this to false skips the manual export-compliance prompt on
+       every future App Store Connect submission. -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+
   <!-- ── NEW: registers Magic Scroll as an "Open in…"/AirDrop/Mail-attachment
        target for the app's supported file types. See CFBundleTypeRole notes
        below each entry for why some are Editor vs Viewer. .txt/.html/.mid/
