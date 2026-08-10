@@ -1,8 +1,15 @@
 // Magic Scroll — Service Worker v3
 // Fixes offline support: shell files now cached dynamically from the
 // installing page's URL, so renaming the HTML file never breaks caching.
+// Adds Share Target interception (see the fetch handler below) — no need to
+// bump CACHE_VERSION for that alone, since it's just the storage cache's key
+// and this repo keeps it matched to the app's own version number (see the
+// "Revert sw.js CACHE_VERSION to v1.2" history) rather than churning it on
+// every SW change; the browser detects the new fetch handler purely from
+// this file's bytes changing, independent of that constant.
 
 const CACHE_VERSION = 'magic-scroll-v1.2';
+const SHARE_CACHE   = 'magic-scroll-share-target';
 
 // ── Install ───────────────────────────────────────────────────────────────────
 // Strategy: cache-on-navigate for the HTML shell (so renaming never breaks it),
@@ -102,6 +109,51 @@ self.addEventListener('activate', function(event) {
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', function(event) {
+  // ── Share Target: files/text shared from another app (see share_target in
+  // manifest.json) ────────────────────────────────────────────────────────
+  // There's no real server behind this app — it's a static single-file PWA —
+  // so the browser's POST to the share_target action would otherwise just
+  // 404/405. The SW intercepts it directly instead: pull the file(s) out of
+  // the multipart FormData, stash them in a dedicated cache (Cache API holds
+  // a real Blob cleanly, unlike trying to structured-clone a File through
+  // postMessage or IndexedDB), then 303-redirect to the app itself. The
+  // app's own boot code (see MagicScroll-release.html, right next to the
+  // manual "Open files here" file-input wiring) notices the ?shared=1
+  // marker, pulls the stashed file(s) back out of this same cache, and feeds
+  // each one into loadFile() — the exact function a manual file pick already
+  // uses, so there's no separate import path to maintain here.
+  if (event.request.method === 'POST') {
+    var reqUrl = new URL(event.request.url);
+    if (reqUrl.searchParams.has('share-target')) {
+      event.respondWith((async function() {
+        try {
+          var formData = await event.request.formData();
+          var files = formData.getAll('files');
+          var cache = await caches.open(SHARE_CACHE);
+          // Clear out anything left over from a previous, possibly-abandoned
+          // share before writing this one.
+          var oldKeys = await cache.keys();
+          await Promise.all(oldKeys.map(function(k) { return cache.delete(k); }));
+          await Promise.all(files.map(function(file, i) {
+            return cache.put('shared-file-' + i, new Response(file, {
+              headers: {
+                'X-File-Name':  encodeURIComponent(file.name || ('shared-file-' + i)),
+                'Content-Type': file.type || 'application/octet-stream',
+              },
+            }));
+          }));
+          await cache.put('shared-file-count', new Response(String(files.length)));
+        } catch (e) {
+          // Fall through to the redirect regardless — worst case the app
+          // opens normally with nothing to import, same as a cold launch.
+        }
+        return Response.redirect('./MagicScroll-release.html?shared=1', 303);
+      })());
+      return;
+    }
+    return;   // any other POST: not ours, let the network/browser handle it
+  }
+
   if (event.request.method !== 'GET') return;
 
   var url = event.request.url;

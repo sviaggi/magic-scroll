@@ -9820,6 +9820,69 @@ document.getElementById('file-input').addEventListener('change',e=>{[...e.target
 document.getElementById('main').addEventListener('dragover',e=>e.preventDefault());
 document.getElementById('main').addEventListener('drop',e=>{e.preventDefault();[...e.dataTransfer.files].forEach(loadFile);});
 
+// ── OS-LEVEL FILE ENTRY POINTS ────────────────────────────────────────────────
+// Two more ways a file can arrive here besides the picker/drop-zone above,
+// both landing on the exact same loadFile() import path so there's nothing
+// extra to keep in sync when a new file type is supported:
+//  - "Open with… Magic Scroll" on a file, or Magic Scroll set as the default
+//    handler for one of its extensions (File Handling API — file_handlers in
+//    manifest.json). The browser navigates here and populates
+//    window.launchQueue with the opened file(s).
+//  - "Share…" from another app's OS share sheet, with Magic Scroll picked as
+//    the target (Web Share Target API — share_target in manifest.json). The
+//    service worker has no real server to POST to, so it intercepts that
+//    POST itself, stashes the file(s) in a dedicated cache, and redirects
+//    here with ?shared=1 (see sw.js) — this block picks them back up.
+if ('launchQueue' in window && window.launchQueue) {
+  window.launchQueue.setConsumer(async function(launchParams) {
+    if (!launchParams.files || !launchParams.files.length) return;
+    for (const handle of launchParams.files) {
+      try { loadFile(await handle.getFile()); } catch (e) { console.error('[file-handler]', e); }
+    }
+  });
+}
+if (location.search.indexOf('shared=1') !== -1 && 'caches' in window) {
+  (async function() {
+    try {
+      const cache = await caches.open('magic-scroll-share-target');
+      const countRes = await cache.match('shared-file-count');
+      const count = countRes ? (parseInt(await countRes.text()) || 0) : 0;
+      for (let i = 0; i < count; i++) {
+        const res = await cache.match('shared-file-' + i);
+        if (!res) continue;
+        const blob = await res.blob();
+        const name = decodeURIComponent(res.headers.get('X-File-Name') || ('shared-file-' + i));
+        loadFile(new File([blob], name, { type: blob.type }));
+        await cache.delete('shared-file-' + i);
+      }
+      await cache.delete('shared-file-count');
+    } catch (e) { console.error('[share-target]', e); }
+    // Drop the ?shared=1 marker either way, so a manual refresh of this tab
+    // doesn't try to re-import an already-consumed (or never-arrived) share.
+    history.replaceState(null, '', location.pathname + location.hash);
+  })();
+}
+// ── NATIVE iOS BRIDGE (App Store build only, via the sviaggi/magic-scroll
+// "native" Capacitor wrapper repo) ──────────────────────────────────────────
+// A no-op in every other context — the web PWA never calls this. It exists
+// purely as the landing point for the native shell's AppDelegate.swift: once
+// Info.plist registers the app for "Open in…"/AirDrop (CFBundleDocumentTypes
+// + custom UTIs for .mslead/.mscz/.abc/.mxl), iOS hands the incoming file to
+// application(_:open:options:), and AppDelegate reads its bytes, base64s
+// them, and evaluates `window.__handleNativeSharedFile(...)` in the
+// WKWebView. From there it's the same loadFile() path as every other entry
+// point on this page — see AppDelegate.swift in the native repo (not this
+// file) for the Swift side, which isn't scripted here since Capacitor
+// regenerates ios/ per CI build and that file needs hand-adding in Xcode.
+window.__handleNativeSharedFile = function(base64, filename, mimeType) {
+  try {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    loadFile(new File([bytes], filename || 'shared-file', { type: mimeType || 'application/octet-stream' }));
+  } catch (e) { console.error('[native-share]', e); }
+};
+
 // ── TRANSPOSE — also refreshes diagrams if the panel is open ───────────────
 function _afterTranspose() {
   _saveSongState();               // remember transpose per song for the session
