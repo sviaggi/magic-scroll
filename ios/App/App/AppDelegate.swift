@@ -42,8 +42,43 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        // Called when the app was launched with a url. Feel free to add additional processing here,
-        // but if you want the App API to support tracking app url opens, make sure to keep this call
+        // NEW: a real file — from "Open in…", a Mail attachment, or AirDrop —
+        // as opposed to a custom URL scheme / universal link. Read it, hand
+        // it to the WebView as base64, and let window.__handleNativeSharedFile
+        // (defined in MagicScroll-release.html — the main Magic Scroll repo,
+        // not this one — see its "NATIVE iOS BRIDGE" comment) do the rest via
+        // the same loadFile() path every other import route uses.
+        //
+        // KNOWN GAP: this evaluates the JS immediately, which only works if
+        // the WKWebView has already loaded (the common case — the app was
+        // already running or backgrounded, then the user picked "Open in
+        // Magic Scroll"). A COLD launch straight into a shared file — the
+        // app wasn't running at all — races the page's own load, and
+        // evaluateJavaScript() could fire before window.__handleNativeSharedFile
+        // exists yet. I didn't add a queue/retry for that here: doing it right
+        // means hooking into Capacitor's WKNavigationDelegate (CAPBridgeViewController
+        // already sets itself as the navigation delegate; overriding it wrong
+        // risks breaking the bridge's own init), and I have no Xcode/simulator
+        // here to verify that against a real cold-launch test. If cold-launch
+        // shares turn out to matter in practice, that's the next thing to add
+        // — flagging it now rather than shipping an untested guess at it.
+        if url.isFileURL {
+            do {
+                let data = try Data(contentsOf: url)
+                let base64 = data.base64EncodedString()
+                let filename = url.lastPathComponent.replacingOccurrences(of: "'", with: "\\'")
+                let js = "window.__handleNativeSharedFile && window.__handleNativeSharedFile('\(base64)', '\(filename)', 'application/octet-stream')"
+                if let bridgeVC = self.window?.rootViewController as? CAPBridgeViewController {
+                    bridgeVC.bridge?.webView?.evaluateJavaScript(js, completionHandler: nil)
+                }
+                // iOS copies "Open in…" files into a private Inbox/ directory
+                // for us — clean it up once read, matching Apple's own sample
+                // code for this exact scenario.
+                try? FileManager.default.removeItem(at: url)
+            } catch {
+                print("[MagicScroll] share-bridge failed to read shared file: \(error)")
+            }
+        }
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
 
