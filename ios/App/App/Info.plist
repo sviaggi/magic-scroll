@@ -56,6 +56,17 @@
        .json/.xml reuse Apple's own system UTIs; .mslead/.mscz/.abc/.mxl/
        .musicxml have no system UTI, so this app declares and owns one for
        each (see UTExportedTypeDeclarations below). ─────────────────────── -->
+  <!-- Required alongside CFBundleDocumentTypes (Apple rejects the build
+       without one of UISupportsDocumentBrowser or this — ITMS-90737). NO,
+       not the "recommended" YES: AppDelegate.swift's bridge reads the file
+       once via Data(contentsOf:) then deletes it — the "copy into the app's
+       Inbox, done" model this key's NO describes — rather than true
+       in-place editing (which needs startAccessingSecurityScopedResource()
+       around the read, not present here; setting YES without that risks
+       permission failures on files opened from iCloud Drive/other
+       providers). -->
+  <key>LSSupportsOpeningDocumentsInPlace</key>
+  <false/>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
