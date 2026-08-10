@@ -545,4 +545,14 @@ window.MS_STRINGS_ZH = {
   'collections.alreadyInLibrary':       '已在曲库中',
   'collections.failed':                 '失败',
   'collections.defaultFolderName':      '合集',
+
+  // ── SHARE (native share-sheet, toolbar + kebab menu) ────────────────────
+  'share.button':                '分享…',
+  'share.buttonTitle':           '将其分享到其他应用',
+  'share.defaultMessage':        '我正在通过 Magic Scroll 分享一段音乐',
+  'share.fallbackDownloaded':    '已下载 {filename}（此设备不支持分享）',
+  'download.toast':              '已下载：{filename}',
+
+  // ── MULTI-PART SHEET MUSIC (MuseScore/MusicXML imports with >1 instrument) ─
+  'sheetmusic.partFallback':     '声部 {n}',
 };

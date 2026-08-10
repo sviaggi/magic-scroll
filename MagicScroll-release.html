@@ -1012,6 +1012,33 @@
   }
   .meta-pill span { font-weight: bold; color: var(--c-card-meta-val); }
 
+  /* ── MULTI-PART TABS (MuseScore/MusicXML imports with >1 instrument) ────── */
+  #abc-parts-tabs {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 0 0 14px;
+    border-bottom: 1px solid var(--c-card-border);
+    padding-bottom: 10px;
+  }
+  .abc-part-tab {
+    font-family: var(--font-chord);
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    color: var(--c-card-meta);
+    background: transparent;
+    border: 1px solid var(--c-card-border);
+    border-radius: 3px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .abc-part-tab:hover { color: var(--c-accent); border-color: var(--c-accent); }
+  .abc-part-tab.active {
+    background: var(--c-accent);
+    color: var(--c-chrome-bg);
+    border-color: var(--c-accent);
+    font-weight: bold;
+  }
+
   /* ── TAB CONTENT ─────────────────────────────────────────────────────────── */
   #tab-content {
     font-family: var(--font-mono);
@@ -4120,6 +4147,7 @@
         <button id="btn-abc-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
         <div id="abc-save-menu" class="song-kebab-menu tb-menu">
           <button id="btn-abc-save-as" data-i18n="editor.saveAs">⬇ Save As…</button>
+          <button id="btn-abc-share" title="Share this sheet music with another app" data-i18n-title="share.buttonTitle" data-i18n="share.button">📤 Share…</button>
           <button id="btn-publish-abc" title="Publish this sheet music to the online library" data-i18n-title="toolbar.publishSheetMusicTitle" data-i18n="editor.publish">☁ Publish</button>
         </div>
         <button id="btn-abc-set" title="Stack other tunes from your library under this one to make a set" data-i18n-title="toolbar.createSetTitle" data-i18n="toolbar.createSet">⛓ Create set</button>
@@ -4170,6 +4198,10 @@
         <div class="song-meta"       id="abc-meta"></div>
       </div>
       <div id="whistle-key-warning" style="display:none;margin-bottom:6px;padding:5px 10px;border-radius:4px;font-size:0.7rem;background:rgba(255,160,0,0.12);color:#b07000;border:1px solid rgba(255,160,0,0.35);"></div>
+      <!-- Shown only for imports with more than one instrument/part (e.g. MuseScore
+           scores with Soprano/Alto/Piano) — lets musicians view/hear/edit each part
+           on its own tab. Populated by _abcRenderPartTabs() in renderABCSong(). -->
+      <div id="abc-parts-tabs" style="display:none;"></div>
       <div id="abc-notation"></div>
       <!-- Whistle fingering diagrams — shown when toggled on -->
       <div id="whistle-tab-strip"></div>
@@ -4182,6 +4214,7 @@
       <button id="btn-edit-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
       <div id="edit-save-menu" class="song-kebab-menu tb-menu">
         <button id="btn-save-as" title="Download this song as a .txt file" data-i18n="editor.saveAs">⬇ Save As…</button>
+        <button id="btn-share-song" title="Share this song with another app" data-i18n-title="share.buttonTitle" data-i18n="share.button">📤 Share…</button>
         <button id="btn-publish-song" title="Publish this song to the online library" data-i18n="editor.publish">☁ Publish</button>
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites" data-i18n="editor.exportMonospace">⬇ Export monospace</button>
       </div>
@@ -8081,6 +8114,7 @@ function makeSongItem(i, q) {
     saveSongs();
     buildSongList(document.getElementById('search-input').value);
   }));
+  menu.appendChild(makeMenuItem(t('share.button'), '', () => shareSong(song)));
   menu.appendChild(makeMenuItem(t('kebab.publishEllipsis'), '', () => showPublishModal([i])));
   menu.appendChild(makeMenuItem(
     (song._collab && song._collab.active) ? t('kebab.collaborating', { code: song._collab.code }) : t('kebab.collaborateEllipsis'),
@@ -8976,9 +9010,6 @@ function parseMuseScore(mscx, filename) {
   let title = frameText('title') || clean(meta('workTitle')) || filename.replace(/\.[^.]+$/, '');
   let composer = frameText('composer') || clean(meta('composer'));
 
-  const staff = [...doc.querySelectorAll('Staff')].find(s => s.querySelector('Measure'));
-  if (!staff) return null;
-
   const LETTERS = ['F','C','G','D','A','E','B'];
   const NATPC = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
   const tpcSpell = tpc => ({ letter: LETTERS[((tpc + 1) % 7 + 7) % 7], acc: Math.floor((tpc + 1) / 7) - 2 });
@@ -9015,7 +9046,6 @@ function parseMuseScore(mscx, filename) {
   // it belongs to: <no> is the verse index (0 = first verse — the only one
   // imported here), <syllabic> is begin/middle/end/single, <text> the
   // syllable itself. Mirrors the MusicXML importer's w: handling below.
-  let hasLyrics = false;
   const wEscape = s => (s || '').replace(/[-_*~]/g, '');
   function lyricTokenFor(chordEl, tieStop) {
     const lyr = chordEl.querySelector('Lyrics');
@@ -9023,95 +9053,172 @@ function parseMuseScore(mscx, filename) {
     if (lyr && (!verse || verse === '0')) {
       const text = wEscape(lyr.querySelector('text')?.textContent);
       if (text) {
-        hasLyrics = true;
         const syl = lyr.querySelector('syllabic')?.textContent.trim() || 'single';
-        return (syl === 'begin' || syl === 'middle') ? text + '-' : text;
+        return { token: (syl === 'begin' || syl === 'middle') ? text + '-' : text, had: true };
       }
     }
-    return tieStop ? '_' : '*';
+    return { token: tieStop ? '_' : '*', had: false };
   }
 
-  let meterN = 4, meterD = 4, keySharps = 0, headerKey = null, headerMeter = null, pendingHarmony = null;
-  const measures = [...staff.querySelectorAll('Measure')];
-  const outBars = [], lyricBars = [];
-  measures.forEach((meas, mi) => {
-    let bar = '', lyricBar = [];
-    const keyAcc = {};
-    if (keySharps > 0) SHARPS.slice(0, keySharps).forEach(L => keyAcc[L] = 1);
-    else if (keySharps < 0) FLATS.slice(0, -keySharps).forEach(L => keyAcc[L] = -1);
-    const measureAcc = {};
-    if (meas.querySelector('startRepeat')) bar += '|:';
-    const voice = meas.querySelector('voice') || meas;
-    for (const el of voice.children) {
-      const tag = el.tagName;
-      if (tag === 'KeySig') {
-        const ck = el.querySelector('concertKey'); if (!ck) continue;
-        keySharps = parseInt(ck.textContent);
-        if (headerKey === null) headerKey = KEYMAP[keySharps] || 'C'; else bar += '[K:' + (KEYMAP[keySharps] || 'C') + ']';
-        for (const k in keyAcc) delete keyAcc[k];
-        if (keySharps > 0) SHARPS.slice(0, keySharps).forEach(L => keyAcc[L] = 1);
-        else if (keySharps < 0) FLATS.slice(0, -keySharps).forEach(L => keyAcc[L] = -1);
-        continue;
-      }
-      if (tag === 'TimeSig') {
-        const n = el.querySelector('sigN'), d = el.querySelector('sigD'); if (!n || !d) continue;
-        meterN = parseInt(n.textContent); meterD = parseInt(d.textContent);
-        if (headerMeter === null) headerMeter = meterN + '/' + meterD; else bar += '[M:' + meterN + '/' + meterD + ']';
-        continue;
-      }
-      if (tag === 'Harmony') { pendingHarmony = harmonyText(el); continue; }
-      if (tag === 'Tuplet') { const an = el.querySelector('actualNotes'); if (an) bar += '(' + parseInt(an.textContent); continue; }
-      if (tag === 'Rest') {
-        const dtEl = el.querySelector('durationType'); const dt = dtEl ? dtEl.textContent : 'quarter';
-        let n64 = (dt === 'measure') ? meterN * (64 / meterD) : (DUR64[dt] || 16);
-        const dots = el.querySelector('dots'); if (dots) n64 *= (2 - Math.pow(0.5, parseInt(dots.textContent)));
-        bar += 'z' + lenTok(n64); lyricBar.push('*'); continue;
-      }
-      if (tag === 'Chord') {
-        const dtEl = el.querySelector('durationType'); let n64 = DUR64[dtEl ? dtEl.textContent : 'eighth'] || 8;
-        const dots = el.querySelector('dots'); if (dots) n64 *= (2 - Math.pow(0.5, parseInt(dots.textContent)));
-        const notes = [...el.querySelectorAll('Note')];
-        const hasTie = !!el.querySelector('Spanner[type="Tie"] next');
-        // Tie STOP (this chord CONTINUES a tie from the previous one, rather
-        // than starting one) is what decides whether a chord with no
-        // <Lyrics> of its own should read as "_" (extend) vs "*" (skip).
-        const tieStop = !!el.querySelector('Spanner[type="Tie"] prev');
-        if (pendingHarmony) { bar += '"' + pendingHarmony + '"'; pendingHarmony = null; }
-        const noteStr = nt => {
-          const pitch = parseInt(nt.querySelector('pitch').textContent);
-          const tpc = parseInt(nt.querySelector('tpc').textContent);
-          const info = abcNote(pitch, tpc);
-          const key = info.letter + info.octave;
-          const eff = (key in measureAcc) ? measureAcc[key] : (keyAcc[info.letter] || 0);
-          let accStr = '';
-          if (info.acc !== eff) { accStr = info.acc > 0 ? '^'.repeat(info.acc) : info.acc < 0 ? '_'.repeat(-info.acc) : '='; measureAcc[key] = info.acc; }
-          return accStr + info.base;
-        };
-        if (!notes.length) continue;
-        bar += (notes.length === 1 ? noteStr(notes[0]) : '[' + notes.map(noteStr).join('') + ']') + lenTok(n64);
-        if (hasTie) bar += '-';
-        lyricBar.push(lyricTokenFor(el, tieStop));
-        continue;
-      }
-    }
-    if (meas.querySelector('endRepeat')) bar += ':|';
-    else bar += (mi < measures.length - 1) ? '|' : '|]';
-    outBars.push(bar);
-    lyricBars.push(lyricBar.join(' '));
+  // ── Multi-part / multi-staff support ────────────────────────────────────
+  // MuseScore groups staves by instrument in the header: each <Part> lists
+  // the <Staff id="N"> ids it owns (a grand-staff instrument like Piano owns
+  // TWO staff ids — treble + bass). The actual notes live in separate
+  // top-level <Staff id="N"><Measure>...</Measure></Staff> blocks in the
+  // document body. Per-staff default clef comes from the header's
+  // <defaultClef> (absent = treble/G).
+  const headerParts = [...doc.querySelectorAll('Part')];
+  const CLEF_MAP = { G: 'treble', F: 'bass', C: 'alto', PERC: 'perc' };
+  const partsInfo = headerParts.map((p, pi) => {
+    const staffEls = [...p.querySelectorAll('Staff')];
+    const staffIds = staffEls.map(s => s.getAttribute('id'));
+    const clefs = staffEls.map(s => {
+      const raw = (s.querySelector('defaultClef')?.textContent || 'G').trim().replace(/\d+$/, '');
+      return CLEF_MAP[raw] || 'treble';
+    });
+    const label = p.querySelector('trackName')?.textContent.trim()
+               || p.querySelector('Instrument longName')?.textContent.trim()
+               || ('Part ' + (pi + 1));
+    return { staffIds, clefs, label };
   });
 
-  // Interleave w: lyric lines directly under the bar line each annotates
-  // (ABC requires that adjacency) — only when the score actually had lyrics;
-  // purely instrumental imports come out exactly as before.
-  const bodyLines = hasLyrics
-    ? outBars.flatMap((bar, i) => (lyricBars[i] && lyricBars[i].trim()) ? [bar, 'w: ' + lyricBars[i]] : [bar])
-    : outBars;
+  // Converts a single body <Staff> element's measures into ABC bar/lyric
+  // lines. Fully self-contained state per call so multiple staves (voices
+  // within a grand staff, or separate instrument parts) never leak
+  // key/meter/lyric tracking into each other.
+  function convertStaff(staffEl) {
+    let meterN = 4, meterD = 4, keySharps = 0, headerKeyLocal = null, headerMeterLocal = null, pendingHarmony = null;
+    let hasLyrics = false;
+    const measures = [...staffEl.querySelectorAll('Measure')];
+    const outBars = [], lyricBars = [];
+    measures.forEach((meas, mi) => {
+      let bar = '', lyricBar = [];
+      const keyAcc = {};
+      if (keySharps > 0) SHARPS.slice(0, keySharps).forEach(L => keyAcc[L] = 1);
+      else if (keySharps < 0) FLATS.slice(0, -keySharps).forEach(L => keyAcc[L] = -1);
+      const measureAcc = {};
+      if (meas.querySelector('startRepeat')) bar += '|:';
+      const voice = meas.querySelector('voice') || meas;
+      for (const el of voice.children) {
+        const tag = el.tagName;
+        if (tag === 'KeySig') {
+          const ck = el.querySelector('concertKey'); if (!ck) continue;
+          keySharps = parseInt(ck.textContent);
+          if (headerKeyLocal === null) headerKeyLocal = KEYMAP[keySharps] || 'C'; else bar += '[K:' + (KEYMAP[keySharps] || 'C') + ']';
+          for (const k in keyAcc) delete keyAcc[k];
+          if (keySharps > 0) SHARPS.slice(0, keySharps).forEach(L => keyAcc[L] = 1);
+          else if (keySharps < 0) FLATS.slice(0, -keySharps).forEach(L => keyAcc[L] = -1);
+          continue;
+        }
+        if (tag === 'TimeSig') {
+          const n = el.querySelector('sigN'), d = el.querySelector('sigD'); if (!n || !d) continue;
+          meterN = parseInt(n.textContent); meterD = parseInt(d.textContent);
+          if (headerMeterLocal === null) headerMeterLocal = meterN + '/' + meterD; else bar += '[M:' + meterN + '/' + meterD + ']';
+          continue;
+        }
+        if (tag === 'Harmony') { pendingHarmony = harmonyText(el); continue; }
+        if (tag === 'Tuplet') { const an = el.querySelector('actualNotes'); if (an) bar += '(' + parseInt(an.textContent); continue; }
+        if (tag === 'Rest') {
+          const dtEl = el.querySelector('durationType'); const dt = dtEl ? dtEl.textContent : 'quarter';
+          let n64 = (dt === 'measure') ? meterN * (64 / meterD) : (DUR64[dt] || 16);
+          const dots = el.querySelector('dots'); if (dots) n64 *= (2 - Math.pow(0.5, parseInt(dots.textContent)));
+          bar += 'z' + lenTok(n64); lyricBar.push('*'); continue;
+        }
+        if (tag === 'Chord') {
+          const dtEl = el.querySelector('durationType'); let n64 = DUR64[dtEl ? dtEl.textContent : 'eighth'] || 8;
+          const dots = el.querySelector('dots'); if (dots) n64 *= (2 - Math.pow(0.5, parseInt(dots.textContent)));
+          const notes = [...el.querySelectorAll('Note')];
+          const hasTie = !!el.querySelector('Spanner[type="Tie"] next');
+          // Tie STOP (this chord CONTINUES a tie from the previous one, rather
+          // than starting one) is what decides whether a chord with no
+          // <Lyrics> of its own should read as "_" (extend) vs "*" (skip).
+          const tieStop = !!el.querySelector('Spanner[type="Tie"] prev');
+          if (pendingHarmony) { bar += '"' + pendingHarmony + '"'; pendingHarmony = null; }
+          const noteStr = nt => {
+            const pitch = parseInt(nt.querySelector('pitch').textContent);
+            const tpc = parseInt(nt.querySelector('tpc').textContent);
+            const info = abcNote(pitch, tpc);
+            const key = info.letter + info.octave;
+            const eff = (key in measureAcc) ? measureAcc[key] : (keyAcc[info.letter] || 0);
+            let accStr = '';
+            if (info.acc !== eff) { accStr = info.acc > 0 ? '^'.repeat(info.acc) : info.acc < 0 ? '_'.repeat(-info.acc) : '='; measureAcc[key] = info.acc; }
+            return accStr + info.base;
+          };
+          if (!notes.length) continue;
+          bar += (notes.length === 1 ? noteStr(notes[0]) : '[' + notes.map(noteStr).join('') + ']') + lenTok(n64);
+          if (hasTie) bar += '-';
+          const lt = lyricTokenFor(el, tieStop);
+          if (lt.had) hasLyrics = true;
+          lyricBar.push(lt.token);
+          continue;
+        }
+      }
+      if (meas.querySelector('endRepeat')) bar += ':|';
+      else bar += (mi < measures.length - 1) ? '|' : '|]';
+      outBars.push(bar);
+      lyricBars.push(lyricBar.join(' '));
+    });
 
-  const abc = ['X:1', 'T: ' + title, composer ? 'C: ' + composer : '',
-               'M: ' + (headerMeter || '4/4'), 'L: 1/16', 'K: ' + (headerKey || 'C')]
-              .filter(Boolean).concat(bodyLines).join('\n');
-  return { title, artist: composer, key: headerKey || 'C', type: 'Sheet Music',
-           _source: 'abc', abc_text: abc, abc_file_name: filename };
+    // Interleave w: lyric lines directly under the bar line each annotates
+    // (ABC requires that adjacency) — only when this staff actually had
+    // lyrics; purely instrumental staves come out exactly as before.
+    const bodyLines = hasLyrics
+      ? outBars.flatMap((bar, i) => (lyricBars[i] && lyricBars[i].trim()) ? [bar, 'w: ' + lyricBars[i]] : [bar])
+      : outBars;
+    return { bodyLines, headerKey: headerKeyLocal, headerMeter: headerMeterLocal };
+  }
+
+  const bodyStaves = [...doc.querySelectorAll('Staff')].filter(s => s.querySelector('Measure'));
+  if (!bodyStaves.length) return null;
+  const staffById = {};
+  bodyStaves.forEach(s => { staffById[s.getAttribute('id')] = s; });
+
+  // Group body staves by their owning header <Part>. If the header parsing
+  // comes up empty for some reason (malformed file), fall back to treating
+  // every body staff as its own single-staff part.
+  const groupedParts = partsInfo
+    .map(pi => ({ label: pi.label, clefs: pi.clefs, staves: pi.staffIds.map(id => staffById[id]).filter(Boolean) }))
+    .filter(gp => gp.staves.length > 0);
+  const finalGroups = groupedParts.length ? groupedParts
+    : bodyStaves.map((s, i) => ({ label: 'Part ' + (i + 1), clefs: ['treble'], staves: [s] }));
+
+  let overallKey = null;
+  const parts = finalGroups.map(g => {
+    const converted = g.staves.map(convertStaff);
+    const headerKey = converted[0].headerKey;
+    const headerMeter = converted[0].headerMeter;
+    if (overallKey === null) overallKey = headerKey;
+    const headerLines = ['X:1', 'T: ' + title, composer ? 'C: ' + composer : '',
+                          'M: ' + (headerMeter || '4/4'), 'L: 1/16', 'K: ' + (headerKey || 'C')].filter(Boolean);
+    let bodyLines;
+    if (converted.length === 1) {
+      bodyLines = converted[0].bodyLines;
+    } else {
+      // Grand-staff / multi-staff instrument: represent as ABC multi-voice
+      // (V:1, V:2, ...) with each staff's own clef, so a piano's treble +
+      // bass staves — or an orchestral instrument split across staves —
+      // render and transpose together as one part.
+      bodyLines = [];
+      converted.forEach((c, vi) => {
+        bodyLines.push('V:' + (vi + 1) + ' clef=' + (g.clefs[vi] || 'treble'));
+        bodyLines.push(...c.bodyLines);
+      });
+    }
+    const abc = headerLines.concat(bodyLines).join('\n');
+    return { label: g.label, abc };
+  });
+
+  if (!parts.length) return null;
+
+  return {
+    title, artist: composer, key: overallKey || 'C', type: 'Sheet Music',
+    _source: 'abc', abc_text: parts[0].abc, abc_file_name: filename,
+    // abc_parts is only set when the score has more than one instrument/part
+    // (e.g. Soprano/Alto/Piano) so single-part imports behave exactly as
+    // before — code that doesn't know about multi-part songs can keep
+    // reading abc_text and ignore abc_parts entirely.
+    ...(parts.length > 1 ? { abc_parts: parts } : {}),
+  };
 }
 
 function parseMusicXML(xmlText, filename) {
@@ -13183,7 +13290,23 @@ function _syncSidebarCompensation() {
     // otherwise "compensated".
     const handle = document.getElementById('sidebar-resize-handle');
     const handleW = (handle && handle.offsetParent !== null) ? handle.offsetWidth : 0;
-    document.documentElement.style.setProperty('--sidebar-compensate', (sidebar.offsetWidth + handleW) + 'px');
+    const fullCompensate = sidebar.offsetWidth + handleW;
+    // Spending the full compensation always costs the card that same amount
+    // of width (it's #main's padding-right, which shrinks #main's content
+    // box that the 820px-max-width card sizes itself against) — on a wide
+    // desktop that's free, since the card was already capped at 820px with
+    // room to spare either way. But on a narrower "portrait" viewport where
+    // #main isn't wide enough to hit that cap in the first place, spending
+    // the full amount was shrinking the card well below what it could
+    // otherwise be, just to keep it visually centred on the FULL viewport
+    // (sidebar included). Width wins that trade-off: only compensate up to
+    // however much slack #main has left over once the card has already
+    // reached its 820px max — never enough to push it below that max.
+    const CARD_MAX_W = 820, BASE_HPAD = 48;   // #main's own left+right padding (24px each)
+    const naturalMainW = window.innerWidth - sidebar.offsetWidth - handleW;
+    const slackPastCardMax = naturalMainW - BASE_HPAD - CARD_MAX_W;
+    const compensate = Math.min(fullCompensate, Math.max(0, slackPastCardMax));
+    document.documentElement.style.setProperty('--sidebar-compensate', compensate + 'px');
   }
 }
 window.addEventListener('resize', _syncSidebarCompensation);
@@ -14799,8 +14922,71 @@ function downloadSong(song, bodyOverride) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('💾 Downloaded: ' + filename);
+  showToast(t('download.toast', { filename }));
 }
+
+// ── SHARE — one-tap OS share sheet (Messages/WhatsApp/Discord/etc.) ────────
+// Builds the same file Save As would download, then hands it to the Web
+// Share API (level 2, file sharing) so mobile users can send a song out in
+// one tap instead of downloading it and attaching it manually. Falls back to
+// a plain download on platforms that don't support sharing files (most
+// desktop browsers) — a text-only share wouldn't actually carry the song, so
+// there's no useful partial fallback between "share the file" and "download
+// the file", only those two.
+function _shareableFile(song) {
+  const title = song.title || 'Untitled';
+  if (song._source === 'abc') {
+    // Multi-part songs share the WHOLE score (every instrument's tab), not
+    // just whichever tab is currently open — same reasoning as Save As.
+    const body = (song.abc_parts && song.abc_parts.length > 1)
+      ? song.abc_parts.map((p, i) => (p.abc || '').replace(/^X:\s*\d+/m, 'X:' + (i + 1))).join('\n\n')
+      : (song.abc_text || song.tab_content || '');
+    return { blob: new Blob([body], { type: 'text/plain' }), filename: title.replace(/[/\\:*?"<>|]/g, '_') + '.abc' };
+  }
+  if (song._source === 'ireal' || song.ireal_chart) {
+    const out = Object.assign({}, song, { _ms_format: 'lead-sheet', _ms_version: 1 });
+    return { blob: new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }), filename: title.replace(/[/\\:*?"<>|]/g, '_') + '.mslead' };
+  }
+  // Plain-text / tab / chord sheet (default) — same header format as downloadSong().
+  const artist = song.artist || '';
+  const body   = song.tab_content || song.content || song.tab || '';
+  const header = [
+    '----------------------------------------------------------------------',
+    'Song name: ' + title + (artist ? '  by  ' + artist : ''),
+    '----------------------------------------------------------------------', '',
+  ].join('\n');
+  return {
+    blob: new Blob([header + body], { type: 'text/plain' }),
+    filename: (title + (artist ? ' - ' + artist : '')).replace(/[/\\:*?"<>|]/g, '_') + '.txt',
+  };
+}
+async function shareSong(song) {
+  if (!song) return;
+  const { blob, filename } = _shareableFile(song);
+  let file;
+  try { file = new File([blob], filename, { type: blob.type }); } catch (e) { file = null; }
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ title: song.title || 'Untitled', text: t('share.defaultMessage'), files: [file] });
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;   // user backed out of the share sheet — not an error
+      console.warn('[share] navigator.share failed, falling back to download:', e);
+    }
+  }
+  // Fallback: no file-capable share sheet on this platform — download instead,
+  // same as Save As, so the user still ends up with something they can attach.
+  const url = URL.createObjectURL(blob);
+  const a   = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast(t('share.fallbackDownloaded', { filename }));
+}
+document.getElementById('btn-share-song').addEventListener('click', () => {
+  if (currentIdx >= 0) shareSong(songs[currentIdx]);
+});
+document.getElementById('btn-abc-share').addEventListener('click', () => {
+  if (currentIdx >= 0) shareSong(songs[currentIdx]);
+});
 
 function saveCurrentEdits() {
   if (currentIdx < 0) return;
@@ -17082,12 +17268,79 @@ let _abcTuneTrSig = '';   // identity of the current render; offsets reset when 
 function _abcEffectiveTr(i) { return (_abcTuneTr[i] || 0) + transposeAmount; }
 // First value of an ABC header field (e.g. T, C, R, K) within a tune block.
 function _abcField(block, L) { const m = block.match(new RegExp('^' + L + ':\\s*(.+)', 'm')); return m ? m[1].trim() : ''; }
+// ── Multi-part songs (MuseScore/MusicXML imports with >1 instrument, e.g. a
+// choral+piano score) ───────────────────────────────────────────────────────
+// song.abc_parts, when present, is [{label, abc}, ...] — one full ABC tune per
+// instrument/staff group. song._abcActivePart is the index of the part
+// currently shown/edited/played; it's plain song state so it round-trips
+// through saveSongs() like any other field, and each song remembers its own
+// last-viewed tab.
+function _abcActivePartIdx(song) {
+  if (!song || !song.abc_parts || song.abc_parts.length < 2) return 0;
+  var idx = song._abcActivePart || 0;
+  if (idx < 0 || idx >= song.abc_parts.length) idx = 0;
+  return idx;
+}
+// Read the ABC text for whichever part is currently active (or the plain
+// abc_text/tab_content for ordinary single-part songs).
+function _abcGetText(song) {
+  if (song.abc_parts && song.abc_parts.length > 1) {
+    var idx = _abcActivePartIdx(song);
+    return (song.abc_parts[idx] && song.abc_parts[idx].abc) || song.abc_text || '';
+  }
+  return song.abc_text || song.tab_content || '';
+}
+// Write new ABC text back into whichever part is currently active. Part 0
+// stays mirrored onto abc_text/tab_content so any older code path that isn't
+// multi-part-aware keeps working against the first (usually the melody/lead)
+// part.
+function _abcSetText(song, txt) {
+  if (song.abc_parts && song.abc_parts.length > 1) {
+    var idx = _abcActivePartIdx(song);
+    if (song.abc_parts[idx]) song.abc_parts[idx].abc = txt;
+    if (idx === 0) { song.abc_text = txt; song.tab_content = txt; }
+  } else {
+    song.abc_text = txt; song.tab_content = txt;
+  }
+}
+// Renders the tab strip above the notation for multi-part songs; hidden
+// entirely (and a no-op) for ordinary single-part songs.
+function _abcRenderPartTabs(song) {
+  var host = document.getElementById('abc-parts-tabs');
+  if (!host) return;
+  if (!song.abc_parts || song.abc_parts.length < 2) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  var activeIdx = _abcActivePartIdx(song);
+  host.innerHTML = '';
+  song.abc_parts.forEach(function(p, i) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'abc-part-tab' + (i === activeIdx ? ' active' : '');
+    btn.textContent = p.label || (t('sheetmusic.partFallback', { n: i + 1 }));
+    btn.addEventListener('click', function() {
+      if (_abcActivePartIdx(song) === i) return;
+      // Leaving edit mode's textarea state behind on tab switch would silently
+      // drop in-progress edits to the part you're leaving — persist first.
+      if (document.getElementById('abc-editor-wrap').style.display !== 'none') _abcPersistEdits();
+      song._abcActivePart = i;
+      saveSongs();
+      renderABCSong(song);
+      if (document.getElementById('abc-editor-wrap').style.display !== 'none') {
+        document.getElementById('abc-editor').value = _abcGetText(song);
+        _abcEditOrig = document.getElementById('abc-editor').value;
+      }
+    });
+    host.appendChild(btn);
+  });
+  host.style.display = 'flex';
+}
+
 // The ABC source to render/play: the combined set text when a set is active for
-// the current song, otherwise the song's own abc_text.
+// the current song, otherwise the current part's abc_text (multi-part songs)
+// or the song's own abc_text (ordinary single-part songs).
 function _abcSrc(song) {
   if (_abcSet && _abcSet.baseIdx === currentIdx && songs[currentIdx] === song && _abcSet.text)
     return _abcSet.text;
-  return song.abc_text || '';
+  return _abcGetText(song);
 }
 
 function renderABCSong(song) {
@@ -17100,8 +17353,11 @@ function renderABCSong(song) {
       ? _abcSet.order.map(function(i){ return (songs[i] && songs[i].title) || 'Untitled'; }).join(' · ')
       : (song.title || 'Untitled');
   document.getElementById('abc-artist').textContent = song.artist || '';
-  // Derive key directly from the ABC K: header (immune to stale song.key in storage)
-  const _abcKeyMatch = (song.abc_text || '').match(/^K:\s*([A-G][b#]?\s*\S*)/m);
+  _abcRenderPartTabs(song);
+  // Derive key directly from the ABC K: header (immune to stale song.key in storage).
+  // Uses _abcGetText (not _abcSrc) so an active multi-song Set doesn't change
+  // which key this reads — only which part-tab is active matters here.
+  const _abcKeyMatch = (_abcGetText(song) || '').match(/^K:\s*([A-G][b#]?\s*\S*)/m);
   const _rawKey = _abcKeyMatch ? _abcKeyMatch[1].trim() : song.key;
   const _normKey = normaliseKeyStr(_rawKey || '') || song.key || '';
   song.key = _normKey;  // update in memory (and save so next load has correct key)
@@ -17143,7 +17399,7 @@ function renderABCSong(song) {
   if (typeof ABCJS === 'undefined' || typeof ABCJS.renderAbc !== 'function') {
     document.getElementById('abc-notation').innerHTML =
       '<pre style="font-family:monospace;font-size:0.82rem;white-space:pre-wrap;opacity:0.8">'
-      + song.abc_text.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>';
+      + (_abcGetText(song) || '').replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>';
     document.getElementById('abc-status').textContent = '⚠ Sheet music error';
     return;
   }
@@ -17386,14 +17642,19 @@ function _abcPersistEdits() {
   if (!song) return;
   const txt = document.getElementById('abc-editor').value;
   if (txt === _abcEditOrig) return;   // nothing actually changed
-  song.abc_text = txt; song.tab_content = txt;
+  _abcSetText(song, txt);
+  // Song-level title/artist/key/type only come from part 0 (or the only part,
+  // for ordinary single-part songs) — editing the Alto or Piano tab of a
+  // multi-part song shouldn't rename the whole song from that tab's T: field.
   try {
-    const parsed = parseABCFile(txt, song.abc_file_name || song.title || 'tune')[0];
-    if (parsed) {
-      if (parsed.title)  song.title  = parsed.title;
-      if (parsed.artist) song.artist = parsed.artist;
-      if (parsed.key)    song.key    = parsed.key;
-      if (parsed.type)   song.type   = parsed.type;
+    if (_abcActivePartIdx(song) === 0) {
+      const parsed = parseABCFile(txt, song.abc_file_name || song.title || 'tune')[0];
+      if (parsed) {
+        if (parsed.title)  song.title  = parsed.title;
+        if (parsed.artist) song.artist = parsed.artist;
+        if (parsed.key)    song.key    = parsed.key;
+        if (parsed.type)   song.type   = parsed.type;
+      }
     }
   } catch (e) { /* keep existing metadata if the ABC can't be parsed yet */ }
   _abcNoteCache = {};                  // content changed — invalidate cached note timing
@@ -17521,14 +17782,32 @@ function _abcPermTranspose(n) {
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song) return;
   const ta = document.getElementById('abc-editor');
-  const current = ta.value || song.abc_text || song.tab_content || '';
-  const out = _abcTransposeText(current, n);
-  ta.value = out;
-  song.abc_text = out; song.tab_content = out;
-  try {
-    const parsed = parseABCFile(out, song.abc_file_name || song.title || 'tune')[0];
-    if (parsed && parsed.key) song.key = parsed.key;
-  } catch (e) { /* keep existing key if unparsable mid-edit */ }
+  let out;
+  if (song.abc_parts && song.abc_parts.length > 1) {
+    // Transpose every part together, not just the active tab's editor text —
+    // a musician transposing the Piano tab shouldn't come back to find the
+    // Soprano/Alto tabs left behind in the old key.
+    const activeIdx = _abcActivePartIdx(song);
+    song.abc_parts.forEach(function(p, i) {
+      p.abc = _abcTransposeText(i === activeIdx ? (ta.value || p.abc) : p.abc, n);
+    });
+    out = song.abc_parts[activeIdx].abc;
+    ta.value = out;
+    song.abc_text = song.abc_parts[0].abc; song.tab_content = song.abc_text;
+    try {
+      const parsed = parseABCFile(song.abc_parts[0].abc, song.abc_file_name || song.title || 'tune')[0];
+      if (parsed && parsed.key && activeIdx === 0) song.key = parsed.key;
+    } catch (e) { /* keep existing key if unparsable mid-edit */ }
+  } else {
+    const current = ta.value || song.abc_text || song.tab_content || '';
+    out = _abcTransposeText(current, n);
+    ta.value = out;
+    song.abc_text = out; song.tab_content = out;
+    try {
+      const parsed = parseABCFile(out, song.abc_file_name || song.title || 'tune')[0];
+      if (parsed && parsed.key) song.key = parsed.key;
+    } catch (e) { /* keep existing key if unparsable mid-edit */ }
+  }
   _abcEditOrig = out;
   _abcNoteCache = {};
   saveSongs();
@@ -17552,9 +17831,12 @@ document.getElementById('btn-abc-edit').addEventListener('click', () => {
   if (!editing) {
     _abcEditSnapshot = {
       title: song.title, artist: song.artist, key: song.key, type: song.type,
-      abc_text: song.abc_text, tab_content: song.tab_content
+      abc_text: song.abc_text, tab_content: song.tab_content,
+      // Deep-clone abc_parts so Cancel can revert every part, not just the
+      // one being edited when the user opened the editor.
+      abc_parts: song.abc_parts ? song.abc_parts.map(p => ({ label: p.label, abc: p.abc })) : undefined,
     };
-    document.getElementById('abc-editor').value = song.abc_text || song.tab_content || '';
+    document.getElementById('abc-editor').value = _abcGetText(song);
     _abcEditOrig = document.getElementById('abc-editor').value;
     _abcSetEditing(true);
   } else {
@@ -17585,7 +17867,7 @@ document.getElementById('abc-editor').addEventListener('input', function() {
   _abcEditT = setTimeout(function() {
     const s = currentIdx >= 0 ? songs[currentIdx] : null;
     if (!s || s._source !== 'abc') return;
-    s.abc_text = document.getElementById('abc-editor').value; s.tab_content = s.abc_text;
+    _abcSetText(s, document.getElementById('abc-editor').value);
     _abcNoteCache = {};
     saveSongs();
   }, 600);
@@ -17598,13 +17880,18 @@ document.getElementById('btn-publish-abc').addEventListener('click', () => {
 document.getElementById('btn-abc-save-as').addEventListener('click', () => {
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song) return;
-  const body = song.abc_text || song.tab_content || '';
+  // Multi-part songs export ALL parts together as a multi-tune ABC file
+  // (renumbered X:1, X:2, ...) rather than just whichever tab happens to be
+  // showing — this is the "download the whole score" action.
+  const body = (song.abc_parts && song.abc_parts.length > 1)
+    ? song.abc_parts.map((p, i) => (p.abc || '').replace(/^X:\s*\d+/m, 'X:' + (i + 1))).join('\n\n')
+    : (song.abc_text || song.tab_content || '');
   const fn   = (song.title || 'tune').replace(/[/\\\\:*?"<>|]/g, '_') + '.abc';
   const blob = new Blob([body], { type: 'text/plain' });
   const url  = URL.createObjectURL(blob);
   const a    = Object.assign(document.createElement('a'), { href: url, download: fn });
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  showToast('Downloaded: ' + fn);
+  showToast(t('download.toast', { filename: fn }));
 });
 
 document.getElementById('abc-play-btn').addEventListener('click', function() {
@@ -18246,10 +18533,12 @@ function _wtInjectTabs(notDiv, visualObj, tuneIdx, blockSrc) {
 // couple of frames so getBBox is valid). Heavily guarded — never breaks the print.
 function _wtInjectTabsPrint(svgs) {
   var song = currentIdx >= 0 ? songs[currentIdx] : null;
-  if (!song || !song.abc_text || !svgs || !svgs.length) return;
+  if (!song || !svgs || !svgs.length) return;
+  var _wtPrintSrc = _abcGetText(song);   // honor the active tab for multi-part songs
+  if (!_wtPrintSrc) return;
   var midiSeq = [];
   try {
-    abcToNotes(song.abc_text, 120, transposeAmount || 0)
+    abcToNotes(_wtPrintSrc, 120, transposeAmount || 0)
       .filter(function(n){ return n.freq > 0; })
       .forEach(function(n){ midiSeq.push(Math.round(freqToMidi(n.freq))); });
   } catch (e) {}
@@ -19335,7 +19624,12 @@ function renderIRealSong(song, opts){
   pubLsBtn.title=t('lsEdit.publishLeadSheetTitle');
   pubLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) showPublishModal([currentIdx]); });
 
+  const shareLsBtn=document.createElement('button');shareLsBtn.textContent=t('share.button');
+  shareLsBtn.title=t('share.buttonTitle');
+  shareLsBtn.addEventListener('click',()=>{ if(currentIdx>=0) shareSong(songs[currentIdx]); });
+
   saveMenu.appendChild(saveBtn);
+  saveMenu.appendChild(shareLsBtn);
   saveMenu.appendChild(urlBtn);
   saveMenu.appendChild(pubLsBtn);
 

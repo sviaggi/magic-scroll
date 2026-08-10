@@ -599,6 +599,16 @@ window.MS_STRINGS_EN = {
   'collections.alreadyInLibrary':       'Already in library',
   'collections.failed':                 'Failed',
   'collections.defaultFolderName':      'Collection',
+
+  // ── SHARE (native share-sheet, toolbar + kebab menu) ────────────────────
+  'share.button':                'Share…',
+  'share.buttonTitle':           'Share this with another app',
+  'share.defaultMessage':        "I'm sharing a bit of music via Magic Scroll",
+  'share.fallbackDownloaded':    'Downloaded {filename} (share not available on this device)',
+  'download.toast':              'Downloaded: {filename}',
+
+  // ── MULTI-PART SHEET MUSIC (MuseScore/MusicXML imports with >1 instrument) ─
+  'sheetmusic.partFallback':     'Part {n}',
 };
 
 // ── Active language ──────────────────────────────────────────────────────
