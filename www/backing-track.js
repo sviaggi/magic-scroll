@@ -783,13 +783,13 @@
     _schedNext = t0;
 
     var playBtn = document.getElementById('bt-play-btn');
-    // Was '⏸︎' (U+23F8 + text-presentation selector) — U+23F8 is an
-    // emoji-eligible codepoint, and the text-presentation selector isn't
-    // reliably honoured for it on every platform/webview, so it can still
-    // render as a colour emoji instead of a plain glyph. '‖' (U+2016 DOUBLE
-    // VERTICAL LINE) is a plain punctuation character with no emoji form at
-    // all, so it always renders as text.
-    if (playBtn) { playBtn.textContent = '‖'; playBtn.classList.add('bt-running'); }
+    // Pause icon: was '⏸︎' (U+23F8, emoji-eligible even with a text-
+    // presentation selector), then '‖' (U+2016 DOUBLE VERTICAL LINE, plain
+    // punctuation) — both still rendered wrong on some devices/fonts, so a
+    // third character isn't the fix. Empty textContent + .bt-running draws
+    // two CSS bars instead (see the #bt-play-btn.bt-running rule in
+    // MagicScroll-release.html), with no font dependency at all.
+    if (playBtn) { playBtn.textContent = ''; playBtn.classList.add('bt-running'); }
     var status = document.getElementById('bt-status');
     if (status) status.textContent = t('playbar.loading');
 

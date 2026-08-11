@@ -1473,7 +1473,17 @@
        longhand like font-size only wins over an EARLIER shorthand if it's
        declared AFTER it in this same rule. */
     font: inherit;
-    font-size: 0.68rem; font-family: var(--font-mono);
+    /* Was font-family: var(--font-mono) — that's a completely different
+       (and, via its fallback chain, notably smaller/thinner-looking)
+       typeface from the select rule's font-family: inherit below, despite
+       this same comment block already saying the goal is to match the
+       select exactly. That mismatch, not the iOS text-size-adjust issue
+       this comment originally targeted, is what actually made Piano/
+       Custom…/None look smaller and differently styled than the tuning
+       dropdowns (most visible on iOS because that's where the mono font's
+       'Valeson-ExtBla' / 'Courier Prime' fallbacks differ most from the
+       decorative --font-ui serif every select was already inheriting). */
+    font-size: 0.68rem; font-family: inherit;
     padding: 3px 7px;
     color: #3a2010; border-color: #c8b89a; background: #e8dece;
     width: 100%; box-sizing: border-box;
@@ -1507,11 +1517,25 @@
     background: var(--c-accent); color: #1a0a00;
     border-color: var(--c-accent); font-weight: bold; }
   .diagram-instrument-tabs select.inst-select {
-    font-size: 0.68rem; padding: 3px 4px; font-family: inherit;
+    font-size: 0.68rem; padding: 3px 18px 3px 4px; font-family: inherit; font-weight: normal;
     color: #3a2010; border: 1px solid #c8b89a; background: #e8dece;
     border-radius: 2px; cursor: pointer;
     width: 100%; max-width: 100%; box-sizing: border-box;
-    -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+    /* Without appearance:none, iOS Safari keeps rendering the select's
+       CLOSED/trigger text with its own native chrome (a bolder system font)
+       regardless of the font-family/font-weight set above — it only half-
+       respects author styling on <select> the way it fully does on <button>
+       (which already had appearance:none, see the rule above). That's why
+       every tuning dropdown read bold and the plain Piano/Custom…/None
+       buttons didn't: it was never really a button-vs-select font mismatch,
+       it was iOS ignoring our select styling in the first place. Resetting
+       appearance removes iOS's native dropdown arrow too, so a small custom
+       chevron is added via background-image below to keep it looking like a
+       dropdown instead of a plain field. */
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%233a2010' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 5px center; background-size: 9px 6px; }
   .diagram-instrument-tabs select.inst-select:hover { background: #d8cbbe; color: #1a0a00; }
   .diagram-instrument-tabs select.inst-select.active {
     background: var(--c-accent); color: #1a0a00;
@@ -2319,6 +2343,14 @@
       line-height: 20px;
       box-sizing: border-box;
     }
+    /* The select's base rule reserves extra right padding for the custom
+       dropdown-arrow background-image (added alongside appearance:none —
+       see that rule for why appearance:none is needed at all). This mobile
+       block's shared padding above would otherwise collapse that back down
+       to 5px and run the option text straight under the arrow. */
+    .diagram-instrument-tabs select.inst-select {
+      padding-right: 18px;
+    }
     /* Buttons default to centered text; selects default to left-aligned —
        match buttons to the selects' alignment so both sit flush left. */
     .diagram-instrument-tabs .inst-btn {
@@ -2918,6 +2950,23 @@
     justify-content: center;
     line-height: 1;
   }
+  /* Pause icon, drawn with CSS instead of a font glyph. Two rounds of
+     Unicode substitution — U+23F8 (emoji-eligible, even with a text-
+     presentation selector) and then U+2016 DOUBLE VERTICAL LINE (plain
+     punctuation, no emoji form) — still rendered wrong on some devices, so
+     the actual problem is font coverage/metrics for these codepoints
+     varying too much across platforms to fix with a better character
+     choice. Two bars built from currentColor boxes have no font dependency
+     at all, so this removes the whole class of failure. JS sets an empty
+     textContent + this class instead of a glyph (see startABCSynth). */
+  #abc-play-btn.icon-pause::before, #abc-play-btn.icon-pause::after {
+    content: '';
+    width: 3px;
+    height: 12px;
+    background: currentColor;
+    border-radius: 1px;
+  }
+  #abc-play-btn.icon-pause::before { margin-right: 3px; }
   #abc-player-bar:focus-within { border-color: var(--c-accent); }
   #abc-player-inner {
     padding: 10px 14px 8px;
@@ -3133,13 +3182,27 @@
   }
   .bt-ctrl-btn:hover { background: var(--c-chrome-bg2); color: var(--c-accent); }
   .bt-ctrl-btn.active { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
-  /* Play btn: fixed width absorbs ▶ ↔ ‖ text change */
+  /* Play btn: fixed width absorbs ▶ ↔ pause-icon change */
   .bt-play-btn { min-width: 38px; text-align: center; }
   #bt-plays { width: 38px; padding: 1px 3px; text-align: center;
     background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-text); border-radius: 3px; font-size: 0.72rem;
     font-family: var(--font-mono); }
   #bt-play-btn.bt-running { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); font-weight: bold; }
+  /* Pause icon, drawn with CSS instead of a font glyph — same fix and same
+     reasoning as #abc-play-btn.icon-pause above: U+23F8 then U+2016 both
+     still rendered wrong on some devices/fonts, so two currentColor bars
+     replace the glyph entirely instead of trying a third character. JS sets
+     textContent to '' while .bt-running is on (see backing-track.js) so
+     these pseudo-elements are the only thing drawn. */
+  #bt-play-btn.bt-running { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+  #bt-play-btn.bt-running::before, #bt-play-btn.bt-running::after {
+    content: '';
+    width: 3px;
+    height: 12px;
+    background: currentColor;
+    border-radius: 1px;
+  }
   /* BPM slider */
   .bt-tempo-slider { width: 58px; accent-color: var(--c-accent); flex-shrink: 0; }
   .bt-tempo-lbl { font-size: 0.7rem; min-width: 26px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
@@ -10344,7 +10407,12 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
     e.preventDefault();
     if (abcPlayerFocused && document.getElementById('abc-player-bar').style.display !== 'none') {
-      // Route spacebar to ABC play/pause
+      // Route spacebar to ABC play/pause. Bumps _abcActionGen too (see its
+      // definition) — without it, pressing Space right after Play (before
+      // Play's own ~150ms-delayed start had fired) would start a SECOND,
+      // immediate playback here, which the delayed one would then still
+      // barrel into shortly after.
+      _abcActionGen++;
       if (abcPlaying) stopABCSynth(); else startABCSynth(window._abcLastTuneIdx || 0);
     } else {
       safeToggleScroll();
@@ -17109,6 +17177,26 @@ let _abcNoteCache = {};       // per-tune built note timing, reused across plays
 let _abcTempoT    = null;     // debounce timer for tempo-slider restarts
 let _abcScrubbing = false;   // true while user is dragging the progress bar
 let _abcCursorTC  = null;    // ABCJS.TimingCallbacks instance for the note cursor
+let _pausedFrac   = null;    // saved 0..1 position from the last Pause, consumed by
+                              // startABCSynth() itself when a caller doesn't pass an
+                              // explicit seekFrac (see its top for why that matters).
+// Bumped by every user action that can (re)start playback — Play/Resume,
+// Stop, releasing the progress-bar scrubber, a tempo change while playing,
+// or tapping a per-tune play button. Several of those schedule their actual
+// startABCSynth() call after a short delay (either to let the AudioContext
+// finish resuming, or to debounce rapid slider input) — with nothing
+// guarding it, a delayed call queued by an OLDER action could still fire
+// after a NEWER action has already taken over (e.g. Stop, then Play again,
+// before the first Play's queued start had actually fired), silently
+// restarting/duplicating playback from a stale seek position — this was
+// still reproducible after the stop-before-start guard in startABCSynth()
+// alone, since that guard only protects against two LIVE playbacks
+// overlapping, not a start that hasn't happened yet racing a newer command.
+// Every delayed-start call site captures this counter's value when it
+// queues its setTimeout, then checks it's unchanged right before actually
+// calling startABCSynth() — a bump in between means a newer action has
+// superseded it, so it's skipped instead of firing late.
+let _abcActionGen = 0;
 
 function getABCAudioCtx() {
   // Shares the same AudioContext as the metronome so clocks are identical
@@ -17267,7 +17355,7 @@ function stopABCSynth(keepPause) {
   // If keepPause is set the caller will handle button text (pause scenario)
   if (!keepPause) _pausedFrac = null;
   const btn = document.getElementById('abc-play-btn');
-  if (btn && !keepPause) { btn.textContent = '▶︎'; btn.title = t('playbar.play'); btn.disabled = false; }
+  if (btn && !keepPause) { btn.classList.remove('icon-pause'); btn.textContent = '▶︎'; btn.title = t('playbar.play'); btn.disabled = false; }
   else if (btn && keepPause) { btn.disabled = false; }
   const stat = document.getElementById('abc-status');
   if (stat) stat.textContent = '';
@@ -17294,7 +17382,21 @@ function _abcPickupSec(events, fullMeasMs) {
   return 0;
 }
 
+// Diagnostic instrumentation for the still-unresolved playback-duplication
+// report: tags every startABCSynth() call with an incrementing session id and
+// logs the handoff points (start, torn-down-previous, stop, and any
+// scheduleChunk call that fires after its OWN session was supposed to have
+// stopped). If duplicate/offset audio is still audible, the console log
+// (filter for "[ABC]") will show whether it's really two overlapping
+// sessions (two #IDs both scheduling around the same wall-clock time with
+// neither having logged a "stop") or something else entirely (only one
+// session ever logs, ruling out a JS-level overlap and pointing at the
+// audio graph/WebAudioFont layer instead). Safe to leave in — cheap, and
+// only prints on user-triggered playback actions.
+let _abcSessionSeq = 0;
 function startABCSynth(tuneIdx, seekFrac) {
+  const _sid = ++_abcSessionSeq;
+  console.log('[ABC] start #' + _sid, { tuneIdx: tuneIdx, seekFrac: seekFrac, hadPrevSession: !!abcStopFn, pausedFrac: _pausedFrac, actionGen: _abcActionGen });
   // Defensive stop-before-start: abcStopFn and _abcCursorTC are shared
   // module-level vars, so if a PREVIOUS call's audio/cursor hasn't been torn
   // down yet (e.g. Play pressed again before an earlier 150ms-delayed resume
@@ -17308,12 +17410,32 @@ function startABCSynth(tuneIdx, seekFrac) {
   // cursor stops updating once a second TimingCallbacks instance overwrites
   // _abcCursorTC out from under the first one's still-running callbacks.
   // Tearing down whatever's live first guarantees at most one of each.
-  if (abcStopFn) { abcStopFn(); abcStopFn = null; }
+  if (abcStopFn) { console.log('[ABC] start #' + _sid + ' tearing down previous session before starting'); abcStopFn(); abcStopFn = null; }
   _stopABCCursor();
   abcPlaying = false;
 
   window._abcLastTuneIdx = tuneIdx || 0;
-  seekFrac = seekFrac || 0;
+  // Resume position: an explicit seekFrac (scrub-release, tempo-change
+  // restart, or the per-tune play button — which always stops+clears first)
+  // wins as-is. When the caller passes NONE — which is the case for both the
+  // spacebar shortcut AND, previously, a Play/Resume button press that had
+  // ALREADY nulled _pausedFrac synchronously before its own 150ms-delayed
+  // call reached here — fall back to whatever Pause last saved, resolved
+  // HERE, at the moment playback actually (re)commits, instead of at the
+  // moment the button was pressed. That's the fix for the reported "resumes
+  // from the paused position AND from the start at once": the Play/Resume
+  // handler used to read _pausedFrac into a local var and null the shared
+  // one immediately, so a second rapid press (double-click/tap, or a
+  // spacebar press landing in the same ~150ms gap while abcPlaying was still
+  // false) would find it already cleared and fall through to 0 — while the
+  // FIRST press's own delayed call could still be the one that ends up
+  // surviving the _abcActionGen guard, so which of the two positions "won"
+  // was a race. Consuming _pausedFrac in one place, only once a call is
+  // actually about to start playing, removes that race entirely.
+  if (seekFrac === undefined || seekFrac === null) {
+    seekFrac = (_pausedFrac !== null) ? _pausedFrac : 0;
+  }
+  _pausedFrac = null;
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song || song._source !== 'abc') return;
   const bpm = parseInt(document.getElementById('abc-tempo').value) || 120;
@@ -17429,18 +17551,44 @@ function startABCSynth(tuneIdx, seekFrac) {
     startOffset = Math.max(0.25, db - ctx.currentTime - _pickupSec);
   }
 
+  // Set BEFORE scheduling starts (was previously set after, down where the
+  // play-button icon is updated) — scheduleChunk() below is called
+  // synchronously once, immediately, and its very first line bails out if
+  // !abcPlaying. With the flag still false at that point, that first call
+  // was always a silent no-op, and actual scheduling didn't begin until the
+  // first setInterval tick ~250ms later. Not the reported duplication bug
+  // (evtIdx/noteIndex hadn't advanced yet, so no notes were skipped — just
+  // delayed), but worth fixing since it also made the new scheduleChunk
+  // diagnostic below log a false "stale interval" warning on every normal
+  // play.
+  abcPlaying = true;
+
   // ── Incremental scheduler ─────────────────────────────────────────────────
   const LOOKAHEAD   = 1.5;
   const SCHEDULE_MS = 250;
 
-  // t = audio-clock time for the NEXT note to schedule.
+  // _schedT = audio-clock time for the NEXT note to schedule.
   // Always starts at ctx.currentTime + startOffset regardless of seek position.
   // Only noteIndex/evtIdx advances to skip past the sought position.
-  let t      = ctx.currentTime + startOffset;
+  // Named _schedT (not the more obvious `t`) because `t()` is the global i18n
+  // translation function used later in this same function (e.g. for the
+  // pause-button title) — a local `let t` would shadow it for this entire
+  // function body, and every call to `t('...')` after this declaration would
+  // throw "t is not a function" instead of translating. That's exactly what
+  // was happening: startABCSynth crashed on that line on EVERY play, after
+  // scheduling had already started but before abcStopFn (assigned at the very
+  // end of the function) ever got created — so the interval it just started
+  // could never be cleared by any Stop/Play/Pause action, and the gain node
+  // it played through was never disconnected. Every Play press left behind
+  // one more permanently-running, unstoppable playback session stacked on
+  // top of the others — that's the reported duplicate/offset audio.
+  let _schedT = ctx.currentTime + startOffset;
   const startCtxTime = ctx.currentTime;
   const scheduled = [];
+  let _noteCount = 0;   // diagnostic: how many notes THIS session has scheduled
 
   function _schedOneNote(freq, dur, when) {
+    _noteCount++;
     // 1) user-loaded soundfont (SF2/SFZ) takes priority if present
     if (playNoteFromSFZ(ctx, gain, freq, when, dur)) return;
     // 2) bundled FluidR3 piano via backing-track.js (WebAudioFont)
@@ -17472,13 +17620,13 @@ function startABCSynth(tuneIdx, seekFrac) {
     const seekMs    = totalMs * seekFrac;
     // audioStart: ctx time corresponding to timing ms=0.
     // Note at seekMs plays at ctx.currentTime + startOffset  →  audioStart = that - seekMs/1000
-    const audioStart = t - seekMs / 1000;
+    const audioStart = _schedT - seekMs / 1000;
     let evtIdx = 0;
     // Skip events before seek position
     while (evtIdx < timingEvents.length && timingEvents[evtIdx].milliseconds < seekMs) evtIdx++;
 
     function scheduleChunk() {
-      if (!abcPlaying) return;
+      if (!abcPlaying) { console.log('[ABC] #' + _sid + ' scheduleChunk fired after abcPlaying=false (stale interval not cleared?)'); return; }
       const until = ctx.currentTime + LOOKAHEAD;
       while (evtIdx < timingEvents.length) {
         const ev      = timingEvents[evtIdx];
@@ -17512,24 +17660,25 @@ function startABCSynth(tuneIdx, seekFrac) {
     }
 
     function scheduleChunk() {
-      if (!abcPlaying) return;
+      if (!abcPlaying) { console.log('[ABC] #' + _sid + ' scheduleChunk (fallback) fired after abcPlaying=false (stale interval not cleared?)'); return; }
       const until = ctx.currentTime + LOOKAHEAD;
-      while (noteIndex < notes.length && t < until) {
+      while (noteIndex < notes.length && _schedT < until) {
         const { freq, dur } = notes[noteIndex++];
-        if (freq > 0) _schedOneNote(freq, dur, t);
-        t += dur;
+        if (freq > 0) _schedOneNote(freq, dur, _schedT);
+        _schedT += dur;
       }
     }
     scheduleChunk();
     schedulerTimer = setInterval(scheduleChunk, SCHEDULE_MS);
   }
 
-  abcPlaying = true;
-  // '‖' (U+2016) instead of '⏸︎' (U+23F8 + text-presentation selector) —
-  // U+23F8 is emoji-eligible and the selector isn't reliably honoured on
-  // every platform, so it could still render as a colour emoji; U+2016 has
-  // no emoji form to fall back to. Matches the same fix in backing-track.js.
-  document.getElementById('abc-play-btn').textContent = '‖';
+  // Pause icon: was '⏸︎' (U+23F8, emoji-eligible even with a text-
+  // presentation selector), then '‖' (U+2016 DOUBLE VERTICAL LINE, plain
+  // punctuation) — both still rendered wrong on some devices/fonts, so a
+  // third character wasn't the fix. Empty textContent + .icon-pause draws
+  // two CSS bars instead (see the #abc-play-btn.icon-pause rule), with no
+  // font dependency at all. Matches the same fix in backing-track.js.
+  { const _pb = document.getElementById('abc-play-btn'); _pb.textContent = ''; _pb.classList.add('icon-pause'); }
   document.getElementById('abc-play-btn').title = t('playbar.pause');
   document.getElementById('abc-status').textContent = '';
 
@@ -17609,10 +17758,12 @@ function startABCSynth(tuneIdx, seekFrac) {
       if (!_abcScrubbing) return;
       _abcScrubbing = false;
       const sf = parseFloat(progressEl.value) / 100;
+      _abcActionGen++;
+      const myGen = _abcActionGen;
       stopABCSynth();
       _getRunningCtx()
-        .then(function()  { setTimeout(function() { startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); })
-        .catch(function() { setTimeout(function() { startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); });
+        .then(function()  { setTimeout(function() { if (myGen !== _abcActionGen) return; startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); })
+        .catch(function() { setTimeout(function() { if (myGen !== _abcActionGen) return; startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); });
     }
     progressEl.addEventListener('mousedown',  _onScrubStart);
     progressEl.addEventListener('touchstart', _onScrubStart, { passive: true });
@@ -17631,6 +17782,7 @@ function startABCSynth(tuneIdx, seekFrac) {
   const remainDur = notesTotalDur * (1 - seekFrac);
   const timer = setTimeout(() => stopABCSynth(), (remainDur + startOffset + 0.5) * 1000);
   abcStopFn = () => {
+    console.log('[ABC] stop #' + _sid, { notesScheduled: _noteCount, scheduledOscCount: scheduled.length });
     clearInterval(schedulerTimer);
     clearTimeout(timer);
     cancelAnimationFrame(rafId);
@@ -17755,6 +17907,12 @@ function renderABCSong(song) {
   saveSongs();          // persist normalised key so reload shows 'Em' not 'Emin'
   updateKeyDisplay();  // syncs topbar ♭−[key]♯+ displayplay
   _pausedFrac = null;
+  // Invalidates any delayed start still pending from whatever song/tune was
+  // showing before this render (e.g. Play pressed, then the user switched to
+  // a different song before that press's ~150ms-delayed start had fired) —
+  // without this, the stale call would go on to start the NEW song's tune 0
+  // using the OLD song's leftover seek position once it finally fired.
+  _abcActionGen++;
   stopABCSynth();
 
   // Sync metronome controls from ABC headers
@@ -17880,6 +18038,9 @@ function renderABCSong(song) {
     _wireAbcChordDiagrams(notDiv);   // chord symbols ("G" above the staff) → tappable diagrams
     (function(capturedIdx) {
       hdr.querySelector('.abc-item-play').addEventListener('click', function() {
+        // Invalidates any pending delayed start queued by Play/scrub/tempo —
+        // this call is synchronous (no delay of its own) so it always wins.
+        _abcActionGen++;
         stopABCSynth();
         // Show ▶ indicator on this tune only
         document.querySelectorAll('.abc-now-playing').forEach(function(el){ el.style.display='none'; });
@@ -18276,27 +18437,45 @@ document.getElementById('btn-abc-save-as').addEventListener('click', () => {
 });
 
 document.getElementById('abc-play-btn').addEventListener('click', function() {
+  // Invalidates any earlier press's still-pending delayed start (see
+  // _abcActionGen above) — covers both branches below: pausing while one is
+  // pending, or pressing Play/Resume again before an earlier press's queued
+  // start actually fired.
+  _abcActionGen++;
   if (abcPlaying) {
     // Pause: save current position so Resume picks up from here
     const progressEl = document.getElementById('abc-progress');
     _pausedFrac = progressEl ? parseFloat(progressEl.value) / 100 : 0;
     stopABCSynth(true);   // keepPause=true so button text is managed below
-    document.getElementById('abc-play-btn').textContent = '▶︎';
+    { const _pb = document.getElementById('abc-play-btn'); _pb.classList.remove('icon-pause'); _pb.textContent = '▶︎'; }
     document.getElementById('abc-play-btn').title = t('playbar.resume');
     return;
   }
-  // Play / Resume from saved position (or beginning)
-  const sf = (_pausedFrac !== null) ? _pausedFrac : 0;
-  _pausedFrac = null;
-  function doStart() { setTimeout(function() { startABCSynth(window._abcLastTuneIdx || 0, sf); }, 150); }
+  // Play / Resume from saved position (or beginning). Deliberately doesn't
+  // read/clear _pausedFrac here — startABCSynth() itself falls back to it
+  // when given no explicit seekFrac, resolved at the moment a call actually
+  // survives the _abcActionGen guard below and starts playing. Doing it here
+  // instead used to race a second rapid press: this line would null the
+  // shared _pausedFrac before ITS OWN 150ms-delayed call had run, so a
+  // second press landing in that gap read it as already-cleared and fell
+  // back to 0 — which caused the reported "resumes from both the paused
+  // position and the start at once."
+  const myGen = _abcActionGen;
+  function doStart() {
+    setTimeout(function() {
+      if (myGen !== _abcActionGen) return;   // superseded by a newer action
+      startABCSynth(window._abcLastTuneIdx || 0);
+    }, 150);
+  }
   _getRunningCtx().then(doStart).catch(doStart);
 });
 document.getElementById('abc-stop-btn').addEventListener('click', function() {
+  _abcActionGen++;   // invalidate any pending delayed start from an earlier Play press
   _pausedFrac = null;
   stopABCSynth();
   // Reset button to ▶ Play (not ▶ Resume)
   var btn = document.getElementById('abc-play-btn');
-  if (btn) { btn.textContent = '▶︎'; btn.title = t('playbar.play'); }
+  if (btn) { btn.classList.remove('icon-pause'); btn.textContent = '▶︎'; btn.title = t('playbar.play'); }
 });
 document.getElementById('abc-tempo').addEventListener('input', function() {
   const v = this.value;
@@ -18309,8 +18488,10 @@ document.getElementById('abc-tempo').addEventListener('input', function() {
     const idx = window._abcLastTuneIdx || 0;
     const pr  = (parseFloat(document.getElementById('abc-progress').value) || 0) / 100;
     clearTimeout(_abcTempoT);
+    _abcActionGen++;
+    const myGen = _abcActionGen;
     stopABCSynth();
-    _abcTempoT = setTimeout(function(){ startABCSynth(idx, pr); }, 140);
+    _abcTempoT = setTimeout(function(){ if (myGen !== _abcActionGen) return; startABCSynth(idx, pr); }, 140);
   }
 });
 document.getElementById('bpm-input').addEventListener('change', function() {
