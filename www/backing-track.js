@@ -588,6 +588,10 @@
   }
 
   // ── Instrument registry ───────────────────────────────────────────────────────
+  // Instrument labels route through t() at build time (see _buildBTBar's
+  // BT_INSTRUMENTS.forEach below) rather than being translated here, since
+  // t() may not be defined yet this early if script load order ever changes
+  // — .label stays the English fallback key text either way.
   var BT_INSTRUMENTS = [
     { id:'drums',  label:'Drums',  fontKey:'drums',
       patterns: Object.keys(DRUM_PATTERNS), defaultPattern:'Ballad',     defaultVol:0.70, schedule:scheduleDrums  },
@@ -601,6 +605,14 @@
       patterns: ['Strum','Comp','Arpeggio','Offbeat','Fingerpick'], defaultVol:0.42, schedule:scheduleGuitar,
       defaultPattern:'Arpeggio' },
   ];
+  // English label -> i18n key, used only for display (BT_INSTRUMENTS[].label
+  // itself stays English — it's also used as an internal/default value in a
+  // few places, e.g. matched against pattern names).
+  var _BT_INST_I18N_KEY = { Drums:'playbar.instDrums', Keys:'playbar.instKeys', Bass:'playbar.instBass', Guitar:'playbar.instGuitar' };
+  function _btInstLabel(label) {
+    var key = _BT_INST_I18N_KEY[label];
+    return (key && typeof t === 'function') ? t(key) : label;
+  }
   BT_INSTRUMENTS.forEach(function(inst) {
     _bt_state[inst.id] = { enabled: inst.id !== 'guitar', pattern:inst.defaultPattern, volume:inst.defaultVol };
   });
@@ -692,7 +704,7 @@
       _bars_cache = null; _barMeters = null; _schedBar = 0; _displayBar = 0;
       document.querySelectorAll('.ls-bar.bt-playing').forEach(function(el) { el.classList.remove('bt-playing'); });
       var pb = document.getElementById('bt-play-btn');
-      if (pb) { pb.textContent = '▶'; pb.classList.remove('bt-running'); }
+      if (pb) { pb.textContent = '▶︎'; pb.classList.remove('bt-running'); }
       var st = document.getElementById('bt-status');
       if (st) st.textContent = '';
       var prg = document.getElementById('bt-progress');
@@ -711,7 +723,7 @@
           var prog = document.getElementById('bt-progress');
           if (prog) prog.value = idx;
           var cur = document.getElementById('bt-bar-cur');
-          if (cur) cur.textContent = 'Bar ' + (idx + 1);
+          if (cur) cur.textContent = t('playbar.bar', { n: idx + 1 });
           document.querySelectorAll('.ls-bar.bt-playing').forEach(function(el) { el.classList.remove('bt-playing'); });
           var targetCell = document.querySelector('.ls-bar[data-bar-idx="' + chartIdx + '"]');
           if (targetCell) { targetCell.classList.add('bt-playing'); targetCell.scrollIntoView({block:'nearest'}); }
@@ -732,13 +744,13 @@
     var song = (typeof songs !== 'undefined' && typeof currentIdx !== 'undefined' && currentIdx >= 0)
                ? songs[currentIdx] : null;
     if (!song || !song.ireal_chart) {
-      if (typeof showToast === 'function') showToast('Open a lead sheet to use the backing track');
+      if (typeof showToast === 'function') showToast(t('playbar.openLeadSheetToUse'));
       return;
     }
     _bt_song = song;
     _bars_cache = null;                // clear any stale expansion before reading raw bars
     var bars = _rawBars();
-    if (!bars.length) { if (typeof showToast === 'function') showToast('No chord data in this lead sheet'); return; }
+    if (!bars.length) { if (typeof showToast === 'function') showToast(t('playbar.noChordData')); return; }
 
     _totalBars  = bars.length;  // preliminary — updated after cache is built below
     _running    = true;
@@ -771,9 +783,15 @@
     _schedNext = t0;
 
     var playBtn = document.getElementById('bt-play-btn');
-    if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('bt-running'); }
+    // Was '⏸︎' (U+23F8 + text-presentation selector) — U+23F8 is an
+    // emoji-eligible codepoint, and the text-presentation selector isn't
+    // reliably honoured for it on every platform/webview, so it can still
+    // render as a colour emoji instead of a plain glyph. '‖' (U+2016 DOUBLE
+    // VERTICAL LINE) is a plain punctuation character with no emoji form at
+    // all, so it always renders as text.
+    if (playBtn) { playBtn.textContent = '‖'; playBtn.classList.add('bt-running'); }
     var status = document.getElementById('bt-status');
-    if (status) status.textContent = 'Loading…';
+    if (status) status.textContent = t('playbar.loading');
 
     _initPlayer(function() {
       if (!_running) return;
@@ -798,7 +816,7 @@
       _paused     = true;
       if (_schedID) { clearInterval(_schedID); _schedID = null; }
       var playBtn = document.getElementById('bt-play-btn');
-      if (playBtn) { playBtn.textContent = '▶'; playBtn.classList.remove('bt-running'); }
+      if (playBtn) { playBtn.textContent = '▶︎'; playBtn.classList.remove('bt-running'); }
       var status = document.getElementById('bt-status');
       if (status) status.textContent = '';
     } else {
@@ -822,13 +840,13 @@
     if (_schedID) { clearInterval(_schedID); _schedID = null; }
     document.querySelectorAll('.ls-bar.bt-playing').forEach(function(el) { el.classList.remove('bt-playing'); });
     var playBtn = document.getElementById('bt-play-btn');
-    if (playBtn) { playBtn.textContent = '▶'; playBtn.classList.remove('bt-running'); }
+    if (playBtn) { playBtn.textContent = '▶︎'; playBtn.classList.remove('bt-running'); }
     var status = document.getElementById('bt-status');
     if (status) status.textContent = '';
     var prog = document.getElementById('bt-progress');
     if (prog) prog.value = '0';
     var cur = document.getElementById('bt-bar-cur');
-    if (cur) cur.textContent = 'Bar 1';
+    if (cur) cur.textContent = t('playbar.bar', { n: 1 });
   }
 
   // Public btStart = play from bar 0 (used by external callers)
@@ -883,7 +901,7 @@
       var btn = document.querySelector('.bt-inst-toggle[data-id="' + inst.id + '"]');
       if (btn) {
         btn.classList.toggle('active', !!st.enabled);
-        btn.title = (st.enabled ? 'Mute ' : 'Unmute ') + inst.label;
+        btn.title = t(st.enabled ? 'playbar.mute' : 'playbar.unmute', { inst: _btInstLabel(inst.label) });
       }
     });
   }
@@ -993,7 +1011,7 @@
       var row = document.createElement('div');
       row.className = 'bt-inst-row';
       var lbl = document.createElement('span');
-      lbl.className = 'bt-inst-name'; lbl.textContent = inst.label;
+      lbl.className = 'bt-inst-name'; lbl.textContent = _btInstLabel(inst.label);
       row.appendChild(lbl);
       var patSel = document.createElement('select');
       patSel.className = 'bt-ctrl-btn bt-pat-sel';
@@ -1028,18 +1046,22 @@
 
     var playBtn = document.createElement('button');
     playBtn.id = 'bt-play-btn'; playBtn.className = 'bt-ctrl-btn bt-play-btn';
-    playBtn.textContent = '▶'; playBtn.title = 'Play / Pause';
+    playBtn.textContent = '▶︎'; playBtn.title = t('playbar.playPause');
     playBtn.addEventListener('click', _btPlayPause);
     row1.appendChild(playBtn);
 
     var stopBtn = document.createElement('button');
     stopBtn.id = 'bt-stop-btn'; stopBtn.className = 'bt-ctrl-btn';
-    stopBtn.textContent = '⏹'; stopBtn.title = 'Stop and return to start';
+    // '■' (U+25A0 BLACK SQUARE) instead of '⏹︎' (U+23F9 + text-presentation
+    // selector) — same reasoning as the pause icon above: U+23F9 is emoji-
+    // eligible and the selector isn't reliably honoured everywhere, while
+    // U+25A0 has no emoji form to fall back to at all.
+    stopBtn.textContent = '■'; stopBtn.title = t('playbar.stopReturn');
     stopBtn.addEventListener('click', btStop);
     row1.appendChild(stopBtn);
 
     var playsLbl = document.createElement('label');
-    playsLbl.id = 'bt-plays-lbl'; playsLbl.textContent = 'Plays';
+    playsLbl.id = 'bt-plays-lbl'; playsLbl.textContent = t('playbar.plays');
     row1.appendChild(playsLbl);
 
     var playsInput = document.createElement('input');
@@ -1047,7 +1069,7 @@
     playsInput.min = '1'; playsInput.max = '10'; playsInput.step = '1';
     playsInput.className = 'bt-plays-input';
     playsInput.value = String((_bt_song && _bt_song.plays) || 3);
-    playsInput.title = 'Number of times to play through the chart';
+    playsInput.title = t('playbar.playsTitle');
     playsInput.addEventListener('change', function() {
       var n = Math.max(1, Math.min(10, parseInt(playsInput.value) || 1));
       playsInput.value = String(n);
@@ -1072,7 +1094,7 @@
     var row2 = document.createElement('div'); row2.className = 'bt-row bt-row-2';
 
     var bpmLbl = document.createElement('label');
-    bpmLbl.id = 'bt-bpm-lbl'; bpmLbl.textContent = 'BPM';
+    bpmLbl.id = 'bt-bpm-lbl'; bpmLbl.textContent = t('playbar.bpm');
     row2.appendChild(bpmLbl);
 
     var tempoSlider = document.createElement('input');
@@ -1098,19 +1120,19 @@
     row2.appendChild(tempoLbl);
 
     var meterLbl = document.createElement('label');
-    meterLbl.id = 'bt-meter-lbl'; meterLbl.textContent = 'Meter';
+    meterLbl.id = 'bt-meter-lbl'; meterLbl.textContent = t('playbar.meter');
     row2.appendChild(meterLbl);
 
     var timeSigSel = document.createElement('select');
     timeSigSel.id = 'bt-time-sig'; timeSigSel.className = 'bt-ctrl-btn';
     // 'auto' (shown as N/A) = follow the sheet's per-bar meter, including
     // mid-song time-signature changes. Any explicit choice overrides the sheet.
-    [['auto','N/A'],['4/4','4/4'],['3/4','3/4'],['2/4','2/4'],['6/8','6/8'],['5/4','5/4'],['7/8','7/8']].forEach(function(v) {
+    [['auto', t('playbar.meterAuto')],['4/4','4/4'],['3/4','3/4'],['2/4','2/4'],['6/8','6/8'],['5/4','5/4'],['7/8','7/8']].forEach(function(v) {
       var opt = document.createElement('option');
       opt.value = v[0]; opt.textContent = v[1];
       timeSigSel.appendChild(opt);
     });
-    timeSigSel.title = 'Meter — N/A follows the sheet (and any meter changes within it); pick a value to force a fixed meter';
+    timeSigSel.title = t('playbar.meterTitle');
     row2.appendChild(timeSigSel);
 
     controls.appendChild(row2);
@@ -1125,12 +1147,12 @@
       var s   = _bt_state[inst.id];
       btn.className = 'bt-inst-toggle' + (s && s.enabled ? ' active' : '');
       btn.setAttribute('data-id', inst.id);
-      btn.textContent = inst.label;
-      btn.title = (s && s.enabled ? 'Mute ' : 'Unmute ') + inst.label;
+      btn.textContent = _btInstLabel(inst.label);
+      btn.title = t(s && s.enabled ? 'playbar.mute' : 'playbar.unmute', { inst: _btInstLabel(inst.label) });
       btn.addEventListener('click', function() {
         var st = _bt_state[inst.id]; st.enabled = !st.enabled;
         btn.classList.toggle('active', st.enabled);
-        btn.title = (st.enabled ? 'Mute ' : 'Unmute ') + inst.label;
+        btn.title = t(st.enabled ? 'playbar.mute' : 'playbar.unmute', { inst: _btInstLabel(inst.label) });
       });
       toggleWrap.appendChild(btn);
     });
@@ -1138,7 +1160,7 @@
 
     var settBtn = document.createElement('button');
     settBtn.id = 'bt-settings-btn'; settBtn.className = 'bt-ctrl-btn';
-    settBtn.textContent = '⚙'; settBtn.title = 'Per-instrument settings';
+    settBtn.textContent = '⚙'; settBtn.title = t('playbar.perInstSettings');
     settBtn.addEventListener('click', function() {
       var open = instPanel.style.display !== 'none';
       instPanel.style.display = open ? 'none' : '';
@@ -1158,7 +1180,7 @@
     progRow.id = 'bt-progress-row';
 
     var curLbl = document.createElement('span');
-    curLbl.id = 'bt-bar-cur'; curLbl.textContent = 'Bar 1';
+    curLbl.id = 'bt-bar-cur'; curLbl.textContent = t('playbar.bar', { n: 1 });
     progRow.appendChild(curLbl);
 
     var prog = document.createElement('input');
@@ -1170,7 +1192,7 @@
       _paused = true; _pausedBar = nb2;
       var ctx2 = _ctx(); if (ctx2) _schedNext = ctx2.currentTime + 0.05;
       var cur2 = document.getElementById('bt-bar-cur');
-      if (cur2) cur2.textContent = 'Bar ' + (nb2 + 1);
+      if (cur2) cur2.textContent = t('playbar.bar', { n: nb2 + 1 });
     });
     progRow.appendChild(prog);
 

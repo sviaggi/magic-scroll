@@ -2898,16 +2898,17 @@
     font-size: 0.72rem;
     color: var(--c-chrome-text);
   }
-  /* Play/Stop are icon-only (▶ / ⏸ / ⏹) — no word labels — so the whole
+  /* Play/Stop are icon-only (▶ / ‖ / ■) — no word labels — so the whole
      controls row stays compact enough to share a line with BPM + Meter on
-     mobile instead of needing a row of its own. Each of the three symbols
-     has different font/emoji metrics (▶ and ⏸/⏹ don't share the same glyph
-     source on every platform, especially where one falls back to a colour
-     emoji font with its own line-height), so leaving box height to the
-     glyph's natural line box makes Play and Stop render at visibly
-     different heights next to each other. Pinning an explicit height with
-     flex centering makes the box height independent of which glyph/font
-     ends up drawing the icon. */
+     mobile instead of needing a row of its own. ▶ (U+25B6) is emoji-eligible
+     (hence the text-presentation selector on it), while ‖/■ are plain
+     punctuation/geometric-shape characters with no emoji form at all — still,
+     different glyphs can come from different parts of the font stack with
+     different natural line-heights, so leaving box height to the glyph's own
+     line box could make Play and Stop render at visibly different heights
+     next to each other. Pinning an explicit height with flex centering makes
+     the box height independent of which glyph/font ends up drawing the
+     icon. */
   #abc-play-btn, #abc-stop-btn {
     min-width: 34px;
     height: 28px;
@@ -3132,7 +3133,7 @@
   }
   .bt-ctrl-btn:hover { background: var(--c-chrome-bg2); color: var(--c-accent); }
   .bt-ctrl-btn.active { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
-  /* Play btn: fixed width absorbs ▶ ↔ ⏸ text change */
+  /* Play btn: fixed width absorbs ▶ ↔ ‖ text change */
   .bt-play-btn { min-width: 38px; text-align: center; }
   #bt-plays { width: 38px; padding: 1px 3px; text-align: center;
     background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
@@ -3808,7 +3809,7 @@
     <div id="abc-player-controls">
       <div class="abc-row-1">
         <button id="abc-play-btn" class="abc-ctrl-btn" title="Play" data-i18n-title="playbar.play">▶︎</button>
-        <button id="abc-stop-btn" class="abc-ctrl-btn" title="Stop" data-i18n-title="playbar.stop">⏹︎</button>
+        <button id="abc-stop-btn" class="abc-ctrl-btn" title="Stop" data-i18n-title="playbar.stop">■</button>
       </div>
       <div class="abc-row-2">
         <label data-i18n="playbar.bpm">BPM</label>
@@ -17294,6 +17295,23 @@ function _abcPickupSec(events, fullMeasMs) {
 }
 
 function startABCSynth(tuneIdx, seekFrac) {
+  // Defensive stop-before-start: abcStopFn and _abcCursorTC are shared
+  // module-level vars, so if a PREVIOUS call's audio/cursor hasn't been torn
+  // down yet (e.g. Play pressed again before an earlier 150ms-delayed resume
+  // actually fired, or Stop pressed while one was still pending), this
+  // call's assignments further down would silently overwrite the only
+  // references able to stop them — the old gain node/scheduler interval/
+  // TimingCallbacks cursor instance keeps running with nothing left able to
+  // cancel it. That's exactly the reported bug: the previous tune keeps
+  // playing underneath a freshly-started one (even a DIFFERENT tune, since
+  // the orphaned scheduler doesn't care what's "current" any more), and the
+  // cursor stops updating once a second TimingCallbacks instance overwrites
+  // _abcCursorTC out from under the first one's still-running callbacks.
+  // Tearing down whatever's live first guarantees at most one of each.
+  if (abcStopFn) { abcStopFn(); abcStopFn = null; }
+  _stopABCCursor();
+  abcPlaying = false;
+
   window._abcLastTuneIdx = tuneIdx || 0;
   seekFrac = seekFrac || 0;
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
@@ -17507,7 +17525,11 @@ function startABCSynth(tuneIdx, seekFrac) {
   }
 
   abcPlaying = true;
-  document.getElementById('abc-play-btn').textContent = '⏸︎';
+  // '‖' (U+2016) instead of '⏸︎' (U+23F8 + text-presentation selector) —
+  // U+23F8 is emoji-eligible and the selector isn't reliably honoured on
+  // every platform, so it could still render as a colour emoji; U+2016 has
+  // no emoji form to fall back to. Matches the same fix in backing-track.js.
+  document.getElementById('abc-play-btn').textContent = '‖';
   document.getElementById('abc-play-btn').title = t('playbar.pause');
   document.getElementById('abc-status').textContent = '';
 
