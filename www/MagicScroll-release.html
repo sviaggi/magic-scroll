@@ -1698,6 +1698,20 @@
      entirely while it's up, so there's nothing left for a pressed state to
      usefully announce. */
   body.diagrams-open #btn-diagrams-fab { display: none; }
+  /* Same treatment for the OTHER floating/dropdown panels (Themes, Tuner,
+     Print, Metronome, and the mobile topbar's category panels) — this FAB
+     sits fixed near the bottom of the viewport, and any of those panels can
+     be tall enough (Themes especially, with its colour/font pickers) to put
+     real content, including clickable buttons like Reset Colours/Reset
+     Fonts, directly underneath it. The FAB was still visible AND still
+     pointer-events:auto there, silently eating clicks on whatever content
+     happened to sit under its circle — reproduced live: the bottom-right
+     third of the Themes panel's "Reset Fonts" button was unclickable,
+     elementFromPoint() on that spot returned the FAB's own SVG icon instead
+     of the button underneath it. Reuses the exact panel selector already
+     used elsewhere (see the topbar-mobile category-close logic) so this
+     stays in sync with whatever counts as "a panel is open" there. */
+  body:has(.settings-panel.open, .topbar-cat-panel.open, #metro-panel.open) #btn-diagrams-fab { display: none; }
   #contact-tab-toggle {
     font-family: var(--font-mono);
     font-size: 0.6rem;
@@ -2143,6 +2157,16 @@
     padding: 22px 26px 20px;
     width: 100%;
     max-width: 520px;
+    /* Every other modal box in this file (.ci-box, .pub-box, .preview-box)
+       caps itself at the viewport height and scrolls internally — this one
+       didn't. It's normally short, but the ABC/lead-sheet Type option swaps
+       in an 8-row textarea (see #ns-abc-section), and on a short viewport
+       (landscape phone, or portrait with the on-screen keyboard open) that
+       pushes Cancel/Open Editor below the visible area with no way to
+       scroll down to them — the modal becomes impossible to close except by
+       tapping the dark overlay outside it, which isn't obvious. */
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
     box-shadow: 0 16px 48px rgba(0,0,0,0.7);
     display: flex;
     flex-direction: column;
@@ -2326,11 +2350,21 @@
       gap: 8px;
     }
 
-    /* Instrument tab buttons/selects: smaller on mobile */
+    /* Instrument tab buttons/selects: smaller on mobile.
+       font-family was var(--font-mono) here — the exact same mismatch the
+       base (non-mobile) rule above already documents fixing: Piano/
+       Custom…/None (<button>) render in whatever font-family they're given,
+       while iOS Safari's closed <select> chrome only fully honours author
+       font-family once appearance:none is set (true here too) — but this
+       media query's own font-family value still overrode the base rule's
+       "inherit" on MOBILE specifically, so the reintroduced mono font showed
+       up on the buttons (smaller/thinner) while the selects kept rendering
+       in the page's decorative --font-ui, reproducing the bug on phones
+       even though the base fix had already resolved it on desktop. */
     .diagram-instrument-tabs button,
     .diagram-instrument-tabs select.inst-select {
       font-size: 0.6rem;
-      font-family: var(--font-mono);
+      font-family: inherit;
       padding: 2px 5px;
       /* Native <select> controls render with extra intrinsic height/line-box
          a <button> with the same padding/font-size doesn't pick up on its
@@ -7652,7 +7686,26 @@ function renderTabContent() {
   tc.appendChild(frag);
 
   // Fit any tab blocks to the screen width (uniform, independent of view size).
-  if (tc.querySelector('.tab-block')) requestAnimationFrame(_fitTabBlocks);
+  if (tc.querySelector('.tab-block')) {
+    requestAnimationFrame(_fitTabBlocks);
+    // Re-fit once webfonts finish loading. .tab-block is pinned to 'Courier
+    // Prime' (@font-face, font-display:swap — see its rule near the top of
+    // this stylesheet), which paints with a fallback monospace font
+    // immediately and swaps in once downloaded. The rAF fit above can land
+    // before that swap (more likely on mobile/slower connections), so it
+    // measures the FALLBACK font's character width, not Courier Prime's. If
+    // Courier Prime turns out wider, the block overflows its container the
+    // moment it swaps in — a tab that fit perfectly a moment earlier is
+    // suddenly too wide, exactly the kind of "renders too large on mobile"
+    // report this was chasing. document.fonts.ready only resolves once every
+    // requested font (incl. Courier Prime) has actually settled, so this
+    // re-fit always reflects the FINAL metrics regardless of load timing.
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        if (document.getElementById('tab-content').querySelector('.tab-block')) _fitTabBlocks();
+      });
+    }
+  }
   // Collapse chord-label spacing that isn't actually needed (see reflowPrecisionOverlaps).
   if (tc.querySelector('.precision-line')) requestAnimationFrame(() => reflowPrecisionOverlaps(tc));
 }
@@ -19700,7 +19753,11 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
     const ov=document.createElement('div');ov.className='ls-cell-modal-overlay';
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;';
     const box=document.createElement('div');
-    box.style.cssText='background:var(--c-card-fallback);color:var(--c-card-text);padding:24px 28px;border-radius:8px;min-width:280px;max-width:420px;width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+    // max-height/overflow-y matches every other modal box in this file
+    // (.ci-box, .pub-box, .fp-box) — this one-off inline-styled box was
+    // missing it, so a field list long enough to exceed the viewport would
+    // push its own Cancel/OK buttons out of reach with no way to scroll.
+    box.style.cssText='background:var(--c-card-fallback);color:var(--c-card-text);padding:24px 28px;border-radius:8px;min-width:280px;max-width:420px;width:90vw;max-height:calc(100vh - 40px);overflow-y:auto;box-sizing:border-box;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
     const h=document.createElement('div');
     h.style.cssText='font-weight:600;font-size:1rem;margin-bottom:16px;font-family:var(--font-chord);';
     h.textContent=title;box.appendChild(h);
