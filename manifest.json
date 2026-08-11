@@ -32,5 +32,58 @@
     "music",
     "utilities"
   ],
-  "lang": "en"
+  "lang": "en",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "share_target": {
+    "action": "./MagicScroll-release.html?share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "text/plain",
+            "text/html",
+            "audio/midi",
+            "audio/mid",
+            "application/json",
+            "application/xml",
+            "text/xml",
+            "application/vnd.recordare.musicxml",
+            "application/vnd.recordare.musicxml+xml",
+            ".txt",
+            ".html",
+            ".htm",
+            ".mid",
+            ".midi",
+            ".json",
+            ".mslead",
+            ".mscz",
+            ".abc",
+            ".mxl",
+            ".xml",
+            ".musicxml"
+          ]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./MagicScroll-release.html",
+      "accept": {
+        "text/plain": [".txt", ".abc"],
+        "text/html": [".html", ".htm"],
+        "audio/midi": [".mid", ".midi"],
+        "application/json": [".json", ".mslead"],
+        "application/xml": [".xml", ".musicxml"],
+        "application/octet-stream": [".mscz", ".mxl"]
+      }
+    }
+  ]
 }

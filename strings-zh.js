@@ -83,6 +83,9 @@ window.MS_STRINGS_ZH = {
   'newSong.abcPlaceholder':   'X:1\nT:我的曲子\nC:作曲者\nM:4/4\nL:1/8\nK:G\n...',
   'newSong.irealPlaceholder': 'irealb://歌曲标题%3D作曲者%3D%3D风格%3D调号...',
 
+  // ── SEARCH ───────────────────────────────────────────────────────────────
+  'search.videoLabel': '视频',
+
   // ── COMMUNITY COLLECTIONS ────────────────────────────────────────────────
   'collections.searchPlaceholder': '搜索社区歌单…',
 
@@ -424,6 +427,7 @@ window.MS_STRINGS_ZH = {
 
   // ── THEMES PANEL ─────────────────────────────────────────────────────────
   'themes.panelTitle':           '🎨 主题',
+  'themes.closeTitle':           '关闭',
   'themes.presetThemes':         '预设主题',
   'themes.uiColours':            '界面颜色',
   'themes.uiBg':                 '界面背景',
@@ -549,7 +553,7 @@ window.MS_STRINGS_ZH = {
   // ── SHARE (native share-sheet, toolbar + kebab menu) ────────────────────
   'share.button':                '分享…',
   'share.buttonTitle':           '将其分享到其他应用',
-  'share.defaultMessage':        '我正在通过 Magic Scroll 分享一段音乐',
+  'share.defaultMessage':        '我正在通过 Magic Scroll 分享一段音乐！',
   'share.fallbackDownloaded':    '已下载 {filename}（此设备不支持分享）',
   'download.toast':              '已下载：{filename}',
 

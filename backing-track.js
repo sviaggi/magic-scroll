@@ -783,7 +783,13 @@
     _schedNext = t0;
 
     var playBtn = document.getElementById('bt-play-btn');
-    if (playBtn) { playBtn.textContent = '⏸︎'; playBtn.classList.add('bt-running'); }
+    // Pause icon: was '⏸︎' (U+23F8, emoji-eligible even with a text-
+    // presentation selector), then '‖' (U+2016 DOUBLE VERTICAL LINE, plain
+    // punctuation) — both still rendered wrong on some devices/fonts, so a
+    // third character isn't the fix. Empty textContent + .bt-running draws
+    // two CSS bars instead (see the #bt-play-btn.bt-running rule in
+    // MagicScroll-release.html), with no font dependency at all.
+    if (playBtn) { playBtn.textContent = ''; playBtn.classList.add('bt-running'); }
     var status = document.getElementById('bt-status');
     if (status) status.textContent = t('playbar.loading');
 
@@ -1046,7 +1052,11 @@
 
     var stopBtn = document.createElement('button');
     stopBtn.id = 'bt-stop-btn'; stopBtn.className = 'bt-ctrl-btn';
-    stopBtn.textContent = '⏹︎'; stopBtn.title = t('playbar.stopReturn');
+    // '■' (U+25A0 BLACK SQUARE) instead of '⏹︎' (U+23F9 + text-presentation
+    // selector) — same reasoning as the pause icon above: U+23F9 is emoji-
+    // eligible and the selector isn't reliably honoured everywhere, while
+    // U+25A0 has no emoji form to fall back to at all.
+    stopBtn.textContent = '■'; stopBtn.title = t('playbar.stopReturn');
     stopBtn.addEventListener('click', btStop);
     row1.appendChild(stopBtn);
 

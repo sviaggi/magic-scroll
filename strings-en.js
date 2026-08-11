@@ -137,6 +137,11 @@ window.MS_STRINGS_EN = {
   'newSong.abcPlaceholder':   'X:1\nT:My Tune\nC:Composer\nM:4/4\nL:1/8\nK:G\n...',
   'newSong.irealPlaceholder': 'irealb://SongTitle%3DComposer%3D%3DStyle%3DKey...',
 
+  // ── SEARCH ───────────────────────────────────────────────────────────────
+  // Shown in a search-result snippet in place of a [yt:…]/[video:…] tag —
+  // a truncated one-line snippet has no room for a real video embed/link.
+  'search.videoLabel': 'Video',
+
   // ── COMMUNITY COLLECTIONS ────────────────────────────────────────────────
   'collections.searchPlaceholder': 'Search community collections…',
 
@@ -478,6 +483,7 @@ window.MS_STRINGS_EN = {
 
   // ── THEMES PANEL ─────────────────────────────────────────────────────────
   'themes.panelTitle':           '🎨 Themes',
+  'themes.closeTitle':           'Close',
   'themes.presetThemes':         'Preset Themes',
   'themes.uiColours':            'UI Colours',
   'themes.uiBg':                 'UI BG',
@@ -603,7 +609,7 @@ window.MS_STRINGS_EN = {
   // ── SHARE (native share-sheet, toolbar + kebab menu) ────────────────────
   'share.button':                'Share…',
   'share.buttonTitle':           'Share this with another app',
-  'share.defaultMessage':        "I'm sharing a bit of music via Magic Scroll",
+  'share.defaultMessage':        "I'm sharing a bit of music via Magic Scroll!",
   'share.fallbackDownloaded':    'Downloaded {filename} (share not available on this device)',
   'download.toast':              'Downloaded: {filename}',
 
