@@ -698,7 +698,13 @@
     color: var(--c-chrome-muted);
     font-style: italic;
   }
-  .search-match-lyric .s-match {
+  /* Was scoped to ".search-match-lyric .s-match" (only local-library lyric
+     matches carry that parent class) — the online-search snippet div also
+     uses .s-match but isn't inside that wrapper, so it fell through to
+     browser-default text size with no truncation: full-size, un-ellipsised,
+     same colour as the title above it. Unscoped so every .s-match (local or
+     online) gets the same small/muted/truncated treatment. */
+  .s-match {
     font-size: 0.62rem;
     color: var(--c-chrome-muted);
     margin-top: 2px;
@@ -6495,6 +6501,119 @@ function _renderMarkdownSegment(text, state) {
   return frag;
 }
 
+// Same **bold**/*italic*/_underline_/colour rendering as _renderMarkdownSegment,
+// but for the Add Chords canvas (interactive mode), where a click has to map
+// back to an exact character offset in the raw line so the popup knows where
+// to splice a {Chord} marker in. A plain single text node makes that trivial
+// (offset within the node IS the offset within the segment) — but nesting
+// <strong>/<em>/<u> to actually SHOW the formatting breaks that: a click
+// after the first formatted run lands in a different text node, and
+// caretRangeFromPoint's offset is relative to THAT node, not the segment as
+// a whole. This renders the same nested markup, but also builds a parallel
+// map from "position in the rendered text" back to "position in the raw
+// source" (delimiter characters themselves have no position of their own —
+// they're just skipped, so a click on/near one resolves to the character
+// right after it) — see _rawOffsetForClick, which reads it instead of doing
+// plain offset arithmetic. Segments with no formatting at all skip the map
+// entirely and fall back to the old plain-text-node shape, so the common
+// (unformatted) case carries zero risk from this.
+function _renderMarkdownSegmentInteractive(text, segStart, state) {
+  const span = document.createElement('span');
+  span.className = 'txt-seg';
+  span.dataset.rawStart = segStart;
+  if (!/[*_⟦]/.test(text) && !state.bold && !state.italic && !state.underline && !state.color) {
+    span.textContent = text;
+    return span;
+  }
+  const map = [];   // map[displayIdx] = absolute raw offset within the line
+  const stack = [];
+  let target = span;
+  function open(key, tag) {
+    const el = document.createElement(tag);
+    target.appendChild(el);
+    stack.push({ key, el });
+    target = el;
+    state[key] = true;
+  }
+  function openColor(name) {
+    const el = document.createElement('span');
+    el.style.color = COLOR_NAME_TO_HEX[name] || name;
+    target.appendChild(el);
+    stack.push({ key: 'color', el });
+    target = el;
+    state.color = name;
+  }
+  function closeKey(key) {
+    const idx = stack.map(s => s.key).lastIndexOf(key);
+    if (idx !== -1) { stack.length = idx; target = stack.length ? stack[stack.length - 1].el : span; }
+  }
+  if (state.bold)      open('bold', 'strong');
+  if (state.italic)    open('italic', 'em');
+  if (state.underline) open('underline', 'u');
+  if (state.color)     openColor(state.color);
+
+  let buf = '', runStart = segStart;
+  function flush() {
+    if (buf) {
+      target.appendChild(document.createTextNode(buf));
+      for (let k = 0; k < buf.length; k++) map.push(runStart + k);
+      buf = '';
+    }
+  }
+  function toggle(key, tag) {
+    flush();
+    if (state[key]) { closeKey(key); state[key] = false; }
+    else open(key, tag);
+  }
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '*' && text[i + 1] === '*') { toggle('bold', 'strong'); i += 2; runStart = segStart + i; continue; }
+    if (text[i] === '*') { toggle('italic', 'em'); i += 1; runStart = segStart + i; continue; }
+    if (text[i] === '_') { toggle('underline', 'u'); i += 1; runStart = segStart + i; continue; }
+    if (text.startsWith(COLOR_CLOSE_TAG, i)) {
+      flush();
+      if (state.color) { closeKey('color'); state.color = null; }
+      i += COLOR_CLOSE_TAG.length; runStart = segStart + i; continue;
+    }
+    const colorOpenMatch = COLOR_OPEN_RE.exec(text.slice(i, i + 24));
+    if (colorOpenMatch && colorOpenMatch.index === 0) {
+      flush();
+      openColor(colorOpenMatch[1]);
+      i += colorOpenMatch[0].length; runStart = segStart + i; continue;
+    }
+    if (buf === '') runStart = segStart + i;
+    buf += text[i]; i += 1;
+  }
+  flush();
+  span._rawOffsetMap = map;
+  return span;
+}
+// Sums text-node lengths preceding `node` within `container` (in document
+// order) plus `offset`, giving the click's position within the container's
+// fully RENDERED text — then, if the container carries a raw-offset map
+// (built by _renderMarkdownSegmentInteractive for segments with formatting),
+// resolves that back to the true offset in the raw source; falls back to
+// plain segStart+display arithmetic for segments with no formatting (exactly
+// what handlePrecisionCanvasClick did before this existed).
+function _rawOffsetForClick(container, node, offset) {
+  let display = 0, found = false;
+  (function walk(el) {
+    for (const child of el.childNodes) {
+      if (found) return;
+      if (child === node) { display += offset; found = true; return; }
+      if (child.nodeType === Node.TEXT_NODE) display += child.textContent.length;
+      else walk(child);
+    }
+  })(container);
+  if (!found) display = 0;
+  const segStart = parseInt(container.dataset.rawStart, 10);
+  if (container._rawOffsetMap) {
+    const map = container._rawOffsetMap;
+    return map.length ? map[Math.min(display, map.length - 1)] : segStart;
+  }
+  return segStart + display;
+}
+
 function buildPrecisionLineEl(line, opts) {
   opts = opts || {};
   const el = document.createElement('div');
@@ -6504,17 +6623,17 @@ function buildPrecisionLineEl(line, opts) {
   if (segs.length === 0) { el.appendChild(document.createTextNode('​')); return el; }
   // Tracks **/_/* open/close state across this line's text segments so
   // formatting spanning a chord marker still renders on both sides of it
-  // (see _renderMarkdownSegment) — skipped in interactive mode, which shows
-  // raw text for precise click-targeting instead of formatted output.
-  const mdState = opts.interactive ? null : _newMarkdownState();
+  // (see _renderMarkdownSegment/_renderMarkdownSegmentInteractive) — shared
+  // across both modes now; interactive mode used to skip formatting
+  // entirely for precise click-targeting, but _renderMarkdownSegmentInteractive
+  // (see above) renders it AND keeps click targeting exact via its raw-offset
+  // map, so there's no need to fall back to plain text here any more.
+  const mdState = _newMarkdownState();
 
   function textNode(seg) {
-    if (!opts.interactive) return _renderMarkdownSegment(seg.value, mdState);
-    const span = document.createElement('span');
-    span.className = 'txt-seg';
-    span.dataset.rawStart = seg.rawStart;
-    span.textContent = seg.value;
-    return span;
+    return opts.interactive
+      ? _renderMarkdownSegmentInteractive(seg.value, seg.rawStart, mdState)
+      : _renderMarkdownSegment(seg.value, mdState);
   }
   function chordRt(seg) {
     const rt = document.createElement('rt');
@@ -7045,6 +7164,32 @@ function applyMarkup(line, lineEl) {
   }
   lineEl.innerHTML = line;
   return false;
+}
+
+// Lightweight sibling of applyMarkup() for short, single-line search-result
+// snippets (both the local library's lyric-match line and the online/
+// community search results). MUST be called on already-escapeHtml()'d text
+// (see call sites) so it can insert real tags without a later escaping pass
+// mangling them — same ordering as the <mark> highlight step both callers
+// already do. Converts **bold**/*italic*/_underline_/colour markup to real
+// tags so a snippet reads naturally instead of showing the raw delimiters,
+// but — unlike applyMarkup — collapses [yt:…]/[video:…]/[link: Title | URL]
+// and bare URLs down to plain text (or drops them) instead of building a
+// real embed/link: a truncated one-line snippet has no room for a video
+// player, and a raw, un-clickable URL is exactly the "garbled youtube link"
+// this exists to avoid.
+function _stripMarkupForSnippet(escapedText) {
+  return escapedText
+    .replace(/\[(?:yt|video):\s*[^\]]+\]/gi, '♪ ' + t('search.videoLabel'))
+    .replace(/\[link:\s*([^|]+)\|\s*[^\]]+\]/gi, (_, title) => title.trim())
+    .replace(/(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+)/g, '')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+)\*/g,     '<em>$1</em>')
+    .replace(/_([^_\n]+)_/g,       '<u>$1</u>')
+    .replace(/⟦color:([a-z]+)⟧([\s\S]*?)⟦\/color⟧/g, (_, name, inner) => {
+      const hex = COLOR_NAME_TO_HEX[name];
+      return hex ? '<span style="color:' + hex + '">' + inner + '</span>' : inner;
+    });
 }
 
 // ── TAB DETECTION & CLASSIFICATION ───────────────────────────────────────────
@@ -7944,7 +8089,7 @@ function songMatchesQuery(song, query) {
     if (line.toLowerCase().includes(q)) {
       // Build a highlighted snippet
       const re = new RegExp('(' + escapeRegex(query.trim()) + ')', 'gi');
-      const snippet = escapeHtml(line.trim()).replace(re, '<mark>$1</mark>');
+      const snippet = _stripMarkupForSnippet(escapeHtml(line.trim())).replace(re, '<mark>$1</mark>');
       return {type:'lyric', snippet};
     }
   }
@@ -14132,7 +14277,11 @@ function updateEditorPreview() {
           }
         });
       } else {
-        el.textContent = line;
+        // Was el.textContent = line — raw **bold**/_underline_/[yt:…] syntax
+        // showed up literally instead of rendering, unlike the read-only
+        // view (which calls this same applyMarkup for plain lines).
+        const populated = applyMarkup(line, el);
+        if (!populated && !el.innerHTML) el.textContent = line;
       }
       frag.appendChild(el);
     });
@@ -14395,10 +14544,15 @@ function handlePrecisionCanvasClick(e) {
   const seg = e.target.closest('.txt-seg');
   let rawOffset;
   if (seg) {
-    const segStart = parseInt(seg.dataset.rawStart, 10);
+    // _rawOffsetForClick resolves the click through seg's raw-offset map
+    // when it has one (a segment with **bold**/etc. actually rendered, so
+    // more than one text node sits inside .txt-seg) — see its definition
+    // and _renderMarkdownSegmentInteractive above for why plain segStart+
+    // offset arithmetic isn't enough once formatting is nested inside.
     const caret = _caretOffsetFromPoint(e.clientX, e.clientY);
-    const within = (caret && seg.contains(caret.node)) ? caret.offset : 0;
-    rawOffset = segStart + within;
+    rawOffset = (caret && seg.contains(caret.node))
+      ? _rawOffsetForClick(seg, caret.node, caret.offset)
+      : parseInt(seg.dataset.rawStart, 10);
   } else {
     // Clicked empty space on the line (e.g. a blank line) — tag at line end.
     rawOffset = (lineEl.dataset.rawLine || '').length;
@@ -21139,7 +21293,7 @@ function _runOnlineSearch(q) {
         // characters if we'd used them as the tokens.
         var snippetHtml = '';
         if (song.snippet) {
-          snippetHtml = escapeHtml(song.snippet)
+          snippetHtml = _stripMarkupForSnippet(escapeHtml(song.snippet))
             .replace(/zzMSmzz/g, '<mark>')
             .replace(/zzMSezz/g, '</mark>');
         }

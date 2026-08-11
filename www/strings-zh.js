@@ -83,6 +83,9 @@ window.MS_STRINGS_ZH = {
   'newSong.abcPlaceholder':   'X:1\nT:我的曲子\nC:作曲者\nM:4/4\nL:1/8\nK:G\n...',
   'newSong.irealPlaceholder': 'irealb://歌曲标题%3D作曲者%3D%3D风格%3D调号...',
 
+  // ── SEARCH ───────────────────────────────────────────────────────────────
+  'search.videoLabel': '视频',
+
   // ── COMMUNITY COLLECTIONS ────────────────────────────────────────────────
   'collections.searchPlaceholder': '搜索社区歌单…',
 
