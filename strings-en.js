@@ -33,19 +33,20 @@
  *
  * MULTIPLE LANGUAGES
  * This file defines `window.MS_STRINGS_EN` (rather than the generic
- * `window.MS_STRINGS` older versions used) so a second dictionary —
- * `window.MS_STRINGS_ZH` (see strings-zh.js), loaded via its own
- * `<script src="strings-zh.js">` tag right after this one — can sit
- * alongside it without either file overwriting the other. `window.MS_LANG`
- * ('en' or 'zh', persisted in localStorage as `ug_lang`) picks which one
- * `t()` actually reads from; `window.setLanguage(lang)` (defined below)
- * changes it and re-applies every `data-i18n*` element on the page. A
- * missing key in a non-English dictionary silently falls back to the
- * English string rather than showing raw key text, so a partially-
- * translated language degrades gracefully instead of looking broken.
- * Adding a third language is the same shape: a new strings-<lang>.js
- * defining `window.MS_STRINGS_<LANG>`, a case in `_activeDict()` below, a
- * `<script src>` tag for it, and an `<option>` in the `#lang-sel` dropdown.
+ * `window.MS_STRINGS` older versions used) so sibling dictionaries —
+ * `window.MS_STRINGS_ZH` (see strings-zh.js) and `window.MS_STRINGS_FR`
+ * (see strings-fr.js), each loaded via its own `<script src="strings-xx.js">`
+ * tag right after this one — can sit alongside it without any file
+ * overwriting another. `window.MS_LANG` ('en', 'zh', or 'fr', persisted in
+ * localStorage as `ug_lang`) picks which one `t()` actually reads from;
+ * `window.setLanguage(lang)` (defined below) changes it and re-applies every
+ * `data-i18n*` element on the page. A missing key in a non-English
+ * dictionary silently falls back to the English string rather than showing
+ * raw key text, so a partially-translated language degrades gracefully
+ * instead of looking broken. Adding another language is the same shape: a
+ * new strings-<lang>.js defining `window.MS_STRINGS_<LANG>`, a case in
+ * `_activeDict()` below, a `<script src>` tag for it, and an `<option>` in
+ * the `#lang-sel` dropdown.
  *
  * SCOPE / STATUS (as of this pass)
  * This is a first, substantial i18n pass — it covers every alert/confirm/
@@ -99,6 +100,9 @@ window.MS_STRINGS_EN = {
   'editor.embed':               '⧉ Embed…',
   'editor.embedTitle':          'Embed a video or link',
   'editor.precisionHint':       'Click on the word (or the spot) where you want a chord, then type it into the box that appears. Click an existing chord to edit or remove it.',
+  'editor.tabWrite':            '🎸 Tab Riff',
+  'editor.tabWriteTitle':       "Tab out a solo/riff using the current instrument's tuning — type fret numbers directly, they line up across strings automatically",
+  'editor.tabWriteHint':        'Click a string line, then type fret numbers — the other strings fill in automatically. Click an earlier spot to add a double-stop without disturbing what comes after. Hold Shift to glue on a second digit (frets 10+) or the target fret after h/p/b/slide marks. Space = rest, Enter = new line, Esc or the button again to finish.',
   'editor.editToggle':          '✎ Edit',
   'editor.editToggleActive':    '✎ Save',
   'editor.editToggleTitle':     'Toggle between edit and read mode',
@@ -371,7 +375,7 @@ window.MS_STRINGS_EN = {
   'newSong.openEditor':          'Open Editor',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2',
+  'contact.version':             'version 1.2.1',
   'contact.bugReportsHeading':   'Bug Reports / Donations',
   'contact.getInTouch':          'Found an issue? Get in touch:',
   'contact.includeDescription':  'Please include the song file and a description of what went wrong.',
@@ -615,16 +619,34 @@ window.MS_STRINGS_EN = {
 
   // ── MULTI-PART SHEET MUSIC (MuseScore/MusicXML imports with >1 instrument) ─
   'sheetmusic.partFallback':     'Part {n}',
+
+  // ── INSTRUMENT CATEGORIES (Chord Diagrams instrument tabs) ──────────────
+  // The category half of each "Category: Tuning" <option> in the instrument
+  // pickers (see applyInstrumentCategoryI18n) — keyed by the <select>'s own
+  // data-family attribute, which is already a clean English slug, so no
+  // separate word→key lookup is needed. The tuning half (DADGAD, Open G,
+  // Cross-tuned GDGD, ...) is deliberately left untranslated in every
+  // language — those are internationally-recognised tuning names, not really
+  // translatable the way "Guitar" or "Banjo" are.
+  'instCat.guitar':              'Guitar',
+  'instCat.ukulele':             'Ukulele',
+  'instCat.banjo':                'Banjo',
+  'instCat.mandolin':            'Mandolin',
+  'instCat.folk':                'Folk',
+  'instCat.concertina':          'Concertina',
+  'instCat.melodeon':            'Melodeon',
+  'instCat.piano':                'Piano',
 };
 
 // ── Active language ──────────────────────────────────────────────────────
-// 'en' or 'zh', persisted so the choice survives a reload. Read once at
-// load; setLanguage() below is the only thing that should change it after.
+// 'en', 'zh', or 'fr', persisted so the choice survives a reload. Read once
+// at load; setLanguage() below is the only thing that should change it after.
 window.MS_LANG = (function() {
   try { return localStorage.getItem('ug_lang') || 'en'; } catch (e) { return 'en'; }
 })();
 function _activeDict() {
   if (window.MS_LANG === 'zh' && window.MS_STRINGS_ZH) return window.MS_STRINGS_ZH;
+  if (window.MS_LANG === 'fr' && window.MS_STRINGS_FR) return window.MS_STRINGS_FR;
   return window.MS_STRINGS_EN;
 }
 
