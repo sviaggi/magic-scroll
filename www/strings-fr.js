@@ -15,8 +15,11 @@
 window.MS_STRINGS_FR = {
 
   // ── TOPBAR ─────────────────────────────────────────────────────────────
-  'topbar.library':            '☰ Bibliothèque',
-  'topbar.chords':              '🎵 Accords',
+  'topbar.library':            '☰',
+  'topbar.libraryTitle':       'Bibliothèque',
+  'topbar.chords':              '🎵',
+  'topbar.chordsTitle':         'Tonalité, accords et outils d\'entraînement auditif',
+  'topbar.chordsLabel':         'Accords',
   'topbar.key':                 'Tonalité',
   'topbar.transposeDown':      'Transposer d\'un demi-ton vers le bas',
   'topbar.transposeUp':        'Transposer d\'un demi-ton vers le haut',
@@ -28,8 +31,10 @@ window.MS_STRINGS_FR = {
   'topbar.lineSpacingTitle':    'Interligne du texte des chansons et des grilles',
   'topbar.themes':              'Thèmes',
   'topbar.themesTitle':         'Personnaliser le thème, les couleurs, les polices et le fond',
-  'topbar.scroll':              '▶︎ Défilement',
-  'topbar.scrollStop':          '■ Arrêter',
+  'topbar.scroll':              '▶︎',
+  'topbar.scrollTitle':         'Défilement',
+  'topbar.scrollStop':          '■',
+  'topbar.scrollStopLabel':     'Arrêter',
 
   // ── SIDEBAR ────────────────────────────────────────────────────────────
   'sidebar.searchPlaceholder':  'Rechercher…',
@@ -192,8 +197,9 @@ window.MS_STRINGS_FR = {
   'prompt.copyIrealUrl':              'Copiez cette URL irealb:// :',
 
   // ── TOPBAR (additional) ─────────────────────────────────────────────────
-  'topbar.options':             '⚙ Options',
+  'topbar.options':             '⚙',
   'topbar.optionsTitle':        'Taille, thème et impression',
+  'topbar.optionsLabel':        'Options',
   'topbar.scrollLabel':         'Défilement',
   'topbar.scrollSpeedTitle':    'Vitesse de défilement',
   'topbar.detectedKeyTitle':    'Tonalité détectée — cliquez sur ♭/♯ pour transposer',

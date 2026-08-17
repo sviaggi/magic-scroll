@@ -70,8 +70,11 @@
 window.MS_STRINGS_EN = {
 
   // ── TOPBAR ─────────────────────────────────────────────────────────────
-  'topbar.library':            '☰ Library',
-  'topbar.chords':             '🎵 Chords',
+  'topbar.library':            '☰',
+  'topbar.libraryTitle':       'Library',
+  'topbar.chords':             '🎵',
+  'topbar.chordsTitle':        'Key, chords & ear-training tools',
+  'topbar.chordsLabel':        'Chords',
   'topbar.key':                'Key',
   'topbar.transposeDown':      'Transpose down one semitone',
   'topbar.transposeUp':        'Transpose up one semitone',
@@ -83,8 +86,10 @@ window.MS_STRINGS_EN = {
   'topbar.lineSpacingTitle':    'Line spacing for song & lead-sheet text',
   'topbar.themes':              'Themes',
   'topbar.themesTitle':         'Customise theme, colours, fonts & background',
-  'topbar.scroll':              '▶︎ Scroll',
-  'topbar.scrollStop':          '■ Stop',
+  'topbar.scroll':              '▶︎',
+  'topbar.scrollTitle':         'Scroll',
+  'topbar.scrollStop':          '■',
+  'topbar.scrollStopLabel':     'Stop',
 
   // ── SIDEBAR ────────────────────────────────────────────────────────────
   'sidebar.searchPlaceholder':  'Search…',
@@ -239,8 +244,9 @@ window.MS_STRINGS_EN = {
   'prompt.copyIrealUrl':              'Copy this irealb:// URL:',
 
   // ── TOPBAR (additional) ─────────────────────────────────────────────────
-  'topbar.options':             '⚙ Options',
+  'topbar.options':             '⚙',
   'topbar.optionsTitle':        'Size, theme & print',
+  'topbar.optionsLabel':        'Options',
   'topbar.scrollLabel':         'Scroll',
   'topbar.scrollSpeedTitle':    'Scroll speed',
   'topbar.detectedKeyTitle':    'Detected key — click ♭/♯ to transpose',

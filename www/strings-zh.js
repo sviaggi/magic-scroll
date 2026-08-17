@@ -15,8 +15,11 @@
 window.MS_STRINGS_ZH = {
 
   // ── TOPBAR ─────────────────────────────────────────────────────────────
-  'topbar.library':            '☰ 曲库',
-  'topbar.chords':             '🎵 和弦',
+  'topbar.library':            '☰',
+  'topbar.libraryTitle':       '曲库',
+  'topbar.chords':             '🎵',
+  'topbar.chordsTitle':        '调性、和弦与听力训练工具',
+  'topbar.chordsLabel':        '和弦',
   'topbar.key':                '调',
   'topbar.transposeDown':      '降低半音移调',
   'topbar.transposeUp':        '升高半音移调',
@@ -28,8 +31,10 @@ window.MS_STRINGS_ZH = {
   'topbar.lineSpacingTitle':    '歌曲与主调谱文本的行距',
   'topbar.themes':              '主题',
   'topbar.themesTitle':         '自定义主题、颜色、字体与背景',
-  'topbar.scroll':              '▶︎ 滚动',
-  'topbar.scrollStop':          '■ 停止',
+  'topbar.scroll':              '▶︎',
+  'topbar.scrollTitle':         '滚动',
+  'topbar.scrollStop':          '■',
+  'topbar.scrollStopLabel':     '停止',
 
   // ── SIDEBAR ────────────────────────────────────────────────────────────
   'sidebar.searchPlaceholder':  '搜索…',
@@ -182,8 +187,9 @@ window.MS_STRINGS_ZH = {
   'prompt.copyIrealUrl':              '复制此 irealb:// URL：',
 
   // ── TOPBAR (additional) ─────────────────────────────────────────────────
-  'topbar.options':             '⚙ 选项',
+  'topbar.options':             '⚙',
   'topbar.optionsTitle':        '大小、主题和打印',
+  'topbar.optionsLabel':        '选项',
   'topbar.scrollLabel':         '滚动',
   'topbar.scrollSpeedTitle':    '滚动速度',
   'topbar.detectedKeyTitle':    '检测到的调 — 点击 ♭/♯ 转调',
