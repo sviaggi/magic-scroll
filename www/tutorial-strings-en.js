@@ -343,6 +343,11 @@ window.MS_TUTORIAL_STRINGS_EN = {
   'sheetMusic.transpose.title': 'Transpose',
   'sheetMusic.transpose.body': 'Shift the whole piece up or down, permanently rewriting every note (no retyping needed). Prefer not to touch the notation itself? The <strong>🎵 Chords</strong> tab on the topbar has its own ♭−/♯+ that transposes the display only, without changing anything saved.',
 
+  // Step "createSet" — target: #btn-abc-set ("⛓ Create set" button). Mode:
+  // wait, skippable. Clicking it opens #abc-set-modal for real.
+  'sheetMusic.createSet.title': 'Creating a set',
+  'sheetMusic.createSet.body': 'Click Create set to stack other tunes from your library right after this one. Check off the ones you want; the order you check them in is the order they play in. Show set opens them together, back to back, just like a session set.',
+
   // Step "done" — no target (centred). Mode: show, step.last = true.
   'sheetMusic.done.title': 'Getting sheet music in',
   'sheetMusic.done.body': 'Start one via <strong>✦ New → ABC Notation</strong> and paste in ABC text, or drag in a .abc, .mxl, or .mscz file. MuseScore files convert automatically.',
