@@ -58,9 +58,9 @@ window.MS_STRINGS_FR = {
   'editor.editToggleTitle':     'Basculer entre le mode lecture et le mode édition',
   'editor.cancel':              '✕ Annuler',
   'editor.cancelTitle':         'Annuler toutes les modifications effectuées depuis l\'entrée en mode édition',
-  'editor.save':                '💾 Enregistrer',
+  'editor.save':                '📤 Partager',
   'editor.saveTitle':           'Enregistrer les modifications de cette chanson (Ctrl+S)',
-  'editor.saveAs':              '⬇ Enregistrer sous…',
+  'editor.saveAs':              '💾 Enregistrer sous…',
   'editor.publish':             '☁ Publier',
   'editor.exportMonospace':     '⬇ Exporter en police fixe',
   // Placeholder / example text shown inside empty fields — these are what a
@@ -258,7 +258,7 @@ window.MS_STRINGS_FR = {
   'editor.transposeUpTitle':    'Monter tous les accords du texte d\'un demi-ton (définitif)',
   'editor.transposeDownAbcTitle': 'Descendre toutes les notes de ce morceau d\'un demi-ton (définitif) — met à jour K: et les hauteurs des notes',
   'editor.transposeUpAbcTitle':   'Monter toutes les notes de ce morceau d\'un demi-ton (définitif) — met à jour K: et les hauteurs des notes',
-  'editor.saveMenu':            '💾 Enregistrer ▾',
+  'editor.saveMenu':            '📤 Partager ▾',
   'editor.publish2':            'Publier',
 
   // ── PRECISION POPUP (additional) ────────────────────────────────────────
@@ -266,7 +266,7 @@ window.MS_STRINGS_FR = {
   'precision.remove':           'Supprimer',
 
   // ── TOOLBARS (song/lead-sheet/ABC shared chrome) ────────────────────────
-  'toolbar.saveOptionsTitle':          'Options d\'enregistrement',
+  'toolbar.saveOptionsTitle':          'Options de partage',
   'toolbar.publishSheetMusicTitle':    'Publier cette partition dans la bibliothèque en ligne',
   'toolbar.createSet':                 '⛓ Créer un enchaînement',
   'toolbar.createSetTitle':            'Empiler d\'autres morceaux de votre bibliothèque à la suite de celui-ci pour créer un enchaînement',

@@ -1880,7 +1880,7 @@
     display:flex;align-items:center;gap:8px;padding:6px 0 6px;flex-wrap:wrap;
   }
   /* Every button here mixes a different icon glyph with its label (✎ Edit /
-     ✕ Cancel / 💾 Save / ≡ Condensed view, etc.) — 💾 in particular is a full
+     ✕ Cancel / 📤 Share / ≡ Condensed view, etc.) — 📤 in particular is a full
      colour emoji on most platforms, with taller built-in font metrics than a
      plain dingbat like ✎ or ✕, so left to their own natural line-height the
      buttons end up a few px different in height from each other. It's most
@@ -4405,10 +4405,10 @@
 
         <button id="btn-abc-edit" data-i18n="editor.editToggle" data-i18n-title="editor.editToggleTitle" title="Toggle between edit and read mode">✎ Edit</button>
         <button id="btn-abc-edit-cancel" title="Discard all changes made since entering edit mode" data-i18n-title="editor.cancelTitle" data-i18n="editor.cancel" style="display:none">✕ Cancel</button>
-        <button id="btn-abc-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
+        <button id="btn-abc-save-menu-trigger" title="Share options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">📤 Share ▾</button>
         <div id="abc-save-menu" class="song-kebab-menu tb-menu">
           <button id="btn-abc-share" title="Share this sheet music with another app" data-i18n-title="share.buttonTitle" data-i18n="share.button">📤 Share…</button>
-          <button id="btn-abc-save-as" data-i18n="editor.saveAs">⬇ Save As…</button>
+          <button id="btn-abc-save-as" data-i18n="editor.saveAs">💾 Save As…</button>
           <button id="btn-publish-abc" title="Publish this sheet music to the online library" data-i18n-title="toolbar.publishSheetMusicTitle" data-i18n="editor.publish">☁ Publish</button>
         </div>
         <button id="btn-abc-set" title="Stack other tunes from your library under this one to make a set" data-i18n-title="toolbar.createSetTitle" data-i18n="toolbar.createSet">⛓ Create set</button>
@@ -4471,11 +4471,11 @@
     <div id="edit-toolbar" style="display:none">
       <button id="btn-edit-toggle" title="Toggle between edit and read mode" data-i18n-title="editor.editToggleTitle" aria-pressed="false" data-i18n="editor.editToggle">✎ Edit</button>
       <button id="btn-edit-cancel" title="Discard all changes made since entering edit mode" data-i18n-title="editor.cancelTitle" style="display:none" data-i18n="editor.cancel">✕ Cancel</button>
-      <button id="btn-save" title="Save changes to this song (Ctrl+S)" data-i18n-title="editor.saveTitle" data-i18n="editor.save">💾 Save</button>
-      <button id="btn-edit-save-menu-trigger" title="Save options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">💾 Save ▾</button>
+      <button id="btn-save" title="Save changes to this song (Ctrl+S)" data-i18n-title="editor.saveTitle" data-i18n="editor.save">📤 Share</button>
+      <button id="btn-edit-save-menu-trigger" title="Share options" data-i18n-title="toolbar.saveOptionsTitle" data-i18n="editor.saveMenu">📤 Share ▾</button>
       <div id="edit-save-menu" class="song-kebab-menu tb-menu">
         <button id="btn-share-song" title="Share this song with another app" data-i18n-title="share.buttonTitle" data-i18n="share.button">📤 Share…</button>
-        <button id="btn-save-as" title="Download this song as a .txt file" data-i18n="editor.saveAs">⬇ Save As…</button>
+        <button id="btn-save-as" title="Download this song as a .txt file" data-i18n="editor.saveAs">💾 Save As…</button>
         <button id="btn-publish-song" title="Publish this song to the online library" data-i18n="editor.publish">☁ Publish</button>
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites" data-i18n="editor.exportMonospace">⬇ Export monospace</button>
       </div>

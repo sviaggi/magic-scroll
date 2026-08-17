@@ -58,9 +58,9 @@ window.MS_STRINGS_ZH = {
   'editor.editToggleTitle':     '在编辑模式与阅读模式之间切换',
   'editor.cancel':              '✕ 取消',
   'editor.cancelTitle':         '放弃自进入编辑模式以来所做的所有更改',
-  'editor.save':                '💾 保存',
+  'editor.save':                '📤 分享',
   'editor.saveTitle':           '保存对这首歌曲的更改 (Ctrl+S)',
-  'editor.saveAs':              '⬇ 另存为…',
+  'editor.saveAs':              '💾 另存为…',
   'editor.publish':             '☁ 发布',
   'editor.exportMonospace':     '⬇ 导出等宽文本',
   // Placeholder / example text shown inside empty fields — these are what a
@@ -248,7 +248,7 @@ window.MS_STRINGS_ZH = {
   'editor.transposeUpTitle':    '将文本中的所有和弦上移半音（永久）',
   'editor.transposeDownAbcTitle': '将此曲中的所有音符下移半音（永久）— 会更新 K: 和音高',
   'editor.transposeUpAbcTitle':   '将此曲中的所有音符上移半音（永久）— 会更新 K: 和音高',
-  'editor.saveMenu':            '💾 保存 ▾',
+  'editor.saveMenu':            '📤 分享 ▾',
   'editor.publish2':            '发布',
 
   // ── PRECISION POPUP (additional) ────────────────────────────────────────
@@ -256,7 +256,7 @@ window.MS_STRINGS_ZH = {
   'precision.remove':           '移除',
 
   // ── TOOLBARS (song/lead-sheet/ABC shared chrome) ────────────────────────
-  'toolbar.saveOptionsTitle':          '保存选项',
+  'toolbar.saveOptionsTitle':          '分享选项',
   'toolbar.publishSheetMusicTitle':    '将此乐谱发布到在线曲库',
   'toolbar.createSet':                 '⛓ 创建曲目组',
   'toolbar.createSetTitle':            '将曲库中的其他曲目叠加到本页，组成一个曲目组',

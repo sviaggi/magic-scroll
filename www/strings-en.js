@@ -113,9 +113,9 @@ window.MS_STRINGS_EN = {
   'editor.editToggleTitle':     'Toggle between edit and read mode',
   'editor.cancel':              '✕ Cancel',
   'editor.cancelTitle':         'Discard all changes made since entering edit mode',
-  'editor.save':                '💾 Save',
+  'editor.save':                '📤 Share',
   'editor.saveTitle':           'Save changes to this song (Ctrl+S)',
-  'editor.saveAs':              '⬇ Save As…',
+  'editor.saveAs':              '💾 Save As…',
   'editor.publish':             '☁ Publish',
   'editor.exportMonospace':     '⬇ Export monospace',
   // Placeholder / example text shown inside empty fields — these are what a
@@ -305,7 +305,7 @@ window.MS_STRINGS_EN = {
   'editor.transposeUpTitle':    'Move every chord in the text up a semitone (permanent)',
   'editor.transposeDownAbcTitle': 'Move every note in this tune down a semitone (permanent) — updates K: and the note pitches',
   'editor.transposeUpAbcTitle':   'Move every note in this tune up a semitone (permanent) — updates K: and the note pitches',
-  'editor.saveMenu':            '💾 Save ▾',
+  'editor.saveMenu':            '📤 Share ▾',
   'editor.publish2':            'Publish',
 
   // ── PRECISION POPUP (additional) ────────────────────────────────────────
@@ -313,7 +313,7 @@ window.MS_STRINGS_EN = {
   'precision.remove':           'Remove',
 
   // ── TOOLBARS (song/lead-sheet/ABC shared chrome) ────────────────────────
-  'toolbar.saveOptionsTitle':          'Save options',
+  'toolbar.saveOptionsTitle':          'Share options',
   'toolbar.publishSheetMusicTitle':    'Publish this sheet music to the online library',
   'toolbar.createSet':                 '⛓ Create set',
   'toolbar.createSetTitle':            'Stack other tunes from your library under this one to make a set',
