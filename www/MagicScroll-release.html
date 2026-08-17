@@ -439,10 +439,16 @@
     margin-bottom: calc(-1 * var(--topbar-h, 60px));
   }
 
-  /* Desktop: invisible wrapper — Library/Music/Settings render as plain flex
-     items of #topbar exactly as before. Mobile reorg (below) switches this
-     to a real flex row so the three can be centred as one cluster. */
-  #topbar-left-cluster { display: contents; }
+  /* Invisible by default — Chords/Autoscroll/Options render as plain flex
+     items of #topbar, exactly as if this wrapper didn't exist (needed so the
+     narrow-screen "row of edge-to-edge tabs" layout, which sizes each of
+     those controls directly as a flex item of #topbar, is completely
+     unaffected by this wrapper's existence). The widescreen rule below
+     turns it into a real, centered flex row instead — see the topbar
+     centering comment there for why. #btn-sidebar (Library) is deliberately
+     NOT inside this wrapper, so it can stay pinned at the far left on every
+     width, centered cluster or not. */
+  #topbar-center-cluster { display: contents; }
 
   .app-title {
     font-family: var(--font-ui);
@@ -2048,6 +2054,19 @@
     transition: border-color 0.15s;
   }
   #song-editor:focus { border-color: var(--c-accent); }
+  /* Tab Riff mode: --font-mono is really a decorative display font (Valeson
+     ExtBla, see its own comment above) with 'Courier Prime' only as a
+     fallback if that fails to load — fine for the read-mode staff, but not
+     truly fixed-width, which makes lining up frets by eye while typing a tab
+     harder than it needs to be. Force the real monospace stack (matching
+     .tab-block exactly) on the editor for the duration of tab-write mode. */
+  #song-editor.tw-mono {
+    font-family: 'Courier Prime', 'Courier New', ui-monospace, monospace !important;
+    letter-spacing: 0;
+    font-kerning: none;
+    font-variant-ligatures: none;
+    white-space: pre;   /* no soft-wrap — keep each string on one real line so columns stay readable */
+  }
 
   /* ── LIVE REMOTE CURSORS (Collaborate) ────────────────────────────────────
      #song-editor-wrap has no border/padding of its own, so its box is
@@ -2409,16 +2428,42 @@
     flex-wrap: nowrap;
     column-gap: 4px;
   }
-  /* On a widescreen the Library/Chords/Options/Autoscroll cluster no longer
-     needs to (and shouldn't) stretch edge-to-edge. Left-justified (rather than
-     centered) so the topbar's controls always sit in the same place —
-     predictable regardless of window width or how much content is in the bar,
-     instead of shifting around a shrinking/growing centered cluster. */
+  /* On a widescreen the Chords/Autoscroll/Options cluster no longer needs to
+     (and shouldn't) stretch edge-to-edge — center it as a group instead, the
+     way most apps' toolbars sit, while Library stays pinned flush left
+     regardless. True centering (relative to the FULL bar width, not just
+     whatever space happens to be left after Library) needs Library and the
+     cluster in separate track: #topbar switches to a 1fr/auto/1fr grid —
+     Library left-justified in column 1, the cluster in column 2 (which,
+     because column 1 and the empty column 3 are equal fractions, always
+     lands dead-centre no matter how wide Library's own label is). */
   @media (min-width: 521px) {
-    body.topbar-mobile #topbar { justify-content: flex-start; }
+    body.topbar-mobile #topbar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+    }
+    body.topbar-mobile #btn-sidebar { grid-column: 1; justify-self: start; }
+    body.topbar-mobile #topbar-center-cluster {
+      grid-column: 2;
+      display: flex;
+      align-items: stretch;
+      /* nowrap, not wrap: this must never spill onto a second line — the
+         cluster is just Chords/Autoscroll/Options, which comfortably fits
+         one row on anything wide enough to hit this breakpoint at all. */
+      flex-wrap: nowrap;
+      justify-content: center;
+      column-gap: 4px;
+    }
   }
-  body.topbar-mobile #topbar > .app-title,
-  body.topbar-mobile #topbar > .sep { display: none; }
+  /* Descendant (not just direct-child) selector — #topbar-center-cluster now
+     sits between #topbar and several of these .sep spans (the ones that used
+     to separate the groups that get relocated into the dropdown panels;
+     relocating the group itself leaves its neighbouring .sep behind), so a
+     bare "> .sep" no longer reaches them and they were showing up as a
+     cluttered row of stray "|" marks in the bar. */
+  body.topbar-mobile #topbar .app-title,
+  body.topbar-mobile #topbar .sep { display: none; }
   /* "Hide" is redundant now that the topbar auto-hides on scroll. */
   body.topbar-mobile #btn-topbar-collapse { display: none; }
   /* Library / Chords / Options stay sized to their own content so the
@@ -2939,6 +2984,22 @@
     padding: 40px 48px 56px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.5),
                 inset 0 0 80px rgba(0,0,0,0.06);
+    position: relative;
+  }
+  /* Same faint paper-grain overlay as #song-card (see its ::before) — this
+     card's background-color already matched exactly (both read
+     var(--c-card-fallback)), but only the chord/lyrics card had this
+     texture, so it read as a subtly different (flatter, slightly brighter)
+     colour next to it despite the underlying hex being identical. */
+  #abc-song-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    pointer-events: none;
+    border-radius: 2px;
+    opacity: 0.5;
+    z-index: 0;
   }
   /* Phones: trim the big side padding so the sheet music can span nearly the
      full width of the card (keep a tall bottom pad to clear the player bar). */
@@ -3471,7 +3532,15 @@
   #ireal-song-card{padding:16px 4px 20px;width:100%;max-width:820px;box-sizing:border-box;
     font-size:0.95rem;
     background-color:var(--c-card-fallback);color:var(--c-card-text);
-    border-radius:2px;box-shadow:0 4px 6px rgba(0,0,0,0.25),0 12px 40px rgba(0,0,0,0.3);}
+    border-radius:2px;box-shadow:0 4px 6px rgba(0,0,0,0.25),0 12px 40px rgba(0,0,0,0.3);
+    position:relative;}
+  /* Same faint paper-grain overlay as #song-card/#abc-song-card (see
+     #song-card::before) — brings the lead sheet card's texture in line with
+     the other two so all three read as the same "paper" regardless of which
+     song type is open. */
+  #ireal-song-card::before{content:'';position:absolute;inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size:200px 200px;pointer-events:none;border-radius:2px;opacity:0.5;z-index:0;}
   #ireal-song-card.fs-xs{font-size:0.68rem;}
   #ireal-song-card.fs-sm{font-size:0.80rem;}
   #ireal-song-card.fs-md{font-size:0.95rem;}
@@ -3895,6 +3964,7 @@
      <script> later in the document). -->
 <script src="strings-en.js"></script>
 <script src="strings-zh.js"></script>
+<script src="strings-fr.js"></script>
 </head>
 <body>
 <!-- Dedicated pinned-background layer — see #bg-layer-fixed CSS + applyTheme()/
@@ -3938,11 +4008,10 @@
 <div id="topbar">
   <span class="app-title"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
   <span class="sep">|</span>
-  <div id="topbar-left-cluster">
-    <button id="btn-sidebar" title="Library" data-i18n="topbar.library">☰ Library</button>
+  <button id="btn-sidebar" title="Library" data-i18n="topbar.library">☰ Library</button>
+  <div id="topbar-center-cluster">
     <button id="btn-music-menu" class="topbar-cat-trigger" title="Key, chords &amp; ear-training tools" style="display:none;" data-i18n="topbar.chords">🎵 Chords</button>
-  </div>
-  <span class="sep">|</span>
+    <span class="sep">|</span>
   <div class="ctrl-group" id="topbar-key-group">
     <span class="ctrl-label" data-i18n="topbar.key">Key</span>
     <button id="btn-transpose-down" title="Transpose down one semitone" data-i18n-title="topbar.transposeDown">♭−</button>
@@ -3972,6 +4041,7 @@
     <span class="ctrl-label" data-i18n="options.language">Language</span>
     <select id="lang-sel" title="Change the app's display language" data-i18n-title="options.languageTitle">
       <option value="en">English</option>
+      <option value="fr">Français</option>
       <option value="zh">中文</option>
     </select>
   </div>
@@ -4062,10 +4132,11 @@
   <span class="sep">|</span>
   <div class="ctrl-group" id="topbar-scroll-group">
     <span class="ctrl-label" data-i18n="topbar.scrollLabel">Scroll</span>
-    <input type="range" id="scroll-speed" min="1" max="10" value="3" title="Scroll speed" data-i18n-title="topbar.scrollSpeedTitle">
+    <input type="range" id="scroll-speed" min="1" max="10" value="3" step="any" title="Scroll speed" data-i18n-title="topbar.scrollSpeedTitle">
     <button id="btn-scroll" aria-pressed="false" data-i18n="topbar.scroll">▶︎ Scroll</button>
   </div>
   <button id="btn-settings-menu" class="topbar-cat-trigger" title="Size, theme &amp; print" data-i18n-title="topbar.optionsTitle" data-i18n="topbar.options" style="display:none;">⚙ Options</button>
+  </div>
   <span class="sep">|</span>
   <span class="sep">|</span>
   <button id="btn-diagrams" aria-pressed="false" data-i18n="diagrams.title">Chord Diagrams</button>
@@ -4424,6 +4495,7 @@
         </div>
         <div id="rt-toolbar">
           <button type="button" id="btn-precision-toggle" class="precision-toggle-btn" title="Tag chords to exact words/syllables instead of aligning them by hand" data-i18n="editor.addChords" data-i18n-title="editor.addChordsTitle" aria-pressed="false">🎯 Add Chords</button>
+          <button type="button" id="btn-tab-write-toggle" class="precision-toggle-btn" title="Tab out a solo/riff using the current instrument's tuning — type fret numbers directly, they line up across strings automatically" data-i18n="editor.tabWrite" data-i18n-title="editor.tabWriteTitle" aria-pressed="false">🎸 Tab Riff</button>
           <button type="button" id="rt-bold" title="Bold (**text**)" data-i18n-title="editor.bold"><b>B</b></button>
           <button type="button" id="rt-italic" title="Italic (*text*)" data-i18n-title="editor.italic"><i>I</i></button>
           <button type="button" id="rt-underline" title="Underline (_text_)" data-i18n-title="editor.underline"><u>U</u></button>
@@ -4431,6 +4503,7 @@
           <div id="rt-color-toolbar"></div>
         </div>
         <div id="precision-hint" class="precision-hint" data-i18n="editor.precisionHint">Click on the word (or the spot) where you want a chord, then type it into the box that appears. Click an existing chord to edit or remove it.</div>
+        <div id="tab-write-hint" class="precision-hint" style="display:none;" data-i18n="editor.tabWriteHint">Click a string line, then type fret numbers — the other strings fill in automatically. Click an earlier spot to add a double-stop without disturbing what comes after. Hold Shift to glue on a second digit (frets 10+) or the target fret after h/p/b/slide marks. Space = rest, Enter = new line, Esc or the button again to finish.</div>
         <div id="song-editor-wrap">
           <textarea id="song-editor" class="fs-md" spellcheck="false" data-i18n-placeholder="editor.songPlaceholder"
             placeholder="Paste or type your song here.
@@ -4507,7 +4580,7 @@ I hope you enjoy using your magic scroll!"></textarea>
       <option value="ukulele">Ukulele: Standard</option>
       <option value="baritone_uke">Ukulele: Baritone</option>
     </select>
-    <button class="inst-btn" data-inst="piano">Piano</button>
+    <button class="inst-btn" data-inst="piano" data-i18n="instCat.piano">Piano</button>
     <select class="inst-select" data-family="banjo">
       <option value="banjo">Banjo: 5-string Open G</option>
       <option value="tenor_banjo_irish">Banjo: Tenor (Irish GDAE)</option>
@@ -4702,7 +4775,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     <!-- ── App identity / version / platform links (always shown) ──── -->
     <div class="contact-app-header">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
-      <span class="contact-app-version" data-i18n="contact.version">version 1.2</span>
+      <span class="contact-app-version" data-i18n="contact.version">version 1.2.1</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -4902,8 +4975,8 @@ I hope you enjoy using your magic scroll!"></textarea>
 <div id="chord-hover-tooltip"></div>
 <script src="backing-track.js"></script>
 <script>
-// ── I18N — fill in text from strings-en.js/strings-zh.js (see strings-en.js's
-// header) ────────────────────────────────────────────────────────────────
+// ── I18N — fill in text from strings-en.js/strings-zh.js/strings-fr.js (see
+// strings-en.js's header) ───────────────────────────────────────────────
 // Static HTML elements opt in with data-i18n (element text), data-i18n-title
 // (the title tooltip) and/or data-i18n-placeholder (input placeholder)
 // attributes carrying a key. Run once at boot, before anything else needs
@@ -4921,6 +4994,34 @@ function applyI18nStrings() {
   // (no user data ever flows into these keys), same trust level as any
   // other hard-coded markup in this file.
   document.querySelectorAll('[data-i18n-html]').forEach(function(el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+  applyInstrumentCategoryI18n();
+}
+// The Chord Diagrams instrument pickers (.inst-select, one per family —
+// guitar/ukulele/banjo/mandolin/folk/concertina/melodeon) hold <option>s
+// written as "Category: Tuning" (e.g. "Guitar: E Standard"), where instLabel/
+// instCategoryLabel elsewhere split on the colon. Only the category half
+// gets a data-i18n-style translation here — tuning names (DADGAD, Cross-
+// tuned GDGD, ...) are internationally-recognised terms, not really
+// translatable, so they're deliberately left as-is (see the instCat.* keys'
+// comment in strings-en.js). Re-deriving from whatever text is already
+// there (splitting on the FIRST colon, replacing only the prefix) rather
+// than caching the original English means this is safe to call repeatedly —
+// each call only ever touches the category word, never the tuning half, so
+// there's no drift across language switches. Called from applyI18nStrings()
+// (covers the primary tabs, present in the HTML from the start) AND
+// separately right after setupInstrumentSections() clones the secondary
+// tabs below (built later, from JS, after the boot-time applyI18nStrings()
+// call has already run once).
+function applyInstrumentCategoryI18n() {
+  if (typeof t !== 'function') return;
+  document.querySelectorAll('.inst-select[data-family]').forEach(function(sel) {
+    var catText = t('instCat.' + sel.dataset.family);
+    Array.prototype.forEach.call(sel.options, function(opt) {
+      var idx = opt.textContent.indexOf(':');
+      if (idx === -1) return;
+      opt.textContent = catText + opt.textContent.slice(idx);
+    });
+  });
 }
 applyI18nStrings();
 
@@ -8139,7 +8240,18 @@ function renderSong(idx) {
   document.getElementById('display-artist').textContent=song.artist||'';
   const meta=document.getElementById('display-meta'); meta.innerHTML='';
   const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
-  [[t('meta.type'),_dispType],[t('meta.key'),song.key?_keyWithCapo(song.key):null],[t('meta.time'),song.timeSig||null],[t('meta.tuning'),song.tuning],[t('meta.capo'),song.capo?t('meta.fret',{n:song.capo}):null]].forEach(([l,v])=>{
+  // Embedded ABC sheet music (see _splitEmbeddedABC) always renders in the TRUE
+  // key — visualTranspose deliberately excludes capo in _buildEmbeddedABCBlock,
+  // same as the dedicated ABC view — so when a song contains one, this Key pill
+  // must match what's actually drawn on the staff instead of _keyWithCapo's
+  // usual capo-shifted sounding key, or the two visibly disagree (e.g. the
+  // bundled "Worth the Weight" example showing "Key: F (capo 3)" above sheet
+  // music written with a 2-sharp/D key signature). Plain chord sheets with no
+  // embedded notation keep the sounding-key display — that's still correct and
+  // useful there, since the chord letters shown ARE the capo shapes.
+  const _hasEmbeddedABC = /^X:\s*\d/m.test(song.tab_content || song.content || song.tab || '');
+  const _dispKeyText = song.key ? (_hasEmbeddedABC ? (transposeKey(song.key, transposeAmount) || song.key) : _keyWithCapo(song.key)) : null;
+  [[t('meta.type'),_dispType],[t('meta.key'),_dispKeyText],[t('meta.time'),song.timeSig||null],[t('meta.tuning'),song.tuning],[t('meta.capo'),song.capo?t('meta.fret',{n:song.capo}):null]].forEach(([l,v])=>{
     if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
     p.innerHTML=escapeHtml(l)+': <span>'+v+'</span>'; meta.appendChild(p);
   });
@@ -10397,7 +10509,10 @@ function _scrollStep(ts) {
   const dt = Math.min(0.1, (ts - _scrollLastTs) / 1000);   // seconds, clamped so a tab switch doesn't jump
   _scrollLastTs = ts;
 
-  const speed   = parseInt(document.getElementById('scroll-speed').value, 10) || 1;
+  // step="any" on #scroll-speed lets the slider land on fractional values
+  // (a smooth drag, not integer stops) — parseFloat so that resolution
+  // actually reaches the scroll rate instead of being silently truncated.
+  const speed   = parseFloat(document.getElementById('scroll-speed').value) || 1;
   const amount  = _scrollPxPerSec(speed) * dt + _scrollCarry;
   const whole   = Math.floor(amount);
   _scrollCarry  = amount - whole;
@@ -12999,6 +13114,22 @@ function instLabel(instId){
   t=t.replace(/^[^:]*:\s*/,'').replace(/\s*\([^)]*\)\s*$/,'').trim();
   return t||instId;
 }
+// Just the broad instrument category (e.g. 'mando_gdad' → 'Mandolin'), i.e. the
+// OTHER side of instLabel's split on the option text's "Category: Tuning"
+// format. Used for the collapsed instrument-section summary, where showing
+// the specific tuning (e.g. "E Standard") reads as a different instrument
+// entirely rather than a variant of the same one — "Guitar" is the useful
+// at-a-glance answer there, not "E Standard".
+function instCategoryLabel(instId){
+  if(instId==='none') return 'None';
+  if(instId==='piano') return 'Piano';
+  if(instId==='custom') return 'Custom';
+  const opt=document.querySelector('.inst-select option[value="'+instId+'"]')
+          ||document.querySelector('#secondary-inst-select option[value="'+instId+'"]');
+  const t=opt?opt.textContent:instId;
+  const m=t.match(/^([^:]+):/);
+  return (m?m[1]:t).trim()||instId;
+}
 
 // After a voicing pick changes, refresh the inline diagrams on the song/lead sheet
 // so the chosen shape shows everywhere (hover tooltips read live, so need nothing).
@@ -13323,7 +13454,7 @@ function _setSectionActive(which, inst){
     const opt=c.querySelector('.inst-select option[value="'+inst+'"]');
     if(opt){ opt.closest('select').classList.add('active'); opt.closest('select').value=inst; }
   }
-  if(which==='secondary'){ const cur=document.querySelector('[data-role-cur="secondary"]'); if(cur) cur.textContent=instLabel(inst); }
+  if(which==='secondary'){ const cur=document.querySelector('[data-role-cur="secondary"]'); if(cur) cur.textContent=instCategoryLabel(inst); }
 }
 function setSecondaryInstrument(inst){
   secondaryInstrument=inst;
@@ -13363,6 +13494,11 @@ function wireInstSection(container, which){
       if(cl.classList) cl.classList.remove('active');                  // clear cloned active state
       secBody.appendChild(cl);
     });
+    // The clone above happens after the boot-time applyI18nStrings() call
+    // (see that function's own comment), so the freshly-cloned secondary
+    // tabs still carry their un-translated (English) source markup at this
+    // point in a non-English session — catch them up now.
+    if (typeof applyI18nStrings === 'function') applyI18nStrings();
   }
   wireInstSection(primary,'primary');
   wireInstSection(secBody,'secondary');
@@ -14842,6 +14978,240 @@ document.addEventListener('mousedown', (e) => {
     closePrecisionPopup();
   }
 });
+
+// ── TAB-WRITE MODE ──────────────────────────────────────────────────────────
+// "Tab Riff" button next to Add Chords: inserts a blank tablature staff sized
+// to the current primary instrument/tuning, then keeps the strings aligned as
+// the user types frets directly into the textarea — every digit at the front
+// edge advances ALL strings together (dashes fill in on whichever strings
+// aren't being played), while going back to an earlier column (for a
+// double-stop / fingerpicked chord) just overwrites that one spot in place
+// without disturbing the shared front edge. A line auto-wraps to a fresh
+// staff once it gets long. Unlike Add Chords (which swaps the textarea for a
+// canvas overlay), this works directly on the live textarea — no display
+// swap needed, since it's just keystroke-level text manipulation.
+//
+// _twState is non-null exactly while tab-write mode is active. It only
+// remembers the fixed string letters/width picked at entry — WHICH lines in
+// the textarea currently hold the tab staff is re-derived from the cursor
+// position on every keystroke (_twFindBlock), so editing lyrics/chords
+// elsewhere in the song first (adding/removing lines) can never leave it
+// pointing at the wrong lines.
+let _twState = null;
+
+// Real open-string notes (low→high, with octave) for the current primary
+// instrument/tuning, straight from chord-engine.js's tuning table — same
+// source the string tuner already trusts (see _tunerStringsForRole). Tab
+// convention draws the highest string on top: reverse to high→low, drop the
+// octave digit, fold '♯'/'♭' to a plain '#'/'b' (so _isTabLine's regex, which
+// only recognises a single plain accidental character, still matches), and
+// lowercase the topmost string per standard notation (e.g. "e|" over "B|").
+// Falls back to standard EADGBE guitar for chromatic-only "instruments"
+// (piano, none, squeezeboxes) that have no meaningful string layout.
+function _twTuningLetters() {
+  let notes = (typeof _tunerStringsForRole === 'function') ? _tunerStringsForRole('primary') : [];
+  if (!notes || !notes.length) notes = ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'];
+  const letters = notes.map(function(n) {
+    return n.replace(/-?\d+$/, '').replace('♯', '#').replace('♭', 'b');
+  }).reverse();
+  return letters.map(function(l, i) {
+    return i === 0 ? (l.charAt(0).toLowerCase() + l.slice(1)) : l;
+  });
+}
+
+// Locates the tab staff the cursor is currently sitting in, if any — scans
+// outward from the cursor's line for `letters.length` consecutive lines whose
+// prefixes match _twState.letters in order. Returns null when the cursor is
+// somewhere else in the song (lyrics, a different tab block the user pasted
+// in, etc.) so normal typing just passes through untouched there.
+function _twFindBlock(ta) {
+  if (!_twState) return null;
+  const lines = ta.value.split('\n');
+  const pos = ta.selectionStart;
+  let acc = 0, curLine = 0, lineStart = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (pos <= acc + lines[i].length) { curLine = i; lineStart = acc; break; }
+    acc += lines[i].length + 1;
+    curLine = i + 1; lineStart = acc;
+  }
+  const letters = _twState.letters, n = letters.length;
+  for (let k = 0; k < n; k++) {
+    const blockStart = curLine - k;
+    if (blockStart < 0 || blockStart + n > lines.length) continue;
+    let ok = true;
+    for (let j = 0; j < n; j++) {
+      const pfx = letters[j] + '|';
+      if (lines[blockStart + j].slice(0, pfx.length) !== pfx) { ok = false; break; }
+    }
+    if (!ok) continue;
+    let col = 0;
+    for (let j = 0; j < n; j++) col = Math.max(col, lines[blockStart + j].length - (letters[j].length + 1));
+    return { lines: lines, blockStart: blockStart, sIdx: k, posInLine: pos - lineStart - (letters[k].length + 1), col: col };
+  }
+  return null;
+}
+
+// Inserts a fresh blank staff right after the block starting at blockStart
+// (used both for the automatic too-long wrap and the manual Enter-key wrap),
+// and moves the cursor to the front of its first string, ready to keep going.
+function _twWrapBlock(ta, lines, blockStart, n) {
+  const letters = _twState.letters;
+  const insertAt = blockStart + n;
+  const fresh = letters.map(function(l) { return l + '|--'; });
+  const updated = lines.slice(0, insertAt).concat(fresh, lines.slice(insertAt));
+  ta.value = updated.join('\n');
+  let lineStart = 0;
+  for (let i = 0; i < insertAt; i++) lineStart += updated[i].length + 1;
+  const p = lineStart + letters[0].length + 1 + 2;
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  ta.selectionStart = ta.selectionEnd = p;
+  ta.focus();
+}
+
+function _twOnKeydown(e) {
+  if (!_twState) return;
+  if (e.key === 'Escape') { e.preventDefault(); toggleTabWriteMode(); return; }
+  const ta = e.target;
+  const blk = _twFindBlock(ta);
+  if (!blk) return;   // cursor isn't inside our staff right now — type normally
+  const lines = blk.lines, blockStart = blk.blockStart, sIdx = blk.sIdx,
+        posInLine = blk.posInLine;
+  let col = blk.col;
+  const letters = _twState.letters, n = letters.length;
+  const prefixLen = letters[sIdx].length + 1;
+
+  function getContent(j) { return lines[blockStart + j].slice(letters[j].length + 1); }
+  function setContent(j, c) { lines[blockStart + j] = letters[j] + '|' + c; }
+  // Appends exactly one column across every string in the block (the active
+  // string gets `activeChar`, everyone else gets a filler dash) and advances
+  // the shared front edge by one. Doesn't commit — callers may stack several
+  // of these (e.g. a separator beat followed by the actual note) before
+  // writing the result back to the textarea once.
+  function padOneColumn(activeChar) {
+    for (let j = 0; j < n; j++) setContent(j, getContent(j) + (j === sIdx ? activeChar : '-'));
+    col += 1;
+  }
+  function commitAndMaybeWrap() {
+    ta.value = lines.join('\n');
+    let ls = 0;
+    for (let i = 0; i < blockStart + sIdx; i++) ls += lines[i].length + 1;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.selectionStart = ta.selectionEnd = ls + prefixLen + col;
+    if (col >= _twState.maxWidth) {
+      const reBlk = _twFindBlock(ta);
+      if (reBlk) _twWrapBlock(ta, reBlk.lines, reBlk.blockStart, n);
+    }
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault(); e.stopPropagation();
+    _twWrapBlock(ta, lines, blockStart, n);
+    return;
+  }
+  if (/^[0-9]$/.test(e.key)) {
+    e.preventDefault(); e.stopPropagation();
+    if (posInLine === col) {
+      if (e.shiftKey && col > 0) {
+        // Shift+digit glues straight onto whatever's already at the front of
+        // THIS string — no separator — turning it into a 2-digit fret
+        // (10-24 etc.), or supplying the target fret right after a
+        // hammer-on/pull-off/slide mark (see the h/p/b/…/~/x handling below).
+        padOneColumn(e.key);
+      } else {
+        // Plain digit: a filler-dash "rest" beat first, then the note
+        // itself — keeps consecutive single-digit notes visually separated
+        // (e.g. "-3-5-0-" rather than the ambiguous "350") so the tab reads
+        // as distinct notes without the player needing to hit Space between
+        // every single one.
+        padOneColumn('-');
+        padOneColumn(e.key);
+      }
+      commitAndMaybeWrap();
+    } else if (posInLine < col) {
+      // Editing an earlier column on this string (a double-stop/fingerpicked
+      // note alongside one already placed on another string) — overwrite in
+      // place, leaving every string's length and the shared front edge alone.
+      const content = getContent(sIdx);
+      setContent(sIdx, content.slice(0, posInLine) + e.key + content.slice(posInLine + 1));
+      ta.value = lines.join('\n');
+      let ls = 0;
+      for (let i = 0; i < blockStart + sIdx; i++) ls += lines[i].length + 1;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      ta.selectionStart = ta.selectionEnd = ls + prefixLen + posInLine + 1;
+    }
+    return;
+  }
+  if (e.key === ' ' && posInLine === col) {
+    e.preventDefault(); e.stopPropagation();
+    padOneColumn('-');
+    commitAndMaybeWrap();
+    return;
+  }
+  if (e.key === 'Backspace' && posInLine === col && col > 0) {
+    e.preventDefault(); e.stopPropagation();
+    for (let j = 0; j < n; j++) setContent(j, getContent(j).slice(0, -1));
+    col -= 1;
+    ta.value = lines.join('\n');
+    let ls = 0;
+    for (let i = 0; i < blockStart + sIdx; i++) ls += lines[i].length + 1;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.selectionStart = ta.selectionEnd = ls + prefixLen + col;
+    return;
+  }
+  // Hammer-on (h), pull-off (p), bend (b), slide up/down (/ \), vibrato (~),
+  // mute (x/X) and tie grouping ( ) — technique marks that decorate the note
+  // just placed rather than starting a new one of their own. Glue them
+  // straight onto the active string with no separating rest beat (same as a
+  // Shift+digit, and composable with it — "5", then "h", then Shift+"7"
+  // types out "5h7" as one continuous hammer-on), so every OTHER string still
+  // gets its matching filler dash and nothing ever falls out of alignment.
+  if (/^[hpb\/\\~xX()]$/.test(e.key) && posInLine === col) {
+    e.preventDefault(); e.stopPropagation();
+    padOneColumn(e.key);
+    commitAndMaybeWrap();
+    return;
+  }
+  // Anything else (arrow keys, mouse-driven navigation, editing further back
+  // than the technique marks above support…) behaves like normal textarea
+  // typing/navigation.
+}
+
+function toggleTabWriteMode() {
+  const ta = document.getElementById('song-editor');
+  const btn = document.getElementById('btn-tab-write-toggle');
+  const hint = document.getElementById('tab-write-hint');
+  if (_twState) {
+    ta.removeEventListener('keydown', _twOnKeydown, true);
+    _twState = null;
+    ta.classList.remove('tw-mono');
+    if (btn) { btn.classList.remove('active'); btn.setAttribute('aria-pressed', 'false'); }
+    if (hint) hint.style.display = 'none';
+    return;
+  }
+  // Add Chords and Tab Riff both drive the same textarea's keystrokes — only
+  // one can be active at a time.
+  if (typeof _precisionMode !== 'undefined' && _precisionMode) _exitPrecisionMode();
+  _twState = { letters: _twTuningLetters(), maxWidth: 48 };
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const before = ta.value.slice(0, start).replace(/\n+$/, '');
+  const after  = ta.value.slice(end).replace(/^\n+/, '');
+  const leadSep  = before.length ? '\n\n' : '';
+  const trailSep = after.length  ? '\n\n' : '';
+  const skeleton = _twState.letters.map(function(l) { return l + '|--'; }).join('\n');
+  ta.value = before + leadSep + skeleton + trailSep + after;
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  const cursorPos = before.length + leadSep.length + _twState.letters[0].length + 1 + 2;
+  ta.selectionStart = ta.selectionEnd = cursorPos;
+  ta.focus();
+  ta.addEventListener('keydown', _twOnKeydown, true);
+  // A true fixed-width font (see the .tw-mono rule) while actively tabbing —
+  // --font-mono is really a decorative display font day-to-day, which makes
+  // eyeballing column alignment while typing harder than it should be.
+  ta.classList.add('tw-mono');
+  if (btn) { btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true'); }
+  if (hint) hint.style.display = 'block';
+}
+document.getElementById('btn-tab-write-toggle').addEventListener('click', toggleTabWriteMode);
 
 // ── RICH-TEXT FORMATTING (editor) ─────────────────────────────────────────────
 // Wraps the current selection in the song editor with markup recognised by
@@ -17184,10 +17554,96 @@ function _unloadSoundfont() {
 // '%%abc-charset' line or '%%' directives before the first X:). Without this,
 // the preamble becomes block[0], shifting every tune index by one — so the
 // first tune renders/plays as an empty block ("No notes found").
+// Some ABC transcriptions repeat a LATER strain (a tune's "B part") without
+// an explicit |: at its start — relying on the reader to infer "repeat from
+// the top of this line" the way sheet music page-turns often imply. ABCJS's
+// own playback engine (setTiming) doesn't reliably assign MIDI pitches for
+// that kind of IMPLICIT repeat when it isn't the tune's very first strain:
+// verified live against a reported tune with exactly this shape — the A
+// part's implicit repeat played back fine, but the B part (closing with its
+// own :| and 1st/2nd endings, no preceding |:) produced timing EVENTS at
+// the right positions/durations but with EMPTY midiPitches for the whole
+// strain on every pass — audibly silent except the two ending bars, which
+// have their own explicit markers and did have pitches. Adding an explicit
+// |: exactly where the implicit repeat starts made ABCJS emit correct
+// pitches for the whole strain. Rather than patching the bundled abcjs
+// library, this rewrites the ABC text before it's ever handed to ABCJS (or
+// the abcToNotes fallback, which has the same "which bar do I jump back to"
+// ambiguity for an implicit repeat-start) — inserting the |: that was only
+// ever implied, so audio AND the printed notation both end up showing the
+// same, now-unambiguous, repeat structure.
+function _abcNormalizeImplicitRepeats(body) {
+  // Same-length masking: replace chord symbols/decorations/inline fields
+  // with spaces so bar-token positions in the masked copy still line up
+  // 1:1 with the original text — only bare barline characters are ever
+  // inspected, real content (which could coincidentally contain '|', ':',
+  // '[' etc. inside a quoted string) is never misread as a barline.
+  var masked = body
+    .replace(/"[^"]*"/g,        function(m){ return ' '.repeat(m.length); })
+    .replace(/![^!\n]*!/g,      function(m){ return ' '.repeat(m.length); })
+    .replace(/\+[^+\n]*\+/g,    function(m){ return ' '.repeat(m.length); })
+    .replace(/\{[^}]*\}/g,      function(m){ return ' '.repeat(m.length); })
+    .replace(/\[[A-Za-z]:[^\]]*\]/g, function(m){ return ' '.repeat(m.length); });
+
+  var inserts      = [];      // indices (into the ORIGINAL text) to insert '|:' before
+  var lastBoundary  = 0;      // index right after the most recent section boundary
+  var sawStart      = false;  // explicit |: seen since lastBoundary
+  var i = 0;
+  while (i < masked.length) {
+    var c = masked[i];
+    if (c === '|') {
+      if (masked[i+1] === ':') { sawStart = true; i += 2; continue; }                 // |:
+      if (masked[i+1] === ']' || masked[i+1] === '|') {                               // |] ||
+        lastBoundary = i + 2; sawStart = false; i += 2; continue;
+      }
+      if (/\d/.test(masked[i+1])) { i += 2; continue; }                               // |1 |2 — an ending marker, not a new section
+      i += 1; continue;                                                               // plain |
+    }
+    if (c === ':' && masked[i+1] === '|') {
+      var j = i + 2;
+      if (/\d/.test(masked[j])) j += 1;                                               // :|2
+      if (!sawStart) inserts.push(lastBoundary);
+      lastBoundary = j; sawStart = false; i = j; continue;
+    }
+    if (c === ':' && masked[i+1] === ':') {                                           // ::  (close + reopen)
+      if (!sawStart) inserts.push(lastBoundary);
+      i += 2; lastBoundary = i; sawStart = true; continue;
+    }
+    if (c === '[' && /\d/.test(masked[i+1])) { i += 2; continue; }                    // [1 [2 — an ending marker
+    i += 1;
+  }
+  if (!inserts.length) return body;
+  var out = body;
+  for (var k = inserts.length - 1; k >= 0; k--) {
+    var pos = inserts[k];
+    // Skip past any leading whitespace at the insertion point so |: lands
+    // directly before the section's first real character instead of
+    // stranding blank space in front of it.
+    while (pos < out.length && (out[pos] === ' ' || out[pos] === '\t')) pos++;
+    out = out.slice(0, pos) + '|:' + out.slice(pos);
+  }
+  return out;
+}
+
 function _abcTuneBlocks(text) {
   var all = String(text || '').split(/(?=^X:\s*\d)/m);
   var tunes = all.filter(function(b){ return /^X:\s*\d/m.test(b); });
-  return tunes.length ? tunes : all.filter(function(b){ return b.trim(); });
+  var picked = tunes.length ? tunes : all.filter(function(b){ return b.trim(); });
+  // Normalize only the tune BODY (after the header fields), never the
+  // headers themselves — inserting into a T:/K:/etc. line could corrupt it,
+  // and headers never contain bar-structure to begin with.
+  return picked.map(function(block) {
+    // Everything up to and including the last contiguous "Letter:" header
+    // line at the top is left untouched; only the remainder (the actual
+    // note body) gets normalized.
+    var lines = block.split('\n');
+    var bodyStart = 0;
+    while (bodyStart < lines.length && /^[A-Za-z]:/.test(lines[bodyStart])) bodyStart++;
+    var header = lines.slice(0, bodyStart).join('\n');
+    var body   = lines.slice(bodyStart).join('\n');
+    var normalized = _abcNormalizeImplicitRepeats(body);
+    return bodyStart ? (header + '\n' + normalized) : normalized;
+  });
 }
 
 function parseABCFile(text, filename) {
@@ -17947,7 +18403,12 @@ function renderABCSong(song) {
   const _rawKey = _abcKeyMatch ? _abcKeyMatch[1].trim() : song.key;
   const _normKey = normaliseKeyStr(_rawKey || '') || song.key || '';
   song.key = _normKey;  // update in memory (and save so next load has correct key)
-  const _dispKey = _normKey ? _keyWithCapo(_normKey) : '';
+  // This view is entirely sheet music, and the notation's visualTranspose
+  // deliberately excludes capo (see _abcEffectiveTr and the setCapo() comment)
+  // so the key signature actually drawn on the staff never shifts for capo.
+  // The Key pill must match that — showing _keyWithCapo's capo-shifted
+  // sounding key here would contradict what's on the page right below it.
+  const _dispKey = _normKey ? (transposeKey(_normKey, transposeAmount) || _normKey) : '';
   const _abcMetaEl = document.getElementById('abc-meta');
   _abcMetaEl.innerHTML = '';
   [[t('meta.type'), song.type||null], [t('meta.key'), _dispKey||null]].forEach(([l,v])=>{
@@ -19609,7 +20070,11 @@ function _irealTextToChords(text){
     if(tok==='/')  {chords.push({type:'slash'});continue;}
     if(tok==='%')  {chords.push({type:'rep1'});continue;}
     if(/^n\.?c\.?$/i.test(tok)){chords.push({type:'nc'});continue;}
-    const m=tok.match(/^([A-G])([b#]?)(.*)$/);
+    // Same auto-format normalization as the chord-sheet "Add Chords" popup
+    // (_normalizeChordName): uppercases the root/bass letters so casual
+    // lowercase typing like "g" or "bbdim7" is recognised as G / Bbdim7
+    // instead of silently failing to match and being dropped as blank.
+    const m=_normalizeChordName(tok).match(/^([A-G])([b#]?)(.*)$/);
     if(!m)continue;
     const root=m[1]+(m[2]==='b'?'♭':m[2]==='#'?'♯':'');
     let qual=m[3],bass='';

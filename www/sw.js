@@ -7,8 +7,9 @@
 // "Revert sw.js CACHE_VERSION to v1.2" history) rather than churning it on
 // every SW change; the browser detects the new fetch handler purely from
 // this file's bytes changing, independent of that constant.
+// Bumped to v1.2.1 for the 1.2.1 bugfix release.
 
-const CACHE_VERSION = 'magic-scroll-v1.2';
+const CACHE_VERSION = 'magic-scroll-v1.2.1';
 const SHARE_CACHE   = 'magic-scroll-share-target';
 
 // ── Install ───────────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ self.addEventListener('install', function(event) {
         './irealpro-engine.js',
         './strings-en.js',
         './strings-zh.js',
+        './strings-fr.js',
         './abcjs-basic.js',
         './manifest.json',
         // Audio engine + bundled FluidR3 soundfonts (primary, higher quality)

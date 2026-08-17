@@ -45,6 +45,9 @@ window.MS_STRINGS_ZH = {
   'editor.embed':               '⧉ 嵌入…',
   'editor.embedTitle':          '嵌入视频或链接',
   'editor.precisionHint':       '点击想要添加和弦的字词（或位置），然后在弹出的输入框中输入和弦。点击已有的和弦可以编辑或删除它。',
+  'editor.tabWrite':            '🎸 六线谱',
+  'editor.tabWriteTitle':       '按当前乐器的调弦法生成一段六线谱——直接输入品位数字，各弦会自动对齐',
+  'editor.tabWriteHint':        '点击某条弦所在的行，然后输入品位数字——其余弦会自动补上。点击更早的位置可以添加双音而不影响后面的内容。按住 Shift 可以粘连输入第二位数字（10 品以上），或粘连在 h/p/b/滑音记号后面的目标品位。空格 = 休止，回车 = 换行，按 Esc 或再次点击按钮即可完成。',
   'editor.editToggle':          '✎ 编辑',
   'editor.editToggleActive':    '✎ 保存',
   'editor.editToggleTitle':     '在编辑模式与阅读模式之间切换',
@@ -315,7 +318,7 @@ window.MS_STRINGS_ZH = {
   'newSong.openEditor':          '打开编辑器',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             '版本 1.2',
+  'contact.version':             '版本 1.2.1',
   'contact.bugReportsHeading':   '错误报告／捐赠',
   'contact.getInTouch':          '发现问题？联系我们：',
   'contact.includeDescription':  '请附上歌曲文件以及出错情况的描述。',
@@ -559,4 +562,16 @@ window.MS_STRINGS_ZH = {
 
   // ── MULTI-PART SHEET MUSIC (MuseScore/MusicXML imports with >1 instrument) ─
   'sheetmusic.partFallback':     '声部 {n}',
+
+  // ── INSTRUMENT CATEGORIES (Chord Diagrams instrument tabs) ──────────────
+  // See strings-en.js for how this is wired in. Tuning names (DADGAD、Open
+  // G、特殊调弦……) 保持不翻译。
+  'instCat.guitar':              '吉他',
+  'instCat.ukulele':             '尤克里里',
+  'instCat.banjo':                '班卓琴',
+  'instCat.mandolin':            '曼陀林',
+  'instCat.folk':                '民谣',
+  'instCat.concertina':          '六角手风琴',
+  'instCat.melodeon':            '全音阶手风琴',
+  'instCat.piano':                '钢琴',
 };
