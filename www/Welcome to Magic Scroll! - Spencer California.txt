@@ -1,6 +1,6 @@
 **Hello and welcome to Magic Scroll!**
 
-I'm Spencer, I'm the developer of this app (Friends call me Sunny! Either way I'm still the developer of the app). Thank you for giving it a try!
+I'm Spencer, I'm the developer of this app. Thank you for giving it a try!
 
 Magic Scroll is a platform for anyone interested in making music, *from hobbyists to songwriters,* to format and share the songs they want to play, however they want to play them. It's totally _ad-free,_ so _no subscriptions,_ _pop-ups,_ or _premium features_ can bother you when you just want to share some tunes with your band or strum a little bit with your ukulele group.
 
