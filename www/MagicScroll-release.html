@@ -1164,7 +1164,17 @@
   }
   #precision-popup {
     position: fixed;
-    z-index: 900;
+    /* Above the tutorial system's entire overlay stack (mask 999990, glow
+       rings 999991, pop-up 999999 — see tutorial.js) so this real, editable
+       chord-entry popover is never dimmed under the mask, painted over by
+       the tutorial's own pop-up box, or unreachable to clicks (the mask
+       captures pointer events too, and stacking order decides who gets
+       them) — regardless of where on screen it happens to open, which
+       depends entirely on where the user tapped a word and isn't something
+       any one tutorial step can predict or carve a mask hole around ahead
+       of time. Any tutorial step, if it opens this popup at all, always
+       wants it fully usable. */
+    z-index: 1000000;
     background: var(--c-chrome-bg);
     border: 1px solid var(--c-chrome-border);
     border-radius: 6px;
@@ -2638,9 +2648,22 @@
     flex: 1 1 auto;
     min-width: 60px;
   }
-  /* Language sits directly beneath Line Spacing — same "own full row" treatment. */
+  /* Language sits directly beneath Line Spacing, sharing its row with
+     Tutorials — Language stays sized to its own content (label + short
+     dropdown) and Tutorials' single button splits whatever width is left
+     over, same "auto + auto" pairing as Size/Themes/Print above. Tutorials
+     is appended after Language in DOM order (see _TOPBAR_SETTINGS_IDS), so
+     it's the next flex item and lands on this same row automatically once
+     Language no longer claims the full row. */
   #settings-menu-content > #topbar-language-group {
-    flex: 1 1 100% !important;
+    flex: 0 0 auto !important;
+  }
+  #settings-menu-content > #tutorials-wrap {
+    flex: 1 1 0% !important;
+    min-width: 0;
+  }
+  #settings-menu-content > #tutorials-wrap #btn-tutorials-settings {
+    flex: 1 1 auto !important;
     width: 100%;
   }
   #settings-menu-content > #theme-settings-wrap,
@@ -3992,6 +4015,37 @@
 <script src="strings-en.js"></script>
 <script src="strings-zh.js"></script>
 <script src="strings-fr.js"></script>
+<script>
+// ── SANDBOXED PREVIEW SAFETY NET ─────────────────────────────────────────
+// Some sandboxed preview environments only ever serve this single HTML file
+// and can't fetch its sibling .js files, so strings-en.js (and friends) 404
+// silently and window.t is never defined. The app's own code calls t('...')
+// in dozens of places without checking first (only applyI18nStrings() and
+// applyInstrumentCategoryI18n() guard for it) — an unguarded call throws
+// "ReferenceError: t is not defined", which (being an uncaught top-level
+// throw partway through a script that otherwise runs start-to-finish) halts
+// EVERY statement after it, including all the addEventListener wiring further
+// down — the whole app goes dark from one missing file.
+// If strings-en.js hasn't defined window.t by the time we get here, stand in
+// a safe no-op version so nothing throws. __MS_T_FALLBACK__ additionally
+// tells applyI18nStrings()/applyInstrumentCategoryI18n() to bail out (their
+// own typeof-t guard would otherwise now pass and overwrite every data-i18n
+// element's nice hard-coded English text with a raw "topbar.chordsTitle"-
+// style key instead) — same net effect as strings-en.js failing to load
+// today, just without the crash.
+if (typeof window.t !== 'function') {
+  console.warn('Magic Scroll: strings-en.js (or a sibling) failed to load — running with English fallback text only.');
+  window.__MS_T_FALLBACK__ = true;
+  window.MS_STRINGS_EN = window.MS_STRINGS_EN || {};
+  window.MS_LANG = window.MS_LANG || 'en';
+  window.t = function (key, vars) {
+    var s = key;
+    if (vars) { Object.keys(vars).forEach(function (k) { s = s.split('{' + k + '}').join(vars[k]); }); }
+    return s;
+  };
+  window.setLanguage = window.setLanguage || function () {};
+}
+</script>
 </head>
 <body>
 <!-- Dedicated pinned-background layer — see #bg-layer-fixed CSS + applyTheme()/
@@ -4153,6 +4207,31 @@
         <button id="btn-theme-export" title="Download your saved custom themes as a file you can share" data-i18n-title="themes.exportTitle" data-i18n="themes.export">⇩ Export Themes</button>
         <button id="btn-theme-import" title="Load custom themes shared by someone else" data-i18n-title="themes.importTitle" data-i18n="themes.import">⇧ Import Themes</button>
         <input type="file" id="theme-import-file" accept="application/json,.json" style="display:none">
+      </div>
+    </div>
+  </div>
+  <span class="sep">|</span>
+  <!-- ── TUTORIALS ────────────────────────────────────────────────────────
+       Re-entry point for the guided tutorial flows. Structured exactly like
+       the Themes group above it (.ctrl-group.settings-btn + .settings-panel)
+       so it automatically inherits panel open/close/positioning behaviour,
+       gets relocated into the Options ("settings-menu-content") dropdown by
+       _topbarApplyMobile (see _TOPBAR_SETTINGS_IDS below), and is protected
+       from the global outside-click-closes-panels handler (see the `wraps`
+       array further down). All of tutorial.js's own behaviour — the overlay,
+       spotlight, popups, flow content — lives in the sidecar tutorial.js
+       file loaded at the end of <body>; this block is just the re-entry UI. -->
+  <div class="ctrl-group settings-btn" id="tutorials-wrap">
+    <button id="btn-tutorials-settings" title="Replay guided tutorials">🎓 Tutorials</button>
+    <div class="settings-panel" id="tutorials-panel">
+      <button type="button" id="btn-tutorials-panel-close" class="settings-panel-close" title="Close" aria-label="Close">✕</button>
+      <h5 id="tutorials-panel-h5">🎓 Tutorials</h5>
+      <div class="settings-section-title" id="tutorials-section-tours">Guided Tours</div>
+      <div id="tutorial-flow-list"><!-- populated by tutorial.js --></div>
+      <div class="settings-section-title" id="tutorials-section-settings">Settings</div>
+      <div class="settings-row">
+        <label for="tutorials-enabled-toggle" id="tutorials-toggle-label" style="flex:1;">Show tutorial pop-ups</label>
+        <input type="checkbox" id="tutorials-enabled-toggle" checked style="width:auto;height:auto;flex:none;accent-color:var(--c-accent);">
       </div>
     </div>
   </div>
@@ -5010,7 +5089,7 @@ I hope you enjoy using your magic scroll!"></textarea>
 // the DOM's text to be final, and again by setLanguage() (in strings-en.js)
 // whenever the user switches languages via #lang-sel below.
 function applyI18nStrings() {
-  if (typeof t !== 'function') return;   // strings-en.js failed to load — leave the (English) fallback markup as-is
+  if (typeof t !== 'function' || window.__MS_T_FALLBACK__) return;   // strings-en.js failed to load (or the safety-net stub above is standing in for it) — leave the hard-coded English markup as-is
   document.querySelectorAll('[data-i18n]').forEach(function(el) { el.textContent = t(el.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-title]').forEach(function(el) { el.title = t(el.getAttribute('data-i18n-title')); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
@@ -5040,7 +5119,7 @@ function applyI18nStrings() {
 // tabs below (built later, from JS, after the boot-time applyI18nStrings()
 // call has already run once).
 function applyInstrumentCategoryI18n() {
-  if (typeof t !== 'function') return;
+  if (typeof t !== 'function' || window.__MS_T_FALLBACK__) return;
   document.querySelectorAll('.inst-select[data-family]').forEach(function(sel) {
     var catText = t('instCat.' + sel.dataset.family);
     Array.prototype.forEach.call(sel.options, function(opt) {
@@ -5117,8 +5196,83 @@ try { folders = JSON.parse(localStorage.getItem('ug_folders') || '[]'); } catch(
 
 // ── DEMO SONGS — first-run examples ────────────────────────────────────
 // Wizard's Walk is hard-coded so it works on file://, offline, and fresh deploys.
-// Worth the Weight is fetched from the server and silently skipped if absent.
 var _demoLoading = false;
+
+// Worth the Weight (chord chart) — hoisted to top-level (rather than living
+// inside the "fresh library" IIFE below) so BOTH the fresh-seed path and the
+// backfill path just below it can build the same song object from it. It
+// used to be fetched from the server and silently dropped whenever that
+// failed — which was the normal case on file:// (the fetch was explicitly
+// skipped there) or offline — so it was missing from the starter pack far
+// more often than not. It's embedded directly now, same reliability tier as
+// the other three starters.
+var worthText = `----------------------------------------------------
+Song name: Worth the Weight  by  Spencer California
+----------------------------------------------------
+
+[yt: https://youtu.be/mWYnyn_vIcE]
+
+Hello, and welcome to **Magic Scroll!** Above is a short promotional/instructional/music video for how to use the app (And play this song). This is here as an _example file,_ to help you figure out how to formatting works in the software. You can delete this if you want and just do it however you'd like, though! *That's okay.*
+
+Come al[D]ong with me, when you need to cry
+Come al[G]ong with me, when your well runs dry
+Let me c[D]arry you, when the day grows late
+After a[G]ll this time, you are…[A]
+Worth the weight [D]
+
+L[D]ooking in your eyes is like honeyed wine
+How the [G]lights of love in the morning s[A]hines
+So I s[D]wear to you, on your darling face
+I will [G]keep you true, and keep you [A]safe
+
+Come al[D]ong with me, when you need to cry
+Come al[G]ong with me, when your well runs dry
+Let me c[D]arry you, when the day grows late
+After a[G]ll this time, you are…[A]
+Worth the weight [D]
+
+X:1
+M: 4/4
+L: 1/16
+K: D
+F2A2|
+B4F4E4F2E2|
+E2D4F6F2E2|
+FE3D4B,4A,2B,2|
+F4A4A4[Fd]2[Ae]2|
+[Bf]4[Fd]4E4F2E2|
+E2D4F6F2E2|
+FE3D4B,4z2B,D|
+B,4z2A,4F,2|
+E,4D,12|]
+
+R[D]inging through the trees, golden eagles croon
+Over [G]fields and creeks where the garlic b[A]looms
+If the [D]music stopped as I walk with you
+Then the s[G]ilence would break my h[A]eart in two
+
+Come al[D]ong with me, when you need to cry
+Come al[G]ong with me, when your well runs dry
+Let me c[D]arry you, when the day grows late
+After a[G]ll this time, you are…[A]
+Worth the weight [D]
+
+and i[G]f our journey e[A]nds, then you and [D]I can st[A]art one [Bm]more
+[G]I would swim a[A]cross the sea to [D]join you [A]on the [Bm]shore
+
+G Gm
+
+Come al[D]ong with me, when you need to cry
+Come al[G]ong with me, when your well runs dry
+Let me c[D]arry you, when the day grows late
+After a[G]ll this time, you are…[A]
+Come al[D]ong with me, when you need to cry
+Come al[G]ong with me, when your well runs dry
+Let me c[D]arry you, when the day grows late
+After a[G]ll this time, you are…[A]
+Worth the weight [D]`;
+function _makeWorthTheWeightSong() { return parsePlainText(worthText, 'Worth the Weight.txt'); }
+
 if (songs.length === 0) {
   _demoLoading = true;
   (function() {
@@ -5206,6 +5360,11 @@ dc | "G"B3dBA | "D"F2A3D | "A"E3FED
 "D"D6 |]`;
     parseABCFile(wearyABC, "Weary Wayfarer.abc").forEach(addStarter);
 
+    // Worth the Weight (chord chart) — built from the top-level worthText
+    // (see _makeWorthTheWeightSong above). This is also the song the app
+    // opens to first — see the "First-load selection" note in commit() below.
+    addStarter(_makeWorthTheWeightSong());
+
     function commit() {
       if (songs.length === 0) { _demoLoading = false; return; }
       // Group every starter sample into a "Starter pack" folder.
@@ -5214,25 +5373,41 @@ dc | "G"B3dBA | "D"F2A3D | "A"E3FED
       setTimeout(function() {
         _demoLoading = false;
         buildSongList('');
-        // First-load selection: always the welcome note, regardless of order.
-        var welIdx = songs.findIndex(function(s) {
-          return (s.title || '').toLowerCase().indexOf('welcome to magic scroll') >= 0;
+        // First-load selection: Worth the Weight, regardless of order.
+        var idx = songs.findIndex(function(s) {
+          return (s.title || '').toLowerCase().indexOf('worth the weight') >= 0;
         });
-        renderSong(welIdx >= 0 ? welIdx : 0);
+        renderSong(idx >= 0 ? idx : 0);
       }, 0);
     }
-
-    // Worth the Weight (chord chart) — fetched from the server, silently
-    // skipped (and just left out of the pack) if unavailable / offline.
-    if (location.protocol !== 'file:') {
-      fetch('Worth%20the%20Weight.txt')
-        .then(function(r) { return r.ok ? r.text() : Promise.reject(); })
-        .then(function(text) {
-          var s = parsePlainText(text, 'Worth the Weight.txt');
-          if (s && (s.title || s.tab_content)) addStarter(s);
-        }).catch(function() {}).finally(commit);
-    } else { commit(); }
+    commit();
   })();
+}
+// Backfill for returning users: the seeding block above only ever runs
+// once, on a genuinely empty library — so anyone who already ran an earlier
+// version of Magic Scroll (before Worth the Weight was embedded, or back
+// when it depended on a server fetch that silently failed on file://) has a
+// library that will never pick it up on its own, no matter how many times
+// this file gets updated. Add it now if it's missing,
+// one-time-only (own flag, independent of the fresh-seed path above so it's
+// safe to run in both branches). Only appends the song — deliberately does
+// NOT touch which song is currently open, unlike the fresh-seed path, since
+// forcing a returning user's view to jump to a different song on load would
+// be a much bigger surprise than a new song just appearing in their library.
+if (!localStorage.getItem('ms_worth_the_weight_backfilled')) {
+  try {
+    var _hasWorth = songs.some(function(s) { return (s.title || '').toLowerCase().indexOf('worth the weight') >= 0; });
+    if (!_hasWorth) {
+      var _worthBackfill = _makeWorthTheWeightSong();
+      if (_worthBackfill) {
+        songs.push(_worthBackfill);
+        var _starterFolder = folders.filter(function(f) { return f.name === 'Starter pack'; })[0];
+        if (_starterFolder) _starterFolder.songIndices.push(songs.length - 1);
+        saveAll();
+      }
+    }
+  } catch (e) {}
+  localStorage.setItem('ms_worth_the_weight_backfilled', '1');
 }
 // Returning user init: deferred so all `let` declarations (currentIdx etc.) are in
 // scope. Skipped during first-run seeding — commit() handles that selection.
@@ -6104,7 +6279,8 @@ document.addEventListener('click', function() {
 });
 document.addEventListener('click', e => {
   const wraps = ['theme-settings-wrap', 'print-settings-wrap', 'metronome-wrap', 'tuner-wrap',
-                 'btn-music-menu', 'btn-settings-menu', 'btn-diagrams', 'btn-diagrams-fab', 'btn-simplify'];
+                 'btn-music-menu', 'btn-settings-menu', 'btn-diagrams', 'btn-diagrams-fab', 'btn-simplify',
+                 'tutorials-wrap'];
   const inWrap  = wraps.some(id => document.getElementById(id)?.contains(e.target));
   const inPanel = Array.from(document.querySelectorAll('.settings-panel.open, .topbar-cat-panel.open'))
                        .some(p => p.contains(e.target));
@@ -14164,7 +14340,7 @@ if (localStorage.getItem('ug_topbar_collapsed')) setTopbarCollapsed(true);
 // (_topbarRestoreDesktop is kept below, unused, in case a desktop-only mode
 // is ever wanted again — it's just no longer wired up to anything.)
 var _TOPBAR_MUSIC_IDS    = ['topbar-key-group', 'btn-diagrams', 'metronome-wrap', 'tuner-wrap'];
-var _TOPBAR_SETTINGS_IDS = ['topbar-size-group', 'theme-settings-wrap', 'print-settings-wrap', 'topbar-linespacing-group', 'topbar-language-group'];
+var _TOPBAR_SETTINGS_IDS = ['topbar-size-group', 'theme-settings-wrap', 'print-settings-wrap', 'topbar-linespacing-group', 'topbar-language-group', 'tutorials-wrap'];
 var _topbarHomes = null;   // id → {parent, next} — original desktop position, captured once
 
 function _topbarCaptureHomes() {
@@ -22251,5 +22427,18 @@ document.getElementById('ns-type').addEventListener('change', function() {
   });
 });
 </script>
+<!-- ── Guided tutorial copy (English source + French/Chinese
+     translations), then the guided tutorial engine itself (spotlight
+     pop-ups, first-run tour, re-entry via Options → Tutorials). Strings load
+     first so tutorial.js's window.MS_TUTORIAL_STRINGS_EN/FR/ZH lookups are
+     ready by the time it runs — same ordering convention as strings-en/fr/
+     zh.js above relative to the main app script. Sidecar files so the core
+     app script above stays untouched; see tutorial-strings-en.js for the
+     full explanation of the string files, and tutorial.js for the engine +
+     flow content. ── -->
+<script src="tutorial-strings-en.js"></script>
+<script src="tutorial-strings-fr.js"></script>
+<script src="tutorial-strings-zh.js"></script>
+<script src="tutorial.js"></script>
 </body>
 </html>
