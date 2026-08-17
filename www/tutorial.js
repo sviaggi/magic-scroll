@@ -395,8 +395,27 @@
   // ── DOM / CSS BUILD ─────────────────────────────────────────────────────
   var els = {};
   function injectStyle() {
+    // Font: the whole widget used to default to --font-ui (the app's
+    // decorative title/chrome typeface — 'TypographerGotisch Schmuck' /
+    // 'IM Fell English' by default), which every element without its own
+    // font-family inherited straight from #ms-tut-root, including the
+    // pop-up's own paragraph body text. That decorative face reads fine as
+    // a one-line heading but is hard to read as a full sentence. #ms-tut-root
+    // now defaults to --font-mono instead (the app's standard body/tab
+    // font, Valeson by default — see the --font-* comment block near the
+    // top of this file's sibling HTML for the full family list), so
+    // anything without its own override (body copy, hints, the progress
+    // counter, buttons, links) reads in the same body font as the rest of
+    // the app. --font-ui is then reapplied explicitly, just to the two real
+    // headings (.ms-tut-popup h5 / .ms-tut-banner h5 below) — headings are
+    // short enough that the decorative face stays legible there and it
+    // keeps the pop-up's title visually matched to the rest of the app's
+    // chrome. Both variables already resolve through the user's own Themes
+    // → Fonts picker (sf-mono / sf-ui, see MagicScroll's font-settings
+    // block) if they've customised either slot, so this follows whatever
+    // the user has actually set rather than hardcoding a font name.
     var css = ''
-    + '#ms-tut-root{font-family:var(--font-ui, sans-serif);}'
+    + '#ms-tut-root{font-family:var(--font-mono, sans-serif);}'
     + '.ms-tut-mask{position:fixed;background:rgba(0,0,0,0.62);z-index:999990;pointer-events:auto;cursor:default;}'
     + '.ms-tut-mask-precise{position:fixed;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.62);z-index:999990;pointer-events:auto;cursor:default;}'
     + '.ms-tut-ring{position:fixed;pointer-events:none;z-index:999991;border:2px solid var(--c-accent,#c8922a);border-radius:7px;'
@@ -408,17 +427,18 @@
     +   'color:var(--c-chrome-text,#e8d9b8);font-size:0.8rem;line-height:1.55;box-sizing:border-box;}'
     + '.ms-tut-popup.ms-tut-shake{animation:ms-tut-shake .32s ease;}'
     + '@keyframes ms-tut-shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}'
-    + '.ms-tut-popup h5{margin:0 0 8px;color:var(--c-accent,#c8922a);font-size:0.92rem;font-weight:normal;padding-right:26px;}'
+    + '.ms-tut-popup h5{margin:0 0 8px;color:var(--c-accent,#c8922a);font-size:0.92rem;font-weight:normal;padding-right:26px;'
+    +   'font-family:var(--font-ui,serif);}'
     + '.ms-tut-close{position:absolute;top:8px;right:8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;'
     +   'background:transparent;border:1px solid var(--c-chrome-border,#7a5818);border-radius:3px;color:var(--c-chrome-muted,#9a8a6a);'
-    +   'font-size:0.78rem;line-height:1;cursor:pointer;padding:0;}'
+    +   'font-family:var(--font-mono,inherit);font-size:0.78rem;line-height:1;cursor:pointer;padding:0;}'
     + '.ms-tut-close:hover{color:var(--c-accent,#c8922a);border-color:var(--c-accent,#c8922a);}'
-    + '.ms-tut-body{margin:0 0 10px;}'
+    + '.ms-tut-body{margin:0 0 10px;font-family:var(--font-mono,sans-serif);}'
     + '.ms-tut-body strong{color:var(--c-accent,#c8922a);font-weight:normal;}'
     + '.ms-tut-body code{background:var(--c-chrome-bg,#0f0d09);padding:1px 4px;border-radius:2px;font-size:0.9em;}'
-    + '.ms-tut-hint{font-style:italic;color:var(--c-chrome-muted,#9a8a6a);font-size:0.72rem;margin:0 0 10px;}'
+    + '.ms-tut-hint{font-style:italic;color:var(--c-chrome-muted,#9a8a6a);font-size:0.72rem;margin:0 0 10px;font-family:var(--font-mono,sans-serif);}'
     + '.ms-tut-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;}'
-    + '.ms-tut-progress{font-size:0.65rem;color:var(--c-chrome-muted,#9a8a6a);white-space:nowrap;}'
+    + '.ms-tut-progress{font-size:0.65rem;color:var(--c-chrome-muted,#9a8a6a);white-space:nowrap;font-family:var(--font-mono,sans-serif);}'
     + '.ms-tut-btns{display:flex;gap:6px;}'
     + '.ms-tut-back-btn{background:transparent;color:var(--c-chrome-text,#e8d9b8);border:1px solid var(--c-chrome-border,#7a5818);'
     +   'font-family:var(--font-mono,inherit);font-size:0.75rem;padding:5px 11px;cursor:pointer;border-radius:2px;}'
@@ -427,19 +447,19 @@
     +   'font-family:var(--font-mono,inherit);font-size:0.75rem;padding:5px 14px;cursor:pointer;border-radius:2px;}'
     + '.ms-tut-dontshow-row{margin-top:9px;padding-top:8px;border-top:1px solid var(--c-chrome-border,#7a5818);}'
     + '.ms-tut-dontshow{background:none;border:none;color:var(--c-chrome-muted,#9a8a6a);text-decoration:underline;cursor:pointer;'
-    +   'font-size:0.65rem;padding:0;font-family:inherit;}'
+    +   'font-size:0.65rem;padding:0;font-family:var(--font-mono,inherit);}'
     + '.ms-tut-dontshow:hover{color:var(--c-accent,#c8922a);}'
     + '.ms-tut-banner{position:fixed;bottom:16px;right:16px;z-index:999998;background:var(--c-chrome-bg2,#1a1510);'
     +   'border:1px solid var(--c-chrome-border,#7a5818);border-radius:6px;padding:13px 15px;max-width:270px;'
     +   'box-shadow:0 8px 30px rgba(0,0,0,.6);color:var(--c-chrome-text,#e8d9b8);font-size:0.78rem;line-height:1.5;'
     +   'opacity:0;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease;}'
     + '.ms-tut-banner.ms-tut-in{opacity:1;transform:translateY(0);}'
-    + '.ms-tut-banner h5{margin:0 0 6px;color:var(--c-accent,#c8922a);font-size:0.85rem;font-weight:normal;}'
+    + '.ms-tut-banner h5{margin:0 0 6px;color:var(--c-accent,#c8922a);font-size:0.85rem;font-weight:normal;font-family:var(--font-ui,serif);}'
     + '.ms-tut-banner .ms-tut-banner-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}'
     + '.ms-tut-banner button{font-family:var(--font-mono,inherit);font-size:0.7rem;padding:4px 9px;cursor:pointer;border-radius:2px;}'
     + '.ms-tut-banner .ms-tut-banner-start{background:var(--c-accent,#c8922a);color:var(--c-chrome-bg,#0f0d09);border:1px solid var(--c-accent,#c8922a);}'
     + '.ms-tut-banner .ms-tut-banner-later{background:transparent;color:var(--c-chrome-text,#e8d9b8);border:1px solid var(--c-chrome-border,#7a5818);}'
-    + '.ms-tut-banner .ms-tut-banner-never{background:none;border:none;color:var(--c-chrome-muted,#9a8a6a);text-decoration:underline;cursor:pointer;font-size:0.68rem;padding:0;margin-top:8px;display:inline-block;}'
+    + '.ms-tut-banner .ms-tut-banner-never{background:none;border:none;color:var(--c-chrome-muted,#9a8a6a);text-decoration:underline;cursor:pointer;font-size:0.68rem;padding:0;margin-top:8px;display:inline-block;font-family:var(--font-mono,inherit);}'
     + '.tutorial-flow-btn{display:block;width:100%;text-align:left;margin-bottom:5px;background:var(--c-chrome-bg3,#241d14);'
     +   'border:1px solid var(--c-chrome-border,#7a5818);color:var(--c-chrome-text,#e8d9b8);padding:6px 9px;border-radius:3px;cursor:pointer;font-family:var(--font-mono,inherit);}'
     + '.tutorial-flow-btn:hover{border-color:var(--c-accent,#c8922a);color:var(--c-accent,#c8922a);}'
