@@ -122,6 +122,8 @@ window.MS_TUTORIAL_STRINGS_ZH = {
   'sheetMusic.menu.body': '加载自定义音色库用于播放，显示锡哨指法谱，或在每个音符下方显示音名。',
   'sheetMusic.transpose.title': '移调',
   'sheetMusic.transpose.body': '整体升高或降低乐曲，永久改写每一个音符——无需重新输入。不想改动记谱本身？顶部工具栏的<strong>🎵 和弦</strong>标签页也有自己的 ♭−/♯+，只改变显示效果，不会更改任何已保存的内容。',
+  'sheetMusic.createSet.title': '创建曲目组合',
+  'sheetMusic.createSet.body': '点击“创建组合”，可以把库中其他曲子接在这首后面。勾选想要的曲子——勾选的先后顺序就是播放顺序。点击“显示组合”会把它们连在一起播放，就像session里的一组曲子一样。',
   'sheetMusic.done.title': '导入乐谱',
   'sheetMusic.done.body': '通过 <strong>✦ 新建 → ABC 记谱法</strong> 创建并粘贴 ABC 文本，或拖入 .abc、.mxl 或 .mscz 文件——MuseScore 文件会自动转换。',
 

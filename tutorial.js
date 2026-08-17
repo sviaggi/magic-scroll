@@ -267,6 +267,21 @@
         { key: 'menu', mode: 'show', target: '#btn-abc-sheetmusic-menu-trigger', placement: 'bottom' },
         // Reachable now that "edit" above guarantees edit mode is on.
         { key: 'transpose', mode: 'show', target: '#abc-transpose-bar', placement: 'bottom' },
+        // New: covers "⛓ Create set" (#btn-abc-set), which stacks other ABC
+        // tunes from the library right after this one into a combined,
+        // playable-through set — the same idea as a session's tune set.
+        // Real wait step, same pattern as generalUsage's "collections": the
+        // click opens the app's own #abc-set-modal (search/filter, check
+        // tunes on in the order you want them, "Show set"), which needs the
+        // user's full attention and covers a lot of the screen, so
+        // waitForClose hides the tutorial's own UI while it's open and
+        // resumes with "done" once the user closes it (Show set OR Cancel —
+        // waitForClose only cares that the modal itself is gone, not which
+        // button got it there). skippable: true because building a set isn't
+        // something every user wants to do mid-tour, and a fresh library
+        // with only one ABC tune in it has nothing else to add anyway — the
+        // modal would just show its empty state.
+        { key: 'createSet', mode: 'wait', target: '#btn-abc-set', event: 'click', placement: 'bottom', waitForClose: '#abc-set-modal', skippable: true },
         { key: 'done', mode: 'show', target: null, last: true }
       ]
     },
@@ -1100,9 +1115,28 @@
     els.root.style.display = 'none';
   }
 
-  function start(flowId) {
+  // Jumps state.steps to start partway through addingSongs_newSongBranch,
+  // at the step whose key matches jumpToKey, discarding everything before
+  // it — shared by the songEditModeOn() skip-ahead below and the "first
+  // time adding a song" auto-trigger (see wireFirstAddSongTrigger), which
+  // launches straight into an already-open New Song modal and has no use
+  // for intro/sidebar/choose. No-op (leaves state.steps as flow.steps) if
+  // no step in the branch matches jumpToKey.
+  function jumpToAddingSongsBranchStep(jumpToKey) {
+    var branch = BRANCHES.addingSongs_newSongBranch;
+    for (var bi = 0; bi < branch.length; bi++) {
+      if (branch[bi].key === jumpToKey) { state.steps = branch.slice(bi); return; }
+    }
+  }
+
+  // opts.startAt (optional): a step key inside addingSongs_newSongBranch to
+  // jump straight to, bypassing intro/sidebar/choose — see
+  // jumpToAddingSongsBranchStep's comment above. Only meaningful for
+  // flowId === 'addingSongs'.
+  function start(flowId, opts) {
     var flow = FLOWS[flowId];
     if (!flow) return;
+    opts = opts || {};
     hideBanner();
     var tp = document.getElementById('tutorials-panel');
     if (tp) tp.classList.remove('open');
@@ -1136,11 +1170,10 @@
     // editor-basics content instead of telling someone already there to add
     // a new song first — reuse the tail of the New Song branch (same steps,
     // same copy) rather than duplicating it.
-    if (flowId === 'addingSongs' && songEditModeOn()) {
-      var editBranch = BRANCHES.addingSongs_newSongBranch;
-      for (var bi = 0; bi < editBranch.length; bi++) {
-        if (editBranch[bi].key === 'addChordsOn') { state.steps = editBranch.slice(bi); break; }
-      }
+    if (flowId === 'addingSongs' && opts.startAt) {
+      jumpToAddingSongsBranchStep(opts.startAt);
+    } else if (flowId === 'addingSongs' && songEditModeOn()) {
+      jumpToAddingSongsBranchStep('addChordsOn');
     }
     state.index = 0;
     els.root.style.display = 'block';
@@ -1333,6 +1366,63 @@
     }
   }
 
+  // Returns the effective "namespace" of whichever step is currently
+  // showing — the same lookup renderPopupContent() uses for string keys
+  // (step.ns if the step carries one, else state.flowId). Needed below
+  // because a branch step spliced into a DIFFERENT flow (e.g. generalUsage's
+  // "dropzone" step branching into addingSongs_newSongBranch) leaves
+  // state.flowId as 'generalUsage' the whole time — only the spliced step
+  // itself is tagged ns:'addingSongs'.
+  function currentStepNs() {
+    var step = state.steps[state.index];
+    return (step && step.ns) || state.flowId;
+  }
+
+  // ── FIRST-TIME "ADDING A SONG" AUTO-TRIGGER ────────────────────────────
+  // Per product spec: the first time a user ever opens the New Song modal
+  // (clicks "✦ New"), the Adding Songs tour should start automatically — no
+  // banner, no confirmation needed, unlike the welcome banner/contextual
+  // nudges above. Fires at most once ever, gated by its own flag rather than
+  // flowSeen('addingSongs') alone, so an incomplete or type-mismatched run
+  // (see the #ns-type listener below) still counts as "the first time" and
+  // never retriggers on a later New Song click.
+  var LS_FIRSTADD = 'ms_tutorial_firstadd_triggered';
+  function wireFirstAddSongTrigger() {
+    var btn = document.getElementById('btn-new-song-sidebar');
+    if (btn) {
+      // This file's <script> tag loads last, right before </body>, so this
+      // listener is registered — and therefore runs — after the app's own
+      // click handler that actually calls openNewSongModal(). By the time
+      // this fires, the real modal is already open; start('addingSongs',
+      // {startAt:'nstype'}) just renders the tour's first pop-up on top of
+      // it rather than replaying intro/sidebar/choose, which the user has
+      // just done for real by clicking this same button.
+      btn.addEventListener('click', function () {
+        if (tutorialsDisabled() || flowSeen('addingSongs') || lsGet(LS_FIRSTADD) || state.active) return;
+        lsSet(LS_FIRSTADD, '1');
+        setTimeout(function () { start('addingSongs', { startAt: 'nstype' }); }, 300);
+      });
+    }
+
+    // Per product spec: choosing ABC Notation or either Lead Sheet option
+    // ends the Adding Songs tour right there rather than continuing through
+    // steps that only make sense for the classic Song/Chord Sheet editor
+    // (addChordsOn/addChordsUsage/addChordsOff, #edit-toolbar) — those
+    // formats get their own dedicated, more relevant tours (sheetMusic /
+    // leadSheets), already auto-offered by wireContextualNudges the moment
+    // the newly created song actually opens. Applies whenever the Adding
+    // Songs tour (or a branch spliced from another flow into it — see
+    // currentStepNs() above) is showing the New Song modal, not just the
+    // first-time auto-trigger above: a manually replayed Adding Songs tour
+    // hits the same mismatch if the user picks a different type there too.
+    var typeSel = document.getElementById('ns-type');
+    if (typeSel) {
+      typeSel.addEventListener('change', function () {
+        if (state.active && currentStepNs() === 'addingSongs' && typeSel.value !== 'song') exit();
+      });
+    }
+  }
+
   // ── INIT ─────────────────────────────────────────────────────────────────
   function init() {
     injectStyle();
@@ -1341,6 +1431,7 @@
     els.root.style.display = 'none';
     wireOptionsPanel();
     wireContextualNudges();
+    wireFirstAddSongTrigger();
     setTimeout(maybeShowWelcomeBanner, 900);
   }
 

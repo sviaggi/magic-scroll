@@ -122,6 +122,8 @@ window.MS_TUTORIAL_STRINGS_FR = {
   'sheetMusic.menu.body': 'Chargez un soundfont personnalisé pour la lecture, affichez les tablatures de doigté pour tin whistle, ou révélez le nom de la note sous chaque note.',
   'sheetMusic.transpose.title': 'Transposer',
   'sheetMusic.transpose.body': 'Décalez tout le morceau vers le haut ou le bas, en réécrivant chaque note de façon permanente — sans rien retaper. Vous préférez ne pas toucher à la notation elle-même ? L’onglet <strong>🎵 Accords</strong> de la barre supérieure a son propre ♭−/♯+ qui transpose uniquement l’affichage, sans rien changer d’enregistré.',
+  'sheetMusic.createSet.title': 'Créer un ensemble',
+  'sheetMusic.createSet.body': 'Cliquez sur Créer un ensemble pour enchaîner d’autres morceaux de votre bibliothèque juste après celui-ci. Cochez ceux que vous voulez : l’ordre dans lequel vous les cochez est celui dans lequel ils joueront. Afficher l’ensemble les ouvre ensemble, à la suite, comme un ensemble de session.',
   'sheetMusic.done.title': 'Importer une partition',
   'sheetMusic.done.body': 'Créez-en une via <strong>✦ Nouveau → Notation ABC</strong> et collez du texte ABC, ou glissez un fichier .abc, .mxl ou .mscz — les fichiers MuseScore se convertissent automatiquement.',
 
