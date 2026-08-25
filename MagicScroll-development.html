@@ -2660,12 +2660,12 @@
     min-width: 60px;
   }
   /* Language sits directly beneath Line Spacing, sharing its row with
-     Tutorials — Language stays sized to its own content (label + short
-     dropdown) and Tutorials' single button splits whatever width is left
-     over, same "auto + auto" pairing as Size/Themes/Print above. Tutorials
-     is appended after Language in DOM order (see _TOPBAR_SETTINGS_IDS), so
-     it's the next flex item and lands on this same row automatically once
-     Language no longer claims the full row. */
+     Tutorials (dev-build only) — Language stays sized to its own content
+     (label + short dropdown) and Tutorials' single button splits whatever
+     width is left over, same "auto + auto" pairing as Size/Themes/Print
+     above. Tutorials is appended after Language in DOM order (see
+     _TOPBAR_SETTINGS_IDS), so it's the next flex item and lands on this
+     same row automatically once Language no longer claims the full row. */
   #settings-menu-content > #topbar-language-group {
     flex: 0 0 auto !important;
   }
@@ -4049,7 +4049,7 @@
 <script src="strings-zh.js"></script>
 <script src="strings-fr.js"></script>
 <script>
-// ── SANDBOXED PREVIEW SAFETY NET ─────────────────────────────────────────
+// ── DEV BUILD SAFETY NET ─────────────────────────────────────────────────
 // Some sandboxed preview environments only ever serve this single HTML file
 // and can't fetch its sibling .js files, so strings-en.js (and friends) 404
 // silently and window.t is never defined. The app's own code calls t('...')
@@ -4244,7 +4244,7 @@ if (typeof window.t !== 'function') {
     </div>
   </div>
   <span class="sep">|</span>
-  <!-- ── TUTORIALS ────────────────────────────────────────────────────────
+  <!-- ── TUTORIALS (dev-build only) ──────────────────────────────────────────
        Re-entry point for the guided tutorial flows. Structured exactly like
        the Themes group above it (.ctrl-group.settings-btn + .settings-panel)
        so it automatically inherits panel open/close/positioning behaviour,
@@ -4920,7 +4920,12 @@ I hope you enjoy using your magic scroll!"></textarea>
     <!-- ── App identity / version / platform links (always shown) ──── -->
     <div class="contact-app-header">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
-      <span class="contact-app-version" data-i18n="contact.version">version 1.2.2</span>
+      <!-- Hardcoded rather than data-i18n="contact.version" — that key lives in
+           the strings-*.js companions shared with MagicScroll-release.html, so
+           bumping it there would prematurely mark the actual release build as
+           1.2.2 too, before these dev-build changes are vetted and promoted.
+           This build number is dev-build-only and intentionally not translated. -->
+      <span class="contact-app-version">version 1.2.2-dev</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -5128,7 +5133,7 @@ I hope you enjoy using your magic scroll!"></textarea>
 // the DOM's text to be final, and again by setLanguage() (in strings-en.js)
 // whenever the user switches languages via #lang-sel below.
 function applyI18nStrings() {
-  if (typeof t !== 'function' || window.__MS_T_FALLBACK__) return;   // strings-en.js failed to load (or the safety-net stub above is standing in for it) — leave the hard-coded English markup as-is
+  if (typeof t !== 'function' || window.__MS_T_FALLBACK__) return;   // strings-en.js failed to load (or the dev-build safety-net stub is standing in for it) — leave the hard-coded English markup as-is
   document.querySelectorAll('[data-i18n]').forEach(function(el) { el.textContent = t(el.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-title]').forEach(function(el) { el.title = t(el.getAttribute('data-i18n-title')); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
@@ -5422,12 +5427,12 @@ dc | "G"B3dBA | "D"F2A3D | "A"E3FED
     commit();
   })();
 }
-// Backfill for returning users: the seeding block above only ever runs
-// once, on a genuinely empty library — so anyone who already ran an earlier
-// version of Magic Scroll (before Worth the Weight was embedded, or back
-// when it depended on a server fetch that silently failed on file://) has a
-// library that will never pick it up on its own, no matter how many times
-// this file gets updated. Add it now if it's missing,
+// Backfill for returning DEV-BUILD testers: the seeding block above only
+// ever runs once, on a genuinely empty library — so anyone who already ran
+// an earlier copy of this dev build (before Worth the Weight was embedded,
+// or back when it depended on a server fetch that silently failed on
+// file://) has a library that will never pick it up on its own, no matter
+// how many times this file gets updated. Add it now if it's missing,
 // one-time-only (own flag, independent of the fresh-seed path above so it's
 // safe to run in both branches). Only appends the song — deliberately does
 // NOT touch which song is currently open, unlike the fresh-seed path, since
@@ -22901,7 +22906,7 @@ document.getElementById('ns-type').addEventListener('change', function() {
   });
 });
 </script>
-<!-- ── Guided tutorial copy (English source + French/Chinese
+<!-- ── DEV BUILD: guided tutorial copy (English source + French/Chinese
      translations), then the guided tutorial engine itself (spotlight
      pop-ups, first-run tour, re-entry via Options → Tutorials). Strings load
      first so tutorial.js's window.MS_TUTORIAL_STRINGS_EN/FR/ZH lookups are

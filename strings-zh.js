@@ -40,6 +40,7 @@ window.MS_STRINGS_ZH = {
   'sidebar.searchPlaceholder':  '搜索…',
   'sidebar.multiselectTitle':   '多选歌曲',
   'sidebar.filterTitle':        '按类型筛选',
+  'toast.songLoaded':           '已加载 {title}',
 
   // ── SONG/CHORD-SHEET EDITOR ────────────────────────────────────────────
   'editor.addChords':           '🎯 添加和弦',
@@ -203,6 +204,10 @@ window.MS_STRINGS_ZH = {
   'sidebar.clearSearchTitle':   '清除搜索',
   'sidebar.onlineSearchOn':     '在线搜索已开启 — 点击禁用',
   'sidebar.onlineSearchOff':    '在线搜索已关闭 — 点击启用',
+  'sidebar.previousSong':       '◀ 上一首歌曲',
+  'sidebar.previousSongTitle':  '返回您之前打开的歌曲',
+  'sidebar.noPreviousSong':     '没有上一首歌曲。',
+  'sidebar.untitled':           '无标题',
   'sidebar.selectRandom':       '🎲 随机选择',
   'sidebar.selectRandomTitle':  '从你的曲库中打开一首随机歌曲',
   'sidebar.joinCollab':         '🔗 加入协作…',
@@ -234,6 +239,11 @@ window.MS_STRINGS_ZH = {
   'filter.noneTitle':           '隐藏所有类型',
   'filter.unspecified':         '（未指定）',
   'filter.libraryEmpty':        '曲库为空',
+  'filter.catChords':           '和弦',
+  'filter.catTabs':             '六线谱',
+  'filter.catSheetMusic':       '乐谱',
+  'filter.catLeadSheets':       '主调谱',
+  'sidebar.randomNoMatch':      '没有符合当前筛选条件的歌曲。',
 
   // ── EMPTY STATE (additional) ────────────────────────────────────────────
   'emptyState.body':            '将 .txt、.json 或 .html 文件拖入侧边栏，或点击<strong>✦ 新建歌曲</strong>来写一首。',
@@ -260,6 +270,23 @@ window.MS_STRINGS_ZH = {
   'toolbar.publishSheetMusicTitle':    '将此乐谱发布到在线曲库',
   'toolbar.createSet':                 '⛓ 创建曲目组',
   'toolbar.createSetTitle':            '将曲库中的其他曲目叠加到本页，组成一个曲目组',
+
+  // ── TRANSCRIBE AUDIO (BETA) ───────────────────────────────────────────────
+  'transcribe.button':                 '🎙 转录（测试版）',
+  'transcribe.buttonTitle':            '将录音或音频文件转换为可供你修改的粗略草稿旋律 — 实验性功能，可能出错',
+  'transcribe.modalTitle':             '转录音频（测试版）',
+  'transcribe.disclaimer':             '实验性功能：音高与节奏只是简单算法的粗略猜测，并非完整的转录引擎。在没有伴奏、只有单一清晰旋律乐器或人声的情况下效果最好。请将结果视为粗略的起点 — 使用前请务必检查并修正生成的音符。',
+  'transcribe.orLabel':                '或',
+  'transcribe.startRecording':         '● 开始录音',
+  'transcribe.stopRecording':          '■ 停止录音',
+  'transcribe.recording':              '录音中…',
+  'transcribe.chooseFile':             '📂 选择音频文件…',
+  'transcribe.analyzing':              '正在分析音频…',
+  'transcribe.noPitchFound':           '未能在该音频中检测到清晰的音符 — 请尝试更清晰的单一乐器/人声录音。',
+  'transcribe.micDenied':              '麦克风访问被拒绝或不可用。',
+  'transcribe.decodeError':            '无法读取该音频文件。',
+  'transcribe.insertedComment':        '测试版转录 — 音高/节奏为粗略猜测；使用前请检查并修正。',
+  'transcribe.insertedToast':          '已插入 {n} 个转录音符（猜测调性：{key}）— 使用前请检查。',
   'toolbar.sheetMusicMenu':            '🎼 乐谱 ▾',
   'toolbar.sheetMusicOptionsTitle':    '乐谱选项',
   'toolbar.soundfont':                 '🎵 音色库',
@@ -324,7 +351,7 @@ window.MS_STRINGS_ZH = {
   'newSong.openEditor':          '打开编辑器',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             '版本 1.2.1',
+  'contact.version':             '版本 1.2.2',
   'contact.bugReportsHeading':   '错误报告／捐赠',
   'contact.getInTouch':          '发现问题？联系我们：',
   'contact.includeDescription':  '请附上歌曲文件以及出错情况的描述。',
@@ -535,6 +562,8 @@ window.MS_STRINGS_ZH = {
   'lsEdit.finalBarlineOn':            '✓ 终止线',
   'lsEdit.insertBarBefore':           '在此之前插入小节',
   'lsEdit.insertBarAfter':            '在此之后插入小节',
+  'lsEdit.insertBarsModalTitle':      '要插入多少个小节？',
+  'lsEdit.insertBarsCountField':      '小节数',
   'lsEdit.deleteBar':                 '删除小节',
 
   // ── COLLECTIONS (submenu list content) ──────────────────────────────────
