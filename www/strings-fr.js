@@ -204,6 +204,7 @@ window.MS_STRINGS_FR = {
   'topbar.scrollLabel':         'Défilement',
   'topbar.scrollSpeedTitle':    'Vitesse de défilement',
   'topbar.detectedKeyTitle':    'Tonalité détectée — cliquez sur ♭/♯ pour transposer',
+  'topbar.detectedKeyCapoTitle': 'Ce morceau se joue avec les positions d\'accords de {shapeKey}, capodastre sur la case {fret}, ce qui le transpose vers {soundingKey}.',
   'topbar.collapseLabel':       '▲ masquer',
   'topbar.collapseTitle':       'Masquer les commandes (cliquez sur la bande ▼ pour les restaurer)',
   'topbar.restoreTitle':        'Afficher les commandes (touchez pour restaurer)',
