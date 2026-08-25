@@ -194,6 +194,7 @@ window.MS_STRINGS_ZH = {
   'topbar.scrollLabel':         '滚动',
   'topbar.scrollSpeedTitle':    '滚动速度',
   'topbar.detectedKeyTitle':    '检测到的调 — 点击 ♭/♯ 转调',
+  'topbar.detectedKeyCapoTitle': '这首歌使用 {shapeKey} 和弦指法演奏,capo 夹在第 {fret} 品,实际听起来是 {soundingKey}。',
   'topbar.collapseLabel':       '▲ 隐藏',
   'topbar.collapseTitle':       '隐藏控件（点击 ▼ 条以恢复）',
   'topbar.restoreTitle':        '显示控件（点按以恢复）',

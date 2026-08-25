@@ -251,6 +251,7 @@ window.MS_STRINGS_EN = {
   'topbar.scrollLabel':         'Scroll',
   'topbar.scrollSpeedTitle':    'Scroll speed',
   'topbar.detectedKeyTitle':    'Detected key — click ♭/♯ to transpose',
+  'topbar.detectedKeyCapoTitle': 'This song is being played using the {shapeKey} chord shapes with a capo on fret {fret}, transposing it up to {soundingKey}.',
   'topbar.collapseLabel':       '▲ hide',
   'topbar.collapseTitle':       'Hide controls (click ▼ strip to restore)',
   'topbar.restoreTitle':        'Show controls (tap to restore)',

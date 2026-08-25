@@ -2629,6 +2629,18 @@
     flex: 1 1 0% !important;
     min-width: 90px;
   }
+  /* Capo explanation line — flex-basis:100% drops it onto its own row below
+     the Key/Simplify row (this group is always inside the wrapping
+     .topbar-cat-panel-inner panel now — see _topbarApplyMobile's "only
+     topbar layout, at any width" comment) instead of squeezing in beside
+     the transpose buttons. Hidden via inline display:none when no capo. */
+  .ctrl-key-capo-note {
+    flex: 1 1 100%;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    color: var(--c-chrome-muted);
+    margin-top: 2px;
+  }
   #music-menu-content > #metronome-wrap,
   #music-menu-content > #tuner-wrap {
     flex: 1 1 calc(50% - 5px);
@@ -3822,12 +3834,19 @@
   .abc-set-row:hover { background: var(--c-chrome-bg3); }
   .abc-set-row input { accent-color: var(--c-accent); flex-shrink: 0; }
   .abc-set-row .as-title { font-size: 0.8rem; color: var(--c-chrome-text); }
-  .abc-set-row .as-artist { font-size: 0.65rem; color: var(--c-chrome-muted); margin-left: 4px; }
+  /* margin-left:auto flushes the type badge all the way to the row's right
+     edge regardless of title length, so every row's tag lines up in the
+     same right-hand column instead of trailing loosely after titles of
+     different lengths. It's the last thing in the row now — the numbered
+     order badge (.as-pos) was removed since the selection order is already
+     spelled out at the top via #abc-set-order, and having both the number
+     AND the type fighting for the right edge was what made the type tags
+     look centered/messy instead of cleanly right-justified. */
   .abc-set-row .as-type {
     font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-chrome-muted);
-    margin-left: 8px; padding: 1px 6px; border: 1px solid var(--c-chrome-border); border-radius: 8px;
+    margin-left: auto; padding: 1px 6px; border: 1px solid var(--c-chrome-border); border-radius: 8px;
+    flex-shrink: 0;
   }
-  .abc-set-row .as-pos { margin-left: auto; font-size: 0.65rem; color: var(--c-accent); font-variant-numeric: tabular-nums; }
   .abc-set-empty { padding: 14px 10px; text-align: center; font-size: 0.75rem; color: var(--c-chrome-muted); margin-bottom: 14px; }
   /* ── Custom instrument modal ───────────────────────────────────────────── */
   #custom-inst-modal {
@@ -4133,6 +4152,11 @@ if (typeof window.t !== 'function') {
     <button id="btn-transpose-up" title="Transpose up one semitone" data-i18n-title="topbar.transposeUp">♯+</button>
     <button id="btn-transpose-reset" title="Reset to original key" data-i18n-title="topbar.transposeReset">↺</button>
     <button id="btn-simplify" title="Simplify all chords to root form" style="margin-left:4px;" data-i18n="topbar.simplifyChords" data-i18n-title="topbar.simplifyChordsTitle">Simplify chords</button>
+    <!-- Visible (not hover-only) explanation of a capo'd key's asterisk —
+         see _msSetKeyCapoNote()/updateKeyDisplay(). Hidden whenever no capo
+         is active. flex-basis:100% (in CSS) drops it onto its own line under
+         the KEY/Simplify row instead of squeezing in beside them. -->
+    <div id="key-capo-note" class="ctrl-key-capo-note" style="display:none;"></div>
   </div>
   <span class="sep">|</span>
   <div class="ctrl-group" id="topbar-size-group">
@@ -4565,11 +4589,11 @@ if (typeof window.t !== 'function') {
       </div>
       <div id="abc-editor-wrap" style="display:none;width:100%;margin-bottom:16px;">
         <textarea id="abc-editor" spellcheck="false" autocorrect="off"
-          style="width:100%;min-height:240px;font-family:var(--font-mono);font-size:0.85rem;
+          style="width:100%;max-width:100%;min-height:240px;font-family:var(--font-mono);font-size:0.85rem;
                  background:var(--c-inset-ov);color:var(--c-card-text);
                  border:1px solid var(--c-card-border);border-radius:2px;
                  padding:12px;resize:vertical;outline:none;field-sizing:content;
-                 box-sizing:border-box;"></textarea>
+                 box-sizing:border-box;overflow-wrap:break-word;white-space:pre-wrap;overflow-x:hidden;"></textarea>
       </div>
       <div class="song-header">
         <div class="song-main-title" id="abc-title"></div>
@@ -5140,6 +5164,21 @@ function applyI18nStrings() {
   // other hard-coded markup in this file.
   document.querySelectorAll('[data-i18n-html]').forEach(function(el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
   applyInstrumentCategoryI18n();
+  // #key-display's title is normally kept in sync by updateKeyDisplay() itself
+  // (it swaps in the capo explanation, topbar.detectedKeyCapoTitle, whenever a
+  // capo is active) — but the data-i18n-title sweep just above always resets it
+  // back to the plain topbar.detectedKeyTitle first. Re-run it right after so a
+  // language switch doesn't leave a capo'd key showing the generic tooltip
+  // until the next transpose/capo click happens to refresh it. Guarded with
+  // try/catch (not just typeof) because this boot-time applyI18nStrings() call
+  // fires before `let currentIdx` further down the script has been declared —
+  // updateKeyDisplay() touches currentIdx on its very first line, so calling it
+  // this early throws a temporal-dead-zone ReferenceError that would otherwise
+  // go uncaught and abort the ENTIRE script (leaving the default theme, stock
+  // topbar, no songs, and no working buttons — every control's listener setup
+  // lives further down and never gets to run). Every call after boot is safe;
+  // this only ever swallows that one specific early call.
+  try { if (typeof updateKeyDisplay === 'function') updateKeyDisplay(); } catch (e) {}
 }
 // The Chord Diagrams instrument pickers (.inst-select, one per family —
 // guitar/ukulele/banjo/mandolin/folk/concertina/melodeon) hold <option>s
@@ -8390,16 +8429,82 @@ function transposeKey(key, n) {
   return finalRoot + (isMinor ? 'm' : '');
 }
 
+// Shows/hides the capo explanation as visible text under the KEY row (see
+// #key-capo-note next to #btn-simplify) rather than a title/hover tooltip —
+// hover text can't be read on a touchscreen, which is exactly when a capo'd
+// key ("D*") most needs explaining. Passing null hides it (no capo active).
+function _msSetKeyCapoNote(text) {
+  const note = document.getElementById('key-capo-note');
+  if (!note) return;
+  if (text) { note.textContent = text; note.style.display = ''; }
+  else { note.textContent = ''; note.style.display = 'none'; }
+}
+
 function updateKeyDisplay() {
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
-  let base  = song ? (song.key || null) : null;
-  // Normalise the key at display time so "Emin" → "Em" always works
-  if (base && typeof normaliseKeyStr === 'function') base = normaliseKeyStr(base);
-  // The Key shows the SOUNDING key = page transpose + the primary instrument's
-  // capo, so raising the capo raises the key while the page chords stay put.
-  const _keyShift = transposeAmount + (primaryCapo || 0);
-  const label = base ? transposeKey(base, _keyShift) : (_keyShift !== 0 ? (_keyShift > 0 ? '+'+_keyShift : String(_keyShift)) : '?');
-  document.getElementById('key-display').textContent = label;
+  const kd = document.getElementById('key-display');
+  if (!kd) return;
+  const capo = primaryCapo || 0;
+  if (!song) { kd.textContent = '?'; kd.title = t('topbar.detectedKeyTitle'); _msSetKeyCapoNote(null); return; }
+
+  // ── Resolve the FINGERED key (the shape actually played, before capo) ──
+  // ABC/sheet-music songs can have several tunes on the page at once (Create
+  // Set, or a multi-part song), each with its OWN key and its OWN per-tune
+  // transpose offset (_abcTuneTr / the per-tune Key dropdown in
+  // renderABCSong's per-tune header) — there isn't always a single "the" key
+  // for the page as a whole. Only collapse to one label when every currently
+  // rendered tune's transposed key actually agrees; otherwise this is
+  // ambiguous and falls through to "?" below. ♭/♯ still transpose everything
+  // together either way, via the shared transposeAmount — a "?" state just
+  // can't re-derive a single starting label from that shared shift.
+  let fingeredKey = null, ambiguous = false;
+  if (song._source === 'abc' && typeof _abcTuneBlocks === 'function') {
+    const blocks = _abcTuneBlocks(_abcSrc(song));
+    if (blocks.length) {
+      const keys = blocks.map(function(block, i) {
+        const K0 = (_abcField(block, 'K') || song.key || 'C').trim();
+        const norm = normaliseKeyStr(K0) || K0;
+        const off = (typeof _abcEffectiveTr === 'function') ? _abcEffectiveTr(i) : transposeAmount;
+        return transposeKey(norm, off) || norm;
+      });
+      if (keys.every(function(k) { return k === keys[0]; })) fingeredKey = keys[0];
+      else ambiguous = true;
+    }
+  } else {
+    let base = song.key || null;
+    // Normalise the key at display time so "Emin" → "Em" always works
+    if (base && typeof normaliseKeyStr === 'function') base = normaliseKeyStr(base);
+    fingeredKey = base ? (transposeKey(base, transposeAmount) || base) : null;
+  }
+
+  if (ambiguous) {
+    kd.textContent = '?';
+    kd.title = t('topbar.detectedKeyTitle');
+    _msSetKeyCapoNote(null);
+    return;
+  }
+  if (!fingeredKey) {
+    // No key info to anchor on at all — fall back to showing the raw
+    // semitone shift (transpose + capo) same as before, or "?" at rest.
+    const shift = transposeAmount + capo;
+    kd.textContent = shift !== 0 ? (shift > 0 ? '+' + shift : String(shift)) : '?';
+    kd.title = t('topbar.detectedKeyTitle');
+    _msSetKeyCapoNote(null);
+    return;
+  }
+  // The Key shows the SOUNDING key = fingered key + capo, so raising the
+  // capo raises the key while the page chords/shapes stay put. A capo'd key
+  // gets a trailing asterisk and a visible explanatory line underneath the
+  // KEY row (e.g. "C, capo 2" sounds like D — see topbar.detectedKeyCapoTitle
+  // and #key-capo-note) since the letter shown is no longer simply "the
+  // key", it's "the key you'll HEAR" while the shapes/diagrams on screen are
+  // still the un-capo'd ones underneath it.
+  const soundingKey = capo ? (transposeKey(fingeredKey, capo) || fingeredKey) : fingeredKey;
+  kd.textContent = soundingKey + (capo ? '*' : '');
+  kd.title = t('topbar.detectedKeyTitle');
+  _msSetKeyCapoNote(capo
+    ? t('topbar.detectedKeyCapoTitle', { shapeKey: fingeredKey, fret: String(capo), soundingKey: soundingKey })
+    : null);
 }
 
 // ── RENDER SONG — loads a song by index, resets transpose, scrolls to top ──
@@ -9368,7 +9473,75 @@ function goToPreviousSong() {
   if (typeof showToast === 'function') showToast(t('sidebar.noPreviousSong'));
   _refreshPreviousSongBtn();
 }
-document.getElementById('btn-previous-song').addEventListener('click', goToPreviousSong);
+// Press-and-hold on Previous Song pops up the full history stack (most
+// recently visited first) so a user can jump straight back several songs
+// instead of clicking Previous repeatedly. A plain tap/click still just
+// steps back one, via goToPreviousSong() above.
+function _msShowSongHistoryMenu(anchorEl) {
+  document.getElementById('song-history-menu')?.remove();
+  if (!_songHistory.length) return;
+  const menu = document.createElement('div');
+  menu.id = 'song-history-menu';
+  menu.style.cssText = 'position:fixed;z-index:900;background:var(--c-chrome-bg);border:1px solid var(--c-chrome-border);border-radius:3px;padding:4px 0;min-width:180px;max-width:min(280px, calc(100vw - 24px));max-height:60vh;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.5);font-size:0.75rem;';
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 284)) + 'px';
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  // Walk the stack newest-first (it's stored oldest-first/most-recent-last,
+  // same order renderSong() pushes onto it).
+  for (let i = _songHistory.length - 1; i >= 0; i--) {
+    const histIdx = _songHistory[i];
+    const song = songs[histIdx];
+    if (!song) continue;   // deleted since visited — same skip goToPreviousSong() does
+    const opt = document.createElement('div');
+    opt.textContent = song.title || t('sidebar.untitled');
+    opt.style.cssText = 'padding:7px 12px;cursor:pointer;color:var(--c-chrome-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    opt.addEventListener('mouseenter', () => opt.style.background = 'var(--c-chrome-bg3)');
+    opt.addEventListener('mouseleave', () => opt.style.background = '');
+    opt.addEventListener('click', () => {
+      // Jump straight there and drop everything from this point forward off
+      // the stack — otherwise tapping Previous right after would immediately
+      // re-surface the songs just skipped past instead of continuing to walk
+      // backward from the song actually being jumped to.
+      _songHistory.length = i;
+      renderSong(histIdx, { isBack: true });
+      menu.remove();
+    });
+    menu.appendChild(opt);
+  }
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    document.addEventListener('click', function close(e) {
+      if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); }
+    });
+  }, 0);
+}
+(function () {
+  const btn = document.getElementById('btn-previous-song');
+  const LONG_PRESS_MS = 500;
+  let pressTimer = null, longPressFired = false;
+  btn.addEventListener('pointerdown', () => {
+    if (btn.disabled) return;
+    longPressFired = false;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => { longPressFired = true; _msShowSongHistoryMenu(btn); }, LONG_PRESS_MS);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
+    btn.addEventListener(evt, () => clearTimeout(pressTimer));
+  });
+  btn.addEventListener('click', (e) => {
+    // The long press already opened the menu and handles its own
+    // navigation — swallow the click that follows the pointerup so it
+    // doesn't ALSO step back one via goToPreviousSong(). stopPropagation()
+    // matters here too: that trailing click's target is this button, which
+    // is NOT inside the menu (a separate element appended to <body>), so
+    // without stopping it here it would bubble straight up to the menu's
+    // own "click outside closes it" document listener (added the instant
+    // the menu opened) and immediately close the menu it just opened,
+    // before the user ever got a chance to tap an entry in it.
+    if (longPressFired) { e.preventDefault(); e.stopPropagation(); longPressFired = false; return; }
+    goToPreviousSong();
+  });
+})();
 _refreshPreviousSongBtn();   // starts disabled — nothing to go back to yet
 
 // ── Select Random: open a random song from the LOCAL library only ──────────
@@ -16038,12 +16211,21 @@ function showToast(msg, duration) {
     toast = document.createElement('div');
     toast.id = 'ms-toast';
     toast.style.cssText = [
-      'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%)',
+      // Anchored just below the topbar (using the same --topbar-h custom
+      // property the topbar itself keeps live — see its "kept live" comment
+      // near _msRefreshTopbarH) rather than the screen bottom: on mobile, the
+      // library/filter panel and on-screen keyboard both live at the bottom
+      // and would either cover this or get covered by it, and the whole
+      // point of "Loaded [Song]" is to confirm a pick made from the (often
+      // near-full-screen) library panel, so it needs to be visible the
+      // instant that panel is still open/closing, not hidden behind it.
+      'position:fixed', 'top:calc(var(--topbar-h, 60px) + 10px)', 'left:50%', 'transform:translateX(-50%)',
       'background:var(--c-chrome-bg)', 'color:var(--c-chrome-text)',
       'border:1px solid var(--c-chrome-border)', 'border-radius:4px',
-      'padding:9px 18px', 'font-size:0.78rem', 'z-index:800',
+      'padding:9px 18px', 'font-size:0.78rem', 'z-index:9500',
       'box-shadow:0 4px 16px rgba(0,0,0,0.5)', 'pointer-events:none',
-      'opacity:0', 'transition:opacity 0.25s',
+      'opacity:0', 'transition:opacity 0.25s', 'max-width:calc(100vw - 32px)',
+      'text-align:center',
     ].join(';');
     document.body.appendChild(toast);
   }
@@ -18961,23 +19143,25 @@ function _abcSetRenderList(q) {
     const title = s.title || 'Untitled', artist = s.artist || '';
     const type = _abcSongType(s);
     if (typeFilter && type.toLowerCase() !== typeFilter) return;
-    // Free-text search matches title, artist, AND type — so typing "reel"
-    // filters to reels without needing the dropdown.
+    // Free-text search still matches on artist even though it's no longer
+    // shown in the row — someone typing a composer's name to find a tune
+    // shouldn't lose that just because the label was removed for a cleaner
+    // list (see .as-type's comment for why artist was dropped from display).
     if (q && (title + ' ' + artist + ' ' + type).toLowerCase().indexOf(q) === -1) return;
     shown++;
     const pos = _setOrder.indexOf(i);
     const row = document.createElement('label'); row.className = 'abc-set-row';
+    // No per-row order number — the selected order is already spelled out at
+    // the top via #abc-set-order (_abcSetRenderOrder), so the type badge can
+    // just sit cleanly flush right instead of sharing that edge with a number.
     row.innerHTML = '<input type="checkbox"' + (pos >= 0 ? ' checked' : '') + '>' +
       '<span class="as-title">' + escapeHtml(title) + '</span>' +
-      (artist ? '<span class="as-artist">' + escapeHtml(artist) + '</span>' : '') +
-      (type ? '<span class="as-type">' + escapeHtml(type) + '</span>' : '') +
-      '<span class="as-pos">' + (pos >= 0 ? (pos + 1) : '') + '</span>';
+      (type ? '<span class="as-type">' + escapeHtml(type) + '</span>' : '');
     row.querySelector('input').addEventListener('change', function() {
       const at = _setOrder.indexOf(i);
       if (this.checked) { if (at < 0) _setOrder.push(i); }
       else if (at >= 0) _setOrder.splice(at, 1);
-      _abcSetRenderOrder();
-      _abcSetRenderList(document.getElementById('abc-set-search').value);  // refresh order numbers
+      _abcSetRenderOrder();   // refresh the order summary at the top
     });
     host.appendChild(row);
   });
