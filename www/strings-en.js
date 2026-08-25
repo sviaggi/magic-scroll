@@ -95,6 +95,7 @@ window.MS_STRINGS_EN = {
   'sidebar.searchPlaceholder':  'Search…',
   'sidebar.multiselectTitle':   'Select multiple songs',
   'sidebar.filterTitle':        'Filter by type',
+  'toast.songLoaded':           'Loaded {title}',
 
   // ── SONG/CHORD-SHEET EDITOR ────────────────────────────────────────────
   'editor.addChords':           '🎯 Add Chords',
@@ -260,6 +261,10 @@ window.MS_STRINGS_EN = {
   'sidebar.clearSearchTitle':   'Clear search',
   'sidebar.onlineSearchOn':     'Online search is on — click to disable',
   'sidebar.onlineSearchOff':    'Online search is off — click to enable',
+  'sidebar.previousSong':       '◀ Previous Song',
+  'sidebar.previousSongTitle':  'Go back to the previous song you had open',
+  'sidebar.noPreviousSong':     'No previous song.',
+  'sidebar.untitled':           'Untitled',
   'sidebar.selectRandom':       '🎲 Select Random',
   'sidebar.selectRandomTitle':  'Open a random song from your library',
   'sidebar.joinCollab':         '🔗 Join Collaboration…',
@@ -291,6 +296,11 @@ window.MS_STRINGS_EN = {
   'filter.noneTitle':           'Hide all types',
   'filter.unspecified':         '(Unspecified)',
   'filter.libraryEmpty':        'Library is empty',
+  'filter.catChords':           'Chords',
+  'filter.catTabs':             'Tabs',
+  'filter.catSheetMusic':       'Sheet Music',
+  'filter.catLeadSheets':       'Lead Sheets',
+  'sidebar.randomNoMatch':      'No songs match the current filter.',
 
   // ── EMPTY STATE (additional) ────────────────────────────────────────────
   'emptyState.body':            'Drop .txt, .json, or .html files into the sidebar, or click <strong>✦ New Song</strong> to write one.',
@@ -317,6 +327,23 @@ window.MS_STRINGS_EN = {
   'toolbar.publishSheetMusicTitle':    'Publish this sheet music to the online library',
   'toolbar.createSet':                 '⛓ Create set',
   'toolbar.createSetTitle':            'Stack other tunes from your library under this one to make a set',
+
+  // ── TRANSCRIBE AUDIO (BETA) ───────────────────────────────────────────────
+  'transcribe.button':                 '🎙 Transcribe (Beta)',
+  'transcribe.buttonTitle':            'Turn a recording or audio file into a rough draft melody you can clean up. Experimental! Expect mistakes.',
+  'transcribe.modalTitle':             'Transcribe Audio (Beta)',
+  'transcribe.disclaimer':             'Experimental: So this is a new feature and it kind of sucks right now! It\'s a rough algorithmic guess at what you\'re playing, not a full transcription engine. Works best on a single clear melody instrument or voice with no accompaniment. Treat the result as a starting point, review and correct the notes it produces, or take a screenshot and send it to me if it\'s egregiously bad and kind of funny.',
+  'transcribe.orLabel':                'or',
+  'transcribe.startRecording':         '● Start Recording',
+  'transcribe.stopRecording':          '■ Stop Recording',
+  'transcribe.recording':              'Recording…',
+  'transcribe.chooseFile':             '📂 Choose Audio File…',
+  'transcribe.analyzing':              'Analysing audio…',
+  'transcribe.noPitchFound':           'Couldn\'t detect any clear notes in that audio. Sorry, this tool kinda sucks! try a cleaner, single-instrument/voice recording.',
+  'transcribe.micDenied':              'Microphone access was denied or unavailable.',
+  'transcribe.decodeError':            'Couldn\'t read that audio file.',
+  'transcribe.insertedComment':        'Beta transcription: Pitch/rhythm are rough guesses; review and correct before use.',
+  'transcribe.insertedToast':          'Inserted {n} transcribed notes (guessed key: {key}) — review before using.',
   'toolbar.sheetMusicMenu':            '🎼 Sheet music ▾',
   'toolbar.sheetMusicOptionsTitle':    'Sheet music options',
   'toolbar.soundfont':                 '🎵 Soundfont',
@@ -381,7 +408,7 @@ window.MS_STRINGS_EN = {
   'newSong.openEditor':          'Open Editor',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2.1',
+  'contact.version':             'version 1.2.2',
   'contact.bugReportsHeading':   'Bug Reports / Donations',
   'contact.getInTouch':          'Found an issue? Get in touch:',
   'contact.includeDescription':  'Please include the song file and a description of what went wrong.',
@@ -592,6 +619,8 @@ window.MS_STRINGS_EN = {
   'lsEdit.finalBarlineOn':            '✓ Final barline',
   'lsEdit.insertBarBefore':           'Insert bar before',
   'lsEdit.insertBarAfter':            'Insert bar after',
+  'lsEdit.insertBarsModalTitle':      'Insert how many bars?',
+  'lsEdit.insertBarsCountField':      'Number of bars',
   'lsEdit.deleteBar':                 'Delete bar',
 
   // ── COLLECTIONS (submenu list content) ──────────────────────────────────

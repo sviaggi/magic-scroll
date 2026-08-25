@@ -626,7 +626,7 @@
      #sidebar-footer down at the bottom of the panel) — sharing this rule
      keeps them the same size/height rather than each getting its own
      one-off sizing. */
-  #btn-select-random, #btn-join-collab {
+  #btn-previous-song, #btn-select-random, #btn-join-collab {
     display: block;
     width: auto;
     margin: 0 8px 6px;
@@ -634,6 +634,9 @@
     font-size: 0.75rem;
     text-align: center;
   }
+  /* Greyed out (but still clickable-looking as disabled) when there's no
+     history to go back to yet — see _refreshPreviousSongBtn(). */
+  #btn-previous-song:disabled { opacity: 0.4; cursor: default; }
   .filter-panel {
     position: fixed; z-index: 960; display: none;
     background: var(--c-chrome-bg2); border: 1px solid var(--c-chrome-border);
@@ -946,7 +949,12 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 32px 24px 120px;
+    /* Top was 32px — combined with #topbar's own bottom padding/border, that
+       left a big blank gap between the topbar and the Edit/Share/Create Set
+       (etc.) toolbar directly below it, on every song/lead-sheet/sheet-music
+       view. #empty-state has its own padding and centers itself with flex,
+       so it isn't relying on this for spacing — safe to trim down here. */
+    padding: 8px 24px 120px;
     position: relative;
     background: var(--c-page-bg);
     transition: background 0.2s;
@@ -1383,7 +1391,7 @@
   body.ui-xs #sidebar-search input { font-size: 0.68rem; padding: 3px 5px; }
   body.ui-xs #sidebar-search input,
   body.ui-xs #sidebar-search button { height: 24px; }
-  body.ui-xs #btn-select-random, body.ui-xs #btn-join-collab { font-size: 0.66rem; padding: 5px 7px; }
+  body.ui-xs #btn-previous-song, body.ui-xs #btn-select-random, body.ui-xs #btn-join-collab { font-size: 0.66rem; padding: 5px 7px; }
   body.ui-xs .s-title { font-size: 0.72rem; }
   body.ui-xs .s-artist { font-size: 0.6rem; }
   body.ui-xs #drop-zone { font-size: 0.6rem; padding: 7px 6px; }
@@ -2016,9 +2024,12 @@
   }
   .editor-field input:focus { border-color: var(--c-accent); }
   /* Permanent transpose bar between the ABC toolbar and the sheet-music textarea */
-  #abc-transpose-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  #abc-transpose-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
   .abc-transpose-lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--c-chrome-muted); }
   #abc-transpose-bar .edit-transpose-btns { width: 90px; }
+  /* Transcribe rides along at the end of this row — flex-wrap above lets it
+     drop to its own line on narrow screens instead of overflowing. */
+  #abc-transpose-bar #btn-abc-transcribe { font-size: 0.72rem; padding: 4px 9px; margin-left: auto; }
   .edit-transpose-btns { display: flex; gap: 5px; }
   .edit-transpose-btns button {
     flex: 1;
@@ -3998,6 +4009,28 @@
      once this stops firing, normal pinch in/out keeps working everywhere. */
   @media (pointer: coarse) {
     input, select, textarea { font-size: 16px !important; }
+    /* The blanket rule above stops iOS's forced-zoom-on-focus, but it was
+       clobbering #song-editor's/#tab-content-preview's own UI-scale-driven
+       font-size (.fs-xs..fs-xl, set above) with a single fixed value no
+       matter what the user actually picked in Size — "Small"/"Medium" got
+       puffed up past their chosen size (still needed, see below), but
+       "Large"/"Extra Large" got clamped back DOWN to 16px, the opposite of
+       what raising Size is supposed to do, and the editor stopped tracking
+       the setting altogether. max() keeps 16px as a FLOOR (still enough to
+       stop the zoom) instead of pinning every size to that one value, so
+       anything already >=16px renders at its real, larger, intended size.
+       Sizes below 16px (xs/sm/md) still can't go under it on a touchscreen
+       — that's iOS's own zoom threshold, not something CSS can opt out of
+       without disabling pinch-zoom entirely, which this app deliberately
+       never does (see the viewport meta tag). These need id+class+
+       !important to outrank the bare-tag rule just above at equal
+       specificity-tier (both are !important, so normal specificity still
+       decides between them, and id+class beats a bare tag selector). */
+    #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: max(16px, 0.68rem) !important; }
+    #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: max(16px, 0.82rem) !important; }
+    #song-editor.fs-md, #tab-content-preview.fs-md { font-size: max(16px, 0.95rem) !important; }
+    #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: max(16px, 1.12rem) !important; }
+    #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: max(16px, 1.32rem) !important; }
   }
 </style>
 
@@ -4438,6 +4471,7 @@ if (typeof window.t !== 'function') {
       <button id="btn-filter" title="Filter library by type" data-i18n-title="sidebar.filterTitle"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 2h14l-5.5 6.5V14l-3 1V8.5z"/></svg></button>
       <button id="btn-online-toggle" title="Online search is on — click to disable" data-i18n-title="sidebar.onlineSearchOn">☁</button>
     </div>
+    <button id="btn-previous-song" title="Go back to the previous song you had open" data-i18n="sidebar.previousSong" data-i18n-title="sidebar.previousSongTitle">◀ Previous Song</button>
     <button id="btn-select-random" title="Open a random song from your library" data-i18n="sidebar.selectRandom" data-i18n-title="sidebar.selectRandomTitle">🎲 Select Random</button>
     <button id="btn-join-collab" title="Join a live collaboration using a code someone shared with you" data-i18n="sidebar.joinCollab" data-i18n-title="sidebar.joinCollabTitle">🔗 Join Collaboration…</button>
     <div id="song-list"></div>
@@ -4523,6 +4557,11 @@ if (typeof window.t !== 'function') {
           <button type="button" id="abc-tr-down" title="Move every note in this tune down a semitone (permanent) — updates K: and the note pitches" data-i18n-title="editor.transposeDownAbcTitle">♭ −</button>
           <button type="button" id="abc-tr-up" title="Move every note in this tune up a semitone (permanent) — updates K: and the note pitches" data-i18n-title="editor.transposeUpAbcTitle">♯ +</button>
         </div>
+        <!-- Only reachable from inside the edit window (never the always-visible
+             toolbar) — someone who's just opened this tune to play it shouldn't
+             be presented with an experimental "rewrite my notes" option at all,
+             only someone already in here editing the source. -->
+        <button id="btn-abc-transcribe" title="Turn a recording or audio file into a rough draft melody you can clean up — experimental, expect mistakes" data-i18n-title="transcribe.buttonTitle" data-i18n="transcribe.button">🎙 Transcribe (Beta)</button>
       </div>
       <div id="abc-editor-wrap" style="display:none;width:100%;margin-bottom:16px;">
         <textarea id="abc-editor" spellcheck="false" autocorrect="off"
@@ -4881,7 +4920,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     <!-- ── App identity / version / platform links (always shown) ──── -->
     <div class="contact-app-header">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
-      <span class="contact-app-version" data-i18n="contact.version">version 1.2.1</span>
+      <span class="contact-app-version" data-i18n="contact.version">version 1.2.2</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -5417,6 +5456,13 @@ if (songs.length > 0 && !_demoLoading) {
   setTimeout(function() { buildSongList(''); renderSong(_resolveLastViewedIdx()); }, 0);
 }
 let currentIdx      = -1;
+// Stack of previously-viewed song indices (most recent last), powering the
+// "Previous Song" sidebar button — see renderSong()'s history-push and
+// goToPreviousSong() below. Navigating back pops without re-pushing (via
+// the {isBack:true} flag renderSong takes), so repeated "Previous" clicks
+// walk backward through the real visiting order instead of bouncing
+// between just the last two songs.
+let _songHistory = [];
 let transposeAmount = 0;
 let primaryCapo = 0, secondaryCapo = 0;   // per-instrument capo (0..11)
 // The AUDIO transpose (backing track, ABC synth) is the SOUNDING shift = display
@@ -8357,12 +8403,21 @@ function updateKeyDisplay() {
 }
 
 // ── RENDER SONG — loads a song by index, resets transpose, scrolls to top ──
-function renderSong(idx) {
+function renderSong(idx, opts) {
   if (!songs[idx]) {
     console.error('renderSong: no song at index', idx);
     if (typeof showToast === 'function') showToast('Song not found (index ' + idx + ')');
     return;
   }
+  // Record where we're navigating FROM, before currentIdx moves — skipped
+  // when this call IS a "Previous Song" navigation (opts.isBack), so
+  // walking backward doesn't re-push the song we just left and turn into a
+  // 2-song loop. See _songHistory's declaration up top for the full story.
+  if (!(opts && opts.isBack) && currentIdx >= 0 && currentIdx !== idx) {
+    _songHistory.push(currentIdx);
+    if (_songHistory.length > 50) _songHistory.shift();
+  }
+  var _isNewSong = currentIdx !== idx;
   try {
   // If we were editing a DIFFERENT song, commit those edits to THAT song and
   // leave edit mode before switching. Otherwise the editor still holds the old
@@ -8399,6 +8454,18 @@ function renderSong(idx) {
   }
   currentIdx=idx;
   _saveLastViewedSong(idx);
+  // "Loaded [Song]" toast — matters most on mobile, where picking a song
+  // (especially Select Random) from an almost-full-screen library panel
+  // gives no other visible confirmation of what just got opened until the
+  // panel is manually closed. Sits up here (rather than at the tail of the
+  // plain-text render branch below) so it fires for every song type — ABC
+  // and iReal/lead-sheet songs both `return` early out of this function
+  // before reaching that tail. Only fires when the song actually changed,
+  // so a same-song re-render (e.g. a live collab update) doesn't re-toast.
+  if (_isNewSong && typeof showToast === 'function') {
+    showToast(t('toast.songLoaded', { title: songs[idx].title || t('sidebar.untitled') }));
+  }
+  if (typeof _refreshPreviousSongBtn === 'function') _refreshPreviousSongBtn();
   // Capo + transpose reset per song, but restore this song's cached state if it
   // was visited earlier this session.
   _restoreSongState(songs[idx]);
@@ -9028,6 +9095,14 @@ function _buildFilterPanel() {
     _allKeys.push(key);
     var lab = document.createElement('label'); lab.className = 'filter-row' + (isSub ? ' sub' : '');
     if (isSub) lab.style.paddingLeft = '24px';
+    // #filter-panel lives at document.body level (not inside #sidebar — see
+    // its "sidebar's transform can't clip it" comment below), so a plain
+    // click on one of these rows bubbles past #sidebar entirely and gets
+    // read by the mobile sidebar-backdrop closer as an "outside click",
+    // closing the whole library. All/None already stopPropagation() on
+    // their own click handler for the same reason — this is that same fix
+    // applied to every individual filter row instead of just those two.
+    lab.addEventListener('click', function(e){ e.stopPropagation(); });
     var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !_libFilterOff.has(key);
     _cbByKey[key] = cb;
     cb.addEventListener('change', function(){
@@ -9276,6 +9351,26 @@ document.getElementById('btn-search-clear').addEventListener('click', () => {
   input.focus();
 });
 
+// ── Previous Song: step back through actual browsing history ───────────────
+// See _songHistory's declaration (near currentIdx) for how the stack is
+// maintained by renderSong() itself.
+function _refreshPreviousSongBtn() {
+  var b = document.getElementById('btn-previous-song');
+  if (b) b.disabled = !_songHistory.length;
+}
+function goToPreviousSong() {
+  while (_songHistory.length) {
+    var prevIdx = _songHistory.pop();
+    if (songs[prevIdx]) { renderSong(prevIdx, { isBack: true }); return; }
+    // Song at that index is gone (deleted since we were there) — keep
+    // popping back through history instead of failing silently.
+  }
+  if (typeof showToast === 'function') showToast(t('sidebar.noPreviousSong'));
+  _refreshPreviousSongBtn();
+}
+document.getElementById('btn-previous-song').addEventListener('click', goToPreviousSong);
+_refreshPreviousSongBtn();   // starts disabled — nothing to go back to yet
+
 // ── Select Random: open a random song from the LOCAL library only ──────────
 // `songs` is always the local library array — online search results live in
 // a separate results panel and never get pushed into it — so picking an
@@ -9285,10 +9380,20 @@ document.getElementById('btn-select-random').addEventListener('click', () => {
     if (typeof showToast === 'function') showToast('Your library is empty — add a song first.');
     return;
   }
-  let idx = Math.floor(Math.random() * songs.length);
+  // Only pick from songs that pass the active type/sub-type filters (same
+  // check buildSongList uses to decide what's visible in the sidebar) —
+  // e.g. with only Slipjigs selected, Random should only ever land on a
+  // Slipjig, not any song in the whole library.
+  var eligible = [];
+  for (var i = 0; i < songs.length; i++) { if (_songPassesFilter(songs[i])) eligible.push(i); }
+  if (!eligible.length) {
+    if (typeof showToast === 'function') showToast(typeof t === 'function' ? t('sidebar.randomNoMatch') : 'No songs match the current filter.');
+    return;
+  }
+  let idx = eligible[Math.floor(Math.random() * eligible.length)];
   // Prefer a different song than the one already open, when there's a choice.
-  for (let tries = 0; tries < 20 && songs.length > 1 && idx === currentIdx; tries++) {
-    idx = Math.floor(Math.random() * songs.length);
+  for (let tries = 0; tries < 20 && eligible.length > 1 && idx === currentIdx; tries++) {
+    idx = eligible[Math.floor(Math.random() * eligible.length)];
   }
   // Clear any active search text so the picked song is actually visible
   // (and highlighted as .active) in the sidebar list, not hidden by a
@@ -10695,11 +10800,15 @@ function updateScrollProgress() {
 }
 window.addEventListener('scroll', updateScrollProgress);
 
-// Speed slider (1–10) -> pixels per second. Tuned so the old setInterval
-// feel (roughly 1x–13x px/tick at 40–220ms ticks) maps onto a comparable
-// continuous rate at each speed setting.
+// Speed slider (1–10) -> pixels per second. Originally tuned so the old
+// setInterval feel (roughly 1x–13x px/tick at 40–220ms ticks) mapped onto a
+// comparable continuous rate at each speed setting (14 + speed*16, i.e.
+// 30-174 px/s) — but most people run this near the bottom of the slider,
+// and even the minimum was still too fast for a lot of songs. Roughly
+// halved across the board (now ~15-87 px/s) so the low end is actually
+// usable for slow ballads instead of only the top few % of the range.
 function _scrollPxPerSec(speed) {
-  return 14 + speed * 16;
+  return 7 + speed * 8;
 }
 
 let _scrollLastTs = null;
@@ -18956,6 +19065,318 @@ function _abcSetEditing(on) {
   btn.classList.toggle('active', on);
 }
 
+// ── TRANSCRIBE AUDIO (BETA) ─────────────────────────────────────────────────
+// Rough, offline, entirely-client-side monophonic pitch tracker: record from
+// the mic or upload a file, autocorrelation picks a pitch per short frame,
+// consecutive same-pitch frames merge into notes, a crude key-fit and
+// duration-quantiser turn that into ABC text, and it's dropped straight into
+// the ABC editor as a starting point. This is NOT trying to be a real
+// transcription engine (things like FolkFriend use a proper trained/tuned
+// pipeline with a tune-index to cross-check results against — see
+// github.com/TomWyllie/folkfriend) — it's a much simpler DSP-only aide
+// explicitly framed as unreliable (see transcribe.disclaimer), meant to give
+// someone writing out a tune by ear a rough first draft to correct rather
+// than a blank page.
+
+// Standard autocorrelation pitch detector (a well-known public technique,
+// often called ACF2+ — this is an independent implementation of it, not
+// copied from any one source). Returns detected frequency in Hz, or -1 if
+// the frame is too quiet to have a confident pitch at all.
+function _msAutoCorrelate(buf, sampleRate) {
+  const SIZE = buf.length;
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.01) return -1;   // effectively silent — no point chasing a pitch in noise floor
+
+  // Trim leading/trailing near-zero samples so the correlation window is
+  // centred on actual signal, same trick used in most reference ACF demos.
+  let r1 = 0, r2 = SIZE - 1;
+  const thres = 0.2;
+  for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) < thres) { r1 = i; break; } }
+  for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; } }
+  const trimmed = buf.subarray(r1, r2);
+  const n = trimmed.length;
+  if (n < 8) return -1;
+
+  const c = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    for (let j = 0; j < n - i; j++) sum += trimmed[j] * trimmed[j + i];
+    c[i] = sum;
+  }
+  let d = 0;
+  while (d < n - 1 && c[d] > c[d + 1]) d++;
+  let maxVal = -1, maxPos = -1;
+  for (let i = d; i < n; i++) { if (c[i] > maxVal) { maxVal = c[i]; maxPos = i; } }
+  if (maxPos <= 0) return -1;
+  let T0 = maxPos;
+  // Parabolic interpolation around the peak for sub-sample-accurate period.
+  const x1 = c[T0 - 1] !== undefined ? c[T0 - 1] : c[T0];
+  const x2 = c[T0];
+  const x3 = c[T0 + 1] !== undefined ? c[T0 + 1] : c[T0];
+  const a = (x1 + x3 - 2 * x2) / 2;
+  const b = (x3 - x1) / 2;
+  if (a) T0 = T0 - b / (2 * a);
+  return T0 > 0 ? sampleRate / T0 : -1;
+}
+
+// MIDI note number -> ABC pitch token (e.g. 60 -> 'C', 72 -> 'c', 48 -> 'C,').
+// Always spells with sharps (no flat-key re-spelling) — good enough for a
+// rough draft the user is expected to clean up anyway.
+function _msMidiToAbc(midi) {
+  const NAMES = ['C','^C','D','^D','E','F','^F','G','^G','A','^A','B'];
+  const m = Math.round(midi);
+  const pc = ((m % 12) + 12) % 12;
+  const octave = Math.floor(m / 12) - 5;   // MIDI 60 (middle C) -> ABC 'C', octave 0
+  let token = NAMES[pc];
+  if (octave >= 1) token = token.toLowerCase() + "'".repeat(octave - 1);
+  else if (octave <= -1) token = token + ','.repeat(-octave);
+  return token;
+}
+
+// Collapses a per-frame pitch trace into discrete notes: consecutive frames
+// that round to the same MIDI number merge into one note; a silent/unvoiced
+// frame ends whatever note was in progress. Very short blips (<60ms) are
+// dropped as likely detection noise rather than real, deliberate notes.
+function _msFramesToNotes(frames) {
+  const notes = [];
+  let cur = null;
+  frames.forEach(f => {
+    if (f.hz <= 0) { if (cur) { notes.push(cur); cur = null; } return; }
+    const midi = Math.round(69 + 12 * Math.log2(f.hz / 440));
+    if (cur && midi === cur.midi) { cur.end = f.time; }
+    else { if (cur) notes.push(cur); cur = { midi, start: f.time, end: f.time }; }
+  });
+  if (cur) notes.push(cur);
+  return notes.filter(n => (n.end - n.start) >= 0.06);
+}
+
+// Crude key guess: for every major AND natural-minor rotation, sum how much
+// total note-duration falls on that scale's pitch classes, and take the
+// best-scoring one. Not remotely as considered as a real key-finding
+// algorithm — just enough to pre-fill a plausible K: line instead of always
+// defaulting to C.
+function _msDetectKey(notes) {
+  const hist = new Array(12).fill(0);
+  notes.forEach(n => { hist[((n.midi % 12) + 12) % 12] += Math.max(0.01, n.end - n.start); });
+  const MAJOR = [0,2,4,5,7,9,11], MINOR = [0,2,3,5,7,8,10];
+  const SHARP_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  let best = { score: -1, name: 'C' };
+  for (let root = 0; root < 12; root++) {
+    let majScore = 0, minScore = 0;
+    MAJOR.forEach(iv => majScore += hist[(root + iv) % 12]);
+    MINOR.forEach(iv => minScore += hist[(root + iv) % 12]);
+    if (majScore > best.score) best = { score: majScore, name: SHARP_NAMES[root] };
+    if (minScore > best.score) best = { score: minScore, name: SHARP_NAMES[root] + 'm' };
+  }
+  return best.name;
+}
+
+// Turns notes into an ABC note-token string. Duration is quantised against
+// the shortest detected note (treated as "one unit") rather than against any
+// real tempo estimate — there's no beat-tracking here at all, so triplets,
+// swing, or anything syncopated will come out wrong. A bar line is dropped
+// in every 8 notes purely so the result isn't one unreadable unbroken line;
+// it has no relationship to the actual time signature.
+function _msBuildAbcBody(notes) {
+  if (!notes.length) return '';
+  const unit = Math.max(0.08, Math.min.apply(null, notes.map(n => n.end - n.start)));
+  let body = '', count = 0;
+  notes.forEach(n => {
+    let mult = Math.round((n.end - n.start) / unit);
+    if (mult < 1) mult = 1; if (mult > 8) mult = 8;
+    body += _msMidiToAbc(n.midi) + (mult > 1 ? mult : '') + ' ';
+    count++;
+    if (count % 8 === 0) body += '| ';
+  });
+  return body.trim();
+}
+
+// Runs the full frame-by-frame pipeline over a decoded AudioBuffer, yielding
+// to the event loop periodically (autocorrelation is O(frameSize²) per
+// frame, so a naive tight loop over a whole recording would freeze the tab)
+// and reporting progress via onProgress(0..1).
+async function _msTranscribeAudioBuffer(audioBuffer, onProgress) {
+  const channelData = audioBuffer.getChannelData(0);
+  const sampleRate = audioBuffer.sampleRate;
+  const FRAME_SIZE = 2048, HOP = 1024;
+  const MAX_SECONDS = 30;   // hard cap — this is a rough aide, not built for whole recordings
+  const maxSamples = Math.min(channelData.length, sampleRate * MAX_SECONDS);
+  const totalFrames = Math.max(1, Math.floor((maxSamples - FRAME_SIZE) / HOP));
+  const frames = [];
+  let i = 0;
+  for (let pos = 0; pos + FRAME_SIZE <= maxSamples; pos += HOP) {
+    const hz = _msAutoCorrelate(channelData.subarray(pos, pos + FRAME_SIZE), sampleRate);
+    frames.push({ hz, time: pos / sampleRate });
+    i++;
+    if (i % 20 === 0) {
+      if (onProgress) onProgress(Math.min(0.97, i / totalFrames));
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  if (onProgress) onProgress(1);
+  const notes = _msFramesToNotes(frames);
+  if (!notes.length) return null;
+  return { key: _msDetectKey(notes), body: _msBuildAbcBody(notes), noteCount: notes.length };
+}
+
+// ── Transcribe modal ─────────────────────────────────────────────────────
+let _msTranscribeStream = null, _msTranscribeRecorder = null, _msTranscribeChunks = [];
+function _msCloseTranscribeStream() {
+  if (_msTranscribeStream) { _msTranscribeStream.getTracks().forEach(t => t.stop()); _msTranscribeStream = null; }
+}
+function openTranscribeModal() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--c-card-fallback);color:var(--c-card-text);padding:24px 28px;border-radius:8px;min-width:300px;max-width:440px;width:90vw;max-height:calc(100vh - 40px);overflow-y:auto;box-sizing:border-box;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:var(--font-chord);';
+  function closeModal() { _msCloseTranscribeStream(); ov.remove(); }
+
+  const h = document.createElement('div');
+  h.style.cssText = 'font-weight:600;font-size:1rem;margin-bottom:10px;';
+  h.textContent = t('transcribe.modalTitle');
+  box.appendChild(h);
+
+  const warn = document.createElement('div');
+  warn.style.cssText = 'font-size:0.78rem;line-height:1.5;background:rgba(255,160,0,0.12);color:#b07000;border:1px solid rgba(255,160,0,0.35);border-radius:4px;padding:8px 10px;margin-bottom:16px;';
+  warn.textContent = t('transcribe.disclaimer');
+  box.appendChild(warn);
+
+  const status = document.createElement('div');
+  status.style.cssText = 'font-size:0.8rem;min-height:1.2em;margin-bottom:10px;color:var(--c-accent);';
+  box.appendChild(status);
+
+  const progressWrap = document.createElement('div');
+  progressWrap.style.cssText = 'display:none;height:6px;border-radius:3px;background:var(--c-chrome-bg3);overflow:hidden;margin-bottom:16px;';
+  const progressBar = document.createElement('div');
+  progressBar.style.cssText = 'height:100%;width:0%;background:var(--c-accent);transition:width 0.15s;';
+  progressWrap.appendChild(progressBar);
+  box.appendChild(progressWrap);
+
+  async function runPipeline(arrayBuffer) {
+    status.textContent = t('transcribe.analyzing');
+    progressWrap.style.display = 'block';
+    recBtn.disabled = true; fileBtn.disabled = true;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const actx = new AC();
+      const audioBuffer = await actx.decodeAudioData(arrayBuffer);
+      const result = await _msTranscribeAudioBuffer(audioBuffer, p => { progressBar.style.width = Math.round(p * 100) + '%'; });
+      actx.close && actx.close();
+      if (!result) { status.textContent = t('transcribe.noPitchFound'); recBtn.disabled = false; fileBtn.disabled = false; progressWrap.style.display = 'none'; return; }
+      _msInsertTranscription(result);
+      closeModal();
+    } catch (e) {
+      console.error('Transcribe audio error:', e);
+      status.textContent = t('transcribe.decodeError');
+      recBtn.disabled = false; fileBtn.disabled = false; progressWrap.style.display = 'none';
+    }
+  }
+
+  // Record
+  const recRow = document.createElement('div');
+  recRow.style.cssText = 'margin-bottom:14px;';
+  const recBtn = document.createElement('button');
+  recBtn.textContent = t('transcribe.startRecording');
+  recBtn.style.cssText = 'width:100%;font-family:var(--font-chord);font-size:0.85rem;padding:8px 14px;cursor:pointer;';
+  let isRecording = false;
+  recBtn.addEventListener('click', async () => {
+    if (!isRecording) {
+      try {
+        _msTranscribeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        status.textContent = t('transcribe.micDenied');
+        return;
+      }
+      _msTranscribeChunks = [];
+      const mimeType = (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) ? 'audio/webm' : '';
+      _msTranscribeRecorder = mimeType ? new MediaRecorder(_msTranscribeStream, { mimeType }) : new MediaRecorder(_msTranscribeStream);
+      _msTranscribeRecorder.ondataavailable = e => { if (e.data && e.data.size) _msTranscribeChunks.push(e.data); };
+      _msTranscribeRecorder.onstop = async () => {
+        _msCloseTranscribeStream();
+        const blob = new Blob(_msTranscribeChunks, { type: _msTranscribeRecorder.mimeType || 'audio/webm' });
+        const buf = await blob.arrayBuffer();
+        runPipeline(buf);
+      };
+      _msTranscribeRecorder.start();
+      isRecording = true;
+      recBtn.textContent = t('transcribe.stopRecording');
+      status.textContent = t('transcribe.recording');
+      fileBtn.disabled = true;
+    } else {
+      isRecording = false;
+      recBtn.textContent = t('transcribe.startRecording');
+      if (_msTranscribeRecorder && _msTranscribeRecorder.state !== 'inactive') _msTranscribeRecorder.stop();
+    }
+  });
+  recRow.appendChild(recBtn);
+  box.appendChild(recRow);
+
+  const sep = document.createElement('div');
+  sep.style.cssText = 'text-align:center;font-size:0.7rem;color:var(--c-chrome-muted);margin:10px 0;';
+  sep.textContent = t('transcribe.orLabel');
+  box.appendChild(sep);
+
+  // Upload
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = 'audio/*'; fileInput.style.display = 'none';
+  const fileBtn = document.createElement('button');
+  fileBtn.textContent = t('transcribe.chooseFile');
+  fileBtn.style.cssText = 'width:100%;font-family:var(--font-chord);font-size:0.85rem;padding:8px 14px;cursor:pointer;';
+  fileBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    const buf = await f.arrayBuffer();
+    runPipeline(buf);
+  });
+  box.appendChild(fileBtn);
+  box.appendChild(fileInput);
+
+  const btnsRow = document.createElement('div');
+  btnsRow.style.cssText = 'display:flex;justify-content:flex-end;margin-top:18px;';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = t('sidebar.cancel');
+  cancelBtn.style.cssText = 'font-family:var(--font-chord);font-size:0.8rem;padding:5px 14px;cursor:pointer;';
+  cancelBtn.addEventListener('click', closeModal);
+  btnsRow.appendChild(cancelBtn);
+  box.appendChild(btnsRow);
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  ov.addEventListener('mousedown', e => { if (e.target === ov) closeModal(); });
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', escHandler); }
+  });
+}
+
+// Drops the transcribed note body into the ABC editor: if it's empty, builds
+// a minimal complete tune skeleton around it (so "record a tune from
+// scratch" works without the user needing to know ABC header syntax);
+// otherwise inserts at the cursor (or appends) into whatever's already
+// there, leaving existing content untouched, same "insert, don't overwrite"
+// spirit as Tab Riff.
+function _msInsertTranscription(result) {
+  if (!_abcSetEditing) return;
+  const wasEditing = document.getElementById('abc-editor-wrap').style.display !== 'none';
+  if (!wasEditing) document.getElementById('btn-abc-edit').click();
+  const ta = document.getElementById('abc-editor');
+  const disclaimerLine = '% ' + t('transcribe.insertedComment') + '\n';
+  if (!ta.value.trim()) {
+    ta.value = 'X:1\nT:\nM:4/4\nL:1/8\nK:' + result.key + '\n' + disclaimerLine + result.body + '\n';
+  } else {
+    const insert = '\n' + disclaimerLine + result.body + '\n';
+    const start = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+    const end = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
+    ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
+  }
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  if (typeof showToast === 'function') {
+    showToast(t('transcribe.insertedToast', { n: String(result.noteCount), key: result.key }));
+  }
+}
+
 // ── PERMANENT ABC TRANSPOSE ───────────────────────────────────────────────────
 // Unlike abcjs's visualTranspose (a display-only shift applied at render time),
 // this rewrites the actual ABC source text: the K: header AND every note pitch
@@ -19135,6 +19556,14 @@ document.getElementById('btn-abc-edit-cancel').addEventListener('click', () => {
   _abcEditSnapshot = null;
   _abcSetEditing(false);
   renderABCSong(song);
+});
+document.getElementById('btn-abc-transcribe').addEventListener('click', () => {
+  if (currentIdx < 0 || !songs[currentIdx]) return;
+  // If recording isn't available (older browser, or a non-secure/non-
+  // localhost context — getUserMedia requires HTTPS), the modal's Record
+  // button just fails gracefully into the mic-denied message on click;
+  // Upload still works either way, so the feature as a whole isn't blocked.
+  openTranscribeModal();
 });
 
 // Debounced autosave while editing ABC, so navigating away never loses work.
@@ -20392,6 +20821,15 @@ function _renderNotesView(text, container){
     const lineEl=document.createElement('div');
     const isChord=lineIsChordLine(line);
     const dispLine=(line.startsWith('!')||line.startsWith('~'))?line.slice(1):line;
+    // A genuinely blank line (deliberate spacing between paragraphs/sections
+    // in the notes text) produces an empty <div> here with nothing inside
+    // it to generate a line box — browsers collapse that to 0px height, so
+    // multiple consecutive blank lines all visually disappeared into a
+    // single line's worth of gap no matter how many \n\n's were actually
+    // typed. A non-breaking space gives the div real content to size
+    // itself against, so each blank line keeps its own line-height of
+    // vertical space, same as it would in the plain-text editor.
+    if(dispLine===''){lineEl.innerHTML='&nbsp;';container.appendChild(lineEl);return;}
     if(isChord){
       dispLine.split(/(\s+)/).forEach(part=>{
         if(/^\s+$/.test(part)){lineEl.appendChild(document.createTextNode(part));}
@@ -20523,16 +20961,29 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
 
   menu.appendChild(sep());
 
-  // Insert bar before / after
+  // Insert bar before / after — asks how many, so adding a whole line of
+  // bars doesn't mean reopening this menu and clicking Insert over and over.
+  function insertBars(atIdx){
+    openModal(t('lsEdit.insertBarsModalTitle'),
+      [{label:t('lsEdit.insertBarsCountField'),placeholder:'1',value:'1',key:'n'}],
+      ({n})=>{
+        var count=parseInt(n,10);
+        if(!count||count<1)count=1;
+        if(count>96)count=96;   // sane ceiling — guards against a stray huge paste/typo
+        var newBars=[];
+        for(var i=0;i<count;i++)newBars.push(emptyBar());
+        chart.bars.splice.apply(chart.bars,[atIdx,0].concat(newBars));
+        saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });
+      }
+    );
+  }
   menu.appendChild(row('+', t('lsEdit.insertBarBefore'), '', ()=>{
     closeMenu();
-    chart.bars.splice(bidx,0,emptyBar());
-    saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });
+    insertBars(bidx);
   }));
   menu.appendChild(row('+', t('lsEdit.insertBarAfter'), '', ()=>{
     closeMenu();
-    chart.bars.splice(bidx+1,0,emptyBar());
-    saveSongs();_scheduleLsCollabEditBroadcast(song);renderIRealSong(song, { preserveScroll: true });
+    insertBars(bidx+1);
   }));
 
   menu.appendChild(sep());
@@ -20559,6 +21010,15 @@ function _irealCellMenu(kbtn, cell, bar, song, chart){
 // ── Render lead sheet ─────────────────────────────────────────────────────────
 function renderIRealSong(song, opts){
   opts = opts || {};
+  // Captured up front (before the DOM gets torn down below) so a
+  // preserveScroll re-render can put the page back where the user actually
+  // was. Just skipping the old window.scrollTo(0,0) wasn't enough on its
+  // own — removing/replacing whatever bar element had focus (e.g. right
+  // after picking a bar-menu action) makes some browsers auto-scroll to
+  // wherever focus lands next, which is effectively back to the top. Doing
+  // an explicit restore, including one more on the next frame after focus
+  // has settled, cancels that out regardless of what actually caused it.
+  var _lsPrevScrollY = opts.preserveScroll ? window.scrollY : null;
   document.getElementById('abc-song-card').style.display='none';
   document.getElementById('abc-toolbar').style.display='none';
   document.getElementById('song-card').classList.remove('visible');
@@ -20977,13 +21437,27 @@ function renderIRealSong(song, opts){
   if (typeof btOpenBar === 'function') btOpenBar(song);
   updateTransposeButtons();
   updateSidebarActive();
-  // Skipped when re-rendering because a REMOTE collaborator's edit arrived
-  // (see _collabHandleEdit/_collabHandleSaved/_collabHandleEnd) — jumping this
-  // client's scroll position to the top every time a peer types in the notes
-  // textarea (or edits a bar) would otherwise be constant and disorienting.
-  // Every local, user-initiated render (opening the song, toggling edit mode,
-  // switching songs) still scrolls to top as before.
-  if (!opts.preserveScroll) window.scrollTo(0, 0);
+  // preserveScroll covers two cases: a REMOTE collaborator's edit arriving
+  // (see _collabHandleEdit/_collabHandleSaved/_collabHandleEnd — jumping
+  // this client's scroll position to the top every time a peer types in the
+  // notes textarea or edits a bar would be constant and disorienting), and
+  // every in-place structural edit made by THIS user while already editing
+  // a bar (add/remove a chord, toggle a repeat/section/ending marker,
+  // insert or delete a bar) — those should leave the user looking at the
+  // same bar they were just working on, not bounce them back to the top of
+  // a potentially long chart. Opening the song, toggling edit mode on/off,
+  // and switching songs are the only cases that still scroll to top.
+  if (opts.preserveScroll) {
+    if (_lsPrevScrollY != null) {
+      window.scrollTo(0, _lsPrevScrollY);
+      // One more restore next frame — removing/replacing whatever bar
+      // element had focus can make the browser auto-scroll on its own as
+      // focus resettles, which would otherwise silently undo the line above.
+      requestAnimationFrame(function(){ window.scrollTo(0, _lsPrevScrollY); });
+    }
+  } else {
+    window.scrollTo(0, 0);
+  }
 }
 
 

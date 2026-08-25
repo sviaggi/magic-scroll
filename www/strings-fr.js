@@ -40,6 +40,7 @@ window.MS_STRINGS_FR = {
   'sidebar.searchPlaceholder':  'Rechercher…',
   'sidebar.multiselectTitle':   'Sélectionner plusieurs chansons',
   'sidebar.filterTitle':        'Filtrer par type',
+  'toast.songLoaded':           '{title} chargée',
 
   // ── SONG/CHORD-SHEET EDITOR ────────────────────────────────────────────
   'editor.addChords':           '🎯 Ajouter des accords',
@@ -213,6 +214,10 @@ window.MS_STRINGS_FR = {
   'sidebar.clearSearchTitle':   'Effacer la recherche',
   'sidebar.onlineSearchOn':     'Recherche en ligne activée — cliquez pour désactiver',
   'sidebar.onlineSearchOff':    'Recherche en ligne désactivée — cliquez pour activer',
+  'sidebar.previousSong':       '◀ Chanson précédente',
+  'sidebar.previousSongTitle':  'Revenir à la chanson précédente',
+  'sidebar.noPreviousSong':     'Aucune chanson précédente.',
+  'sidebar.untitled':           'Sans titre',
   'sidebar.selectRandom':       '🎲 Chanson aléatoire',
   'sidebar.selectRandomTitle':  'Ouvrir une chanson aléatoire de votre bibliothèque',
   'sidebar.joinCollab':         '🔗 Rejoindre une collaboration…',
@@ -244,6 +249,11 @@ window.MS_STRINGS_FR = {
   'filter.noneTitle':           'Masquer tous les types',
   'filter.unspecified':         '(Non précisé)',
   'filter.libraryEmpty':        'La bibliothèque est vide',
+  'filter.catChords':           'Accords',
+  'filter.catTabs':             'Tablatures',
+  'filter.catSheetMusic':       'Partitions',
+  'filter.catLeadSheets':       'Grilles',
+  'sidebar.randomNoMatch':      'Aucune chanson ne correspond au filtre actuel.',
 
   // ── EMPTY STATE (additional) ────────────────────────────────────────────
   'emptyState.body':            'Déposez des fichiers .txt, .json ou .html dans la barre latérale, ou cliquez sur <strong>✦ Nouvelle chanson</strong> pour en écrire une.',
@@ -270,6 +280,23 @@ window.MS_STRINGS_FR = {
   'toolbar.publishSheetMusicTitle':    'Publier cette partition dans la bibliothèque en ligne',
   'toolbar.createSet':                 '⛓ Créer un enchaînement',
   'toolbar.createSetTitle':            'Empiler d\'autres morceaux de votre bibliothèque à la suite de celui-ci pour créer un enchaînement',
+
+  // ── TRANSCRIBE AUDIO (BETA) ───────────────────────────────────────────────
+  'transcribe.button':                 '🎙 Transcrire (bêta)',
+  'transcribe.buttonTitle':            'Transformer un enregistrement ou un fichier audio en mélodie brouillon à corriger — fonctionnalité expérimentale, attendez-vous à des erreurs',
+  'transcribe.modalTitle':             'Transcrire l\'audio (bêta)',
+  'transcribe.disclaimer':             'Expérimental : la hauteur et le rythme sont des estimations approximatives d\'un algorithme simple, pas un vrai moteur de transcription. Fonctionne mieux avec un seul instrument mélodique ou une voix claire, sans accompagnement. Considérez le résultat comme un point de départ à corriger — vérifiez et corrigez toujours les notes produites avant de les utiliser.',
+  'transcribe.orLabel':                'ou',
+  'transcribe.startRecording':         '● Démarrer l\'enregistrement',
+  'transcribe.stopRecording':          '■ Arrêter l\'enregistrement',
+  'transcribe.recording':              'Enregistrement…',
+  'transcribe.chooseFile':             '📂 Choisir un fichier audio…',
+  'transcribe.analyzing':              'Analyse de l\'audio…',
+  'transcribe.noPitchFound':           'Impossible de détecter des notes claires dans cet audio — essayez un enregistrement plus net, avec un seul instrument ou une seule voix.',
+  'transcribe.micDenied':              'Accès au microphone refusé ou indisponible.',
+  'transcribe.decodeError':            'Impossible de lire ce fichier audio.',
+  'transcribe.insertedComment':        'Transcription bêta — la hauteur et le rythme sont des estimations approximatives ; vérifiez et corrigez avant utilisation.',
+  'transcribe.insertedToast':          '{n} notes transcrites insérées (tonalité devinée : {key}) — à vérifier avant utilisation.',
   'toolbar.sheetMusicMenu':            '🎼 Partition ▾',
   'toolbar.sheetMusicOptionsTitle':    'Options de la partition',
   'toolbar.soundfont':                 '🎵 Banque de sons',
@@ -334,7 +361,7 @@ window.MS_STRINGS_FR = {
   'newSong.openEditor':          'Ouvrir l\'éditeur',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2.1',
+  'contact.version':             'version 1.2.2',
   'contact.bugReportsHeading':   'Rapports de bugs / Dons',
   'contact.getInTouch':          'Vous avez trouvé un problème ? Contactez-nous :',
   'contact.includeDescription':  'Merci de joindre le fichier de la chanson et une description du problème rencontré.',
@@ -545,6 +572,8 @@ window.MS_STRINGS_FR = {
   'lsEdit.finalBarlineOn':            '✓ Barre finale',
   'lsEdit.insertBarBefore':           'Insérer une mesure avant',
   'lsEdit.insertBarAfter':            'Insérer une mesure après',
+  'lsEdit.insertBarsModalTitle':      'Insérer combien de mesures ?',
+  'lsEdit.insertBarsCountField':      'Nombre de mesures',
   'lsEdit.deleteBar':                 'Supprimer la mesure',
 
   // ── COLLECTIONS (submenu list content) ──────────────────────────────────
