@@ -3289,7 +3289,25 @@
     cursor: pointer;
     accent-color: var(--c-accent);
   }
-  #abc-tempo { accent-color: var(--c-accent); }
+  /* BPM/Plays text fields — form controls don't inherit font-family from an
+     ancestor by default (a browser UA-stylesheet quirk), so #abc-player-bar's
+     var(--font-mono) has to be declared explicitly here, same as .abc-ctrl-btn
+     already does for the Meter <select>. Sized narrow (3 digits/2 digits) to
+     match the compact playbar, styled like #bpm-input (the metronome's
+     equivalent text field) for visual consistency across the app. */
+  .abc-tempo-input, .abc-plays-input {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    width: 42px;
+    padding: 3px 4px;
+    text-align: center;
+    background: var(--c-chrome-bg3);
+    border: 1px solid var(--c-chrome-border);
+    color: var(--c-chrome-text);
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .abc-tempo-input:focus, .abc-plays-input:focus { outline: 1px solid var(--c-accent); }
   /* Divider between controls and progress */
   #abc-player-inner hr {
     border: none;
@@ -3297,7 +3315,6 @@
     margin: 1px 0;
   }
   .abc-ctrl-btn { font-size:0.78rem; padding:4px 12px; }
-  #abc-tempo-label { font-size:0.7rem; min-width:50px; }
   /* Sheet-music playhead cursor — injected as <rect> inside the ABCJS SVG,
      so SVG-user-unit coordinates from TimingCallbacks apply directly with no
      pixel scaling needed (works correctly with responsive resize + scale:1.3) */
@@ -3477,9 +3494,15 @@
     background: currentColor;
     border-radius: 1px;
   }
-  /* BPM slider */
-  .bt-tempo-slider { width: 58px; accent-color: var(--c-accent); flex-shrink: 0; }
-  .bt-tempo-lbl { font-size: 0.7rem; min-width: 26px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  /* BPM text field — same styling as #bt-plays above for visual consistency
+     (both are small numeric fields in the same mono-font playbar). Form
+     controls don't inherit font-family from an ancestor by default, so
+     font-family is declared explicitly here rather than relying on
+     inheriting it from #bt-bar. */
+  .bt-tempo-input { width: 42px; padding: 1px 3px; text-align: center;
+    background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
+    color: var(--c-chrome-text); border-radius: 3px; font-size: 0.72rem;
+    font-family: var(--font-mono); flex-shrink: 0; }
   /* Spacer pushes instruments to right edge */
   .bt-flex-spacer { flex: 1; min-width: 4px; overflow: hidden; }
   /* Row containers inside the controls bar */
@@ -3604,8 +3627,6 @@
     /* The empty spacer would otherwise eat a whole share — drop it on mobile. */
     .bt-flex-spacer { display: none !important; }
     #bt-status { display: none !important; }
-    /* Sliders grow with their share instead of a fixed width. */
-    .bt-tempo-slider { width: auto !important; }
     /* Row 3 (Drums/Keys/Bass/Guitar + ⚙) is two very differently-sized
        children, not evenly-sized controls like the other rows — the generic
        "every child gets an equal 1/2 share" rule above was giving the ⚙
@@ -4240,13 +4261,14 @@ if (typeof window.t !== 'function') {
       </div>
       <div class="abc-row-2">
         <label data-i18n="playbar.bpm">BPM</label>
-        <input  id="abc-tempo" type="range" min="40" max="240" value="120" style="width:72px;">
-        <span   id="abc-tempo-label" style="min-width:44px;font-variant-numeric:tabular-nums;">120</span>
+        <input  id="abc-tempo" type="number" inputmode="numeric" min="40" max="240" step="1" value="120" class="abc-tempo-input">
         <label data-i18n="playbar.meter">Meter</label>
         <select id="abc-time-sig" class="abc-ctrl-btn" style="font-size:0.7rem;padding:2px 4px;">
           <option>4/4</option><option>3/4</option><option>2/4</option>
           <option>6/8</option><option>5/4</option><option>7/8</option>
         </select>
+        <label id="abc-plays-lbl" data-i18n="playbar.plays">Plays</label>
+        <input  id="abc-plays" type="number" inputmode="numeric" min="1" max="10" step="1" value="3" class="abc-plays-input" title="Number of times to play through the chart" data-i18n-title="playbar.playsTitle">
         <span id="abc-status" style="font-size:0.64rem;color:var(--c-chrome-muted);margin-left:4px;"></span>
       </div>
     </div>
@@ -5571,7 +5593,7 @@ M: 3/4
 R: Waltz
 L: 1/8
 K: D
-dc | "G"B3dBA | "D"F2A3D | "A"E3FED
+Adc | "G"B3dBA | "D"F2A3D | "A"E3FED
 "Bm"B,3A,DC | B,3A,B,C | "A"D3CDE | "G"FGA2GF
 "A"E3Adc | "G"B3dBA | "D"F2A3D | "A"E3FED
 "Em"B,3EFA | "Bm"B3ABc | "D"d2DFAd | f2FAdf
@@ -5579,7 +5601,7 @@ dc | "G"B3dBA | "D"F2A3D | "A"E3FED
 "Bm"B4B2 | "Em"g3fed | "D"f3edA | FAdfad'
 "A"c'4a2 | "Bm"b3afa | "A"e2c4 | "F#m"a3gfd
 "Bm"B3EFA | "G"B3dBA | "D"F2A3D | "A"E3DC2
-"D"D6 |]`;
+"D"D3 |]`;
     parseABCFile(wearyABC, "Weary Wayfarer.abc").forEach(addStarter);
 
     // Worth the Weight (chord chart) — built from the top-level worthText
@@ -18514,6 +18536,12 @@ let _abcNoteCache = {};       // per-tune built note timing, reused across plays
 let _abcTempoT    = null;     // debounce timer for tempo-slider restarts
 let _abcScrubbing = false;   // true while user is dragging the progress bar
 let _abcCursorTC  = null;    // ABCJS.TimingCallbacks instance for the note cursor
+let _abcPlaysRemaining = 0;  // how many MORE full play-throughs to auto-repeat
+                              // after the one currently playing reaches its
+                              // natural end — set from #abc-plays at the start
+                              // of every fresh (non-auto-repeat) play; see
+                              // startABCSynth()'s _autoRepeat param and
+                              // _abcOnNaturalEnd() below.
 let _pausedFrac   = null;    // saved 0..1 position from the last Pause, consumed by
                               // startABCSynth() itself when a caller doesn't pass an
                               // explicit seekFrac (see its top for why that matters).
@@ -18699,6 +18727,25 @@ function stopABCSynth(keepPause) {
   document.querySelectorAll('.abc-now-playing').forEach(function(el){ el.style.display='none'; });
 }
 
+// Called when a play-through reaches its natural end (see the two call sites
+// in startABCSynth: the rAF progress tick and its setTimeout backup, both of
+// which pass _thisLapEndsAt — the exact audio-clock time this lap's audio
+// naturally finishes at). If the Plays field asked for more repeats, restarts
+// the SAME tune from the top as an auto-repeat (so startABCSynth doesn't
+// reset the countdown) instead of stopping, forcing the new lap's first note
+// to land exactly on nextLapStart so it continues in tempo with zero gap —
+// see startABCSynth's _forcedStartTime param and its own defensive
+// stop-before-start teardown (passed _autoRepeat as keepTail) for how the
+// ending session's last note is left to ring out instead of being cut off.
+function _abcOnNaturalEnd(nextLapStart) {
+  if (_abcPlaysRemaining > 0) {
+    _abcPlaysRemaining--;
+    startABCSynth(window._abcLastTuneIdx || 0, 0, 0, true, nextLapStart);
+  } else {
+    stopABCSynth();
+  }
+}
+
 // Initial pick-up (anacrusis) length, in seconds, from a tune's ABCJS timing
 // events. Returns 0 when the first measure is already a full bar. Robust to 0-
 // or 1-indexed measure numbering: it measures the length of the very first
@@ -18731,7 +18778,7 @@ function _abcPickupSec(events, fullMeasMs) {
 // audio graph/WebAudioFont layer instead). Safe to leave in — cheap, and
 // only prints on user-triggered playback actions.
 let _abcSessionSeq = 0;
-function startABCSynth(tuneIdx, seekFrac, _retryDepth) {
+function startABCSynth(tuneIdx, seekFrac, _retryDepth, _autoRepeat, _forcedStartTime) {
   // Confirm the shared AudioContext is actually RUNNING before this function
   // does ANYTHING else — see the "iOS/WKWebView WEB AUDIO UNLOCK" comment
   // above _getRunningCtx() for why a bare, unawaited ctx.resume() isn't
@@ -18786,7 +18833,7 @@ function startABCSynth(tuneIdx, seekFrac, _retryDepth) {
   // cursor stops updating once a second TimingCallbacks instance overwrites
   // _abcCursorTC out from under the first one's still-running callbacks.
   // Tearing down whatever's live first guarantees at most one of each.
-  if (abcStopFn) { console.log('[ABC] start #' + _sid + ' tearing down previous session before starting'); abcStopFn(); abcStopFn = null; }
+  if (abcStopFn) { console.log('[ABC] start #' + _sid + ' tearing down previous session before starting'); abcStopFn(_autoRepeat); abcStopFn = null; }
   _stopABCCursor();
   abcPlaying = false;
 
@@ -18814,6 +18861,17 @@ function startABCSynth(tuneIdx, seekFrac, _retryDepth) {
   _pausedFrac = null;
   const song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song || song._source !== 'abc') return;
+  // Plays (repeat count): only re-read #abc-plays and reset the countdown on a
+  // FRESH play (Play button, per-tune play button, song switch, spacebar) —
+  // not on an auto-repeat continuation (_autoRepeat=true, set only by
+  // _abcOnNaturalEnd() below when a play-through just finished and another is
+  // queued), so a mid-loop tempo/seek restart doesn't also reset it, and so
+  // this decrements exactly once per completed play-through.
+  if (!_autoRepeat) {
+    const playsEl  = document.getElementById('abc-plays');
+    const playsVal = playsEl ? (parseInt(playsEl.value) || 1) : 1;
+    _abcPlaysRemaining = Math.max(1, playsVal) - 1;
+  }
   const bpm = parseInt(document.getElementById('abc-tempo').value) || 120;
   var blocks = _abcTuneBlocks(_abcSrc(song));
   var abcBlock = blocks[tuneIdx || 0] || blocks[0];
@@ -18921,7 +18979,18 @@ function startABCSynth(tuneIdx, seekFrac, _retryDepth) {
   const _fullMeasMs = (60 / bpm) * (4 / (parseInt(_puSig[1]) || 4)) * (parseInt(_puSig[0]) || 4) * 1000;
   const _pickupSec  = _abcPickupSec(timingEvents, _fullMeasMs);
 
-  if (metroRunning && typeof metroNextDownbeat === 'function') {
+  if (_forcedStartTime != null) {
+    // Auto-repeat continuation (see _abcOnNaturalEnd/startABCSynth's
+    // _autoRepeat param, set only when the Plays field asked for more
+    // play-throughs): the ending session already computed the EXACT
+    // audio-clock time its own last note's nominal duration ends at —
+    // which is precisely where this new lap's first note must land to
+    // continue in tempo with zero gap. Letting the metronome-resync branch
+    // below override that (or falling through to the plain "start soon"
+    // 0.25s default) would reintroduce the audible gap this mechanism
+    // exists to remove, so a forced start always wins.
+    startOffset = Math.max(0, _forcedStartTime - ctx.currentTime);
+  } else if (metroRunning && typeof metroNextDownbeat === 'function') {
     // Place the first full measure on the next downbeat; the pickup precedes it.
     const db = metroNextDownbeat(ctx.currentTime + _pickupSec + 0.25);
     startOffset = Math.max(0.25, db - ctx.currentTime - _pickupSec);
@@ -18959,6 +19028,21 @@ function startABCSynth(tuneIdx, seekFrac, _retryDepth) {
   // one more permanently-running, unstoppable playback session stacked on
   // top of the others — that's the reported duplicate/offset audio.
   let _schedT = ctx.currentTime + startOffset;
+  // audioStart: the ctx-time this session's timeline ms=0 (i.e. fracNow=0,
+  // BEFORE seeking) lands on — same formula the ABCJS-timing branch below
+  // already used locally as its own `audioStart`, hoisted here so it's also
+  // available for _thisLapEndsAt right below (needed by BOTH branches, and by
+  // code outside either branch — the fallback abcToNotes path never named an
+  // equivalent variable of its own, but its _schedT walk starts from exactly
+  // this same point).
+  const audioStart = _schedT - notesTotalDur * seekFrac;
+  // The exact audio-clock time THIS lap's audio naturally finishes at — i.e.
+  // exactly where a Plays auto-repeat's next lap must start to continue in
+  // tempo with zero gap. Passed to _abcOnNaturalEnd() at both its call sites
+  // below (the rAF tick and its setTimeout backup), which forwards it into
+  // the next startABCSynth() call as _forcedStartTime — see the pick-up sync
+  // block above for how that's consumed.
+  const _thisLapEndsAt = audioStart + notesTotalDur;
   const startCtxTime = ctx.currentTime;
   const scheduled = [];
   let _noteCount = 0;   // diagnostic: how many notes THIS session has scheduled
@@ -19122,7 +19206,7 @@ function startABCSynth(tuneIdx, seekFrac, _retryDepth) {
       const pct     = Math.min(100, fracNow * 100);
       if (progressEl) progressEl.value = pct;
       if (curEl)      curEl.textContent = fmtTime(Math.max(0, fracNow * notesTotalDur));
-      if (fracNow >= 1.0) { stopABCSynth(); return; }
+      if (fracNow >= 1.0) { _abcOnNaturalEnd(_thisLapEndsAt); return; }
     }
     rafId = requestAnimationFrame(tick);
   }
@@ -19156,15 +19240,39 @@ function startABCSynth(tuneIdx, seekFrac, _retryDepth) {
   }
 
   const remainDur = notesTotalDur * (1 - seekFrac);
-  const timer = setTimeout(() => stopABCSynth(), (remainDur + startOffset + 0.5) * 1000);
-  abcStopFn = () => {
-    console.log('[ABC] stop #' + _sid, { notesScheduled: _noteCount, scheduledOscCount: scheduled.length });
+  const timer = setTimeout(() => _abcOnNaturalEnd(_thisLapEndsAt), (remainDur + startOffset + 0.5) * 1000);
+  abcStopFn = (keepTail) => {
+    console.log('[ABC] stop #' + _sid, { notesScheduled: _noteCount, scheduledOscCount: scheduled.length, keepTail: !!keepTail });
     clearInterval(schedulerTimer);
     clearTimeout(timer);
     cancelAnimationFrame(rafId);
     if (progressEl) { progressEl.value = seekFrac * 100; if (_removeScrubListeners) _removeScrubListeners(); }
-    scheduled.forEach(o => { try { o.stop(); } catch(e) {} });
-    gain.disconnect();
+    if (keepTail) {
+      // Plays auto-repeat continuation: this session's last note(s) are
+      // already scheduled to ring out on their own (the oscillator fallback
+      // via its own osc.stop(when+dur) in _schedOneNote; WebAudioFont/SFZ
+      // voices via their own release/decay) — force-stopping them and
+      // disconnecting `gain` right now, like the branch below does for a
+      // real Stop, is exactly what was cutting the last note off and
+      // leaving an untimed gap before the next lap's first note. ALL of
+      // this session's voices share this one `gain` node regardless of
+      // type, so it's the node that must stay connected, not the
+      // individual oscillators. Deferring the disconnect for a couple of
+      // seconds lets the tail ring out (and, since the next lap's own new `gain`
+      // node is already playing by then too, overlap into it) while still
+      // freeing the node once it's actually done rather than leaking it.
+      // NOTE: a small FIXED pad, not (remainDur + startOffset) again — this
+      // setTimeout is created at teardown time, i.e. right as the NEW lap is
+      // starting, which is already ~_thisLapEndsAt (this session's own
+      // natural end). Reusing remainDur/startOffset here (durations measured
+      // from THIS session's own START) would wrongly push the disconnect
+      // almost a full lap further into the future instead of a couple of
+      // seconds from now.
+      setTimeout(() => { try { gain.disconnect(); } catch(e) {} }, 2000);
+    } else {
+      scheduled.forEach(o => { try { o.stop(); } catch(e) {} });
+      gain.disconnect();
+    }
   };
 }
 
@@ -19311,7 +19419,6 @@ function renderABCSong(song) {
       if (bpm >= 20 && bpm <= 300) {
         document.getElementById('bpm-input').value   = bpm;
         document.getElementById('abc-tempo').value   = bpm;
-        document.getElementById('abc-tempo-label').textContent = bpm + ' BPM';
       }
     }
   }
@@ -20180,14 +20287,17 @@ document.getElementById('abc-stop-btn').addEventListener('click', function() {
   var btn = document.getElementById('abc-play-btn');
   if (btn) { btn.classList.remove('icon-pause'); btn.textContent = '▶︎'; btn.title = t('playbar.play'); }
 });
-document.getElementById('abc-tempo').addEventListener('input', function() {
-  const v = this.value;
-  document.getElementById('abc-tempo-label').textContent = v + ' BPM';
+// 'change' (fires on blur/Enter), not 'input' (fires on every keystroke) —
+// #abc-tempo used to be a range slider where 'input' meant "still dragging";
+// now it's a text field, so 'input' would fire mid-keystroke (e.g. restarting
+// playback after typing just the '1' of '120'). 'change' waits until the
+// user's actually done editing, same as the plays field below.
+document.getElementById('abc-tempo').addEventListener('change', function() {
+  const v = Math.max(40, Math.min(240, parseInt(this.value) || 120));
+  this.value = v;
   document.getElementById('bpm-input').value = v;
   if (abcPlaying) {
-    // Debounced restart of the SAME tune at its CURRENT position (dragging the
-    // slider fires many events; restarting tune 0 from the top each time both
-    // jumped the playhead and could race the note-timing rebuild).
+    // Restart the SAME tune at its CURRENT position.
     const idx = window._abcLastTuneIdx || 0;
     const pr  = (parseFloat(document.getElementById('abc-progress').value) || 0) / 100;
     clearTimeout(_abcTempoT);
@@ -20199,7 +20309,14 @@ document.getElementById('abc-tempo').addEventListener('input', function() {
 });
 document.getElementById('bpm-input').addEventListener('change', function() {
   const t = document.getElementById('abc-tempo');
-  if (t) { t.value = this.value; document.getElementById('abc-tempo-label').textContent = this.value + ' BPM'; }
+  if (t) { t.value = this.value; }
+});
+// Plays (repeat count): clamp to [1,10], same bounds as the lead-sheet
+// backing-track's equivalent #bt-plays field. Read fresh by startABCSynth()
+// at the start of every FRESH (non-auto-repeat) play — see _abcPlaysRemaining.
+document.getElementById('abc-plays').addEventListener('change', function() {
+  const n = Math.max(1, Math.min(10, parseInt(this.value) || 1));
+  this.value = n;
 });
 document.getElementById('abc-time-sig').addEventListener('change', function() {
   document.getElementById('time-sig-sel').value = this.value;

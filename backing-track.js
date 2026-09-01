@@ -963,7 +963,6 @@
     // Tempo: follow the song's BPM (resolved from its style on import, else 120),
     // clamped to the slider's range.
     var _tEl = document.getElementById('bt-tempo');
-    var _tLbl = document.getElementById('bt-tempo-lbl');
     if (_tEl && _bt_song) {
       var _b = parseInt(_bt_song.bpm) || 0;
       // No stored tempo (e.g. older lead sheets) → fall back to the style default.
@@ -972,7 +971,6 @@
       var _mn = parseInt(_tEl.min) || 40, _mx = parseInt(_tEl.max) || 240;
       _b = Math.max(_mn, Math.min(_mx, _b));
       _tEl.value = String(_b);
-      if (_tLbl) _tLbl.textContent = String(_b);
     }
     _initMeterControl();  // N/A for multi-meter songs, else the song's meter
     _bars_cache = null; _barMeters = null;  // clear any stale expansion
@@ -1017,7 +1015,6 @@
           '#bt-player-controls .bt-row > *{flex:1 1 0!important;min-width:0!important;text-align:center!important;}' +
           '.bt-flex-spacer{display:none!important;}' +
           '#bt-status{display:none!important;}' +
-          '.bt-tempo-slider{width:auto!important;}' +
           '.bt-vol-slider{width:auto!important;}' +
           '#bt-player-controls .bt-row-3 #bt-settings-btn{flex:0 0 auto!important;min-width:30px!important;}' +
           '.bt-inst-toggles{display:flex!important;flex:1 1 auto!important;min-width:0!important;}' +
@@ -1125,27 +1122,23 @@
     bpmLbl.id = 'bt-bpm-lbl'; bpmLbl.textContent = t('playbar.bpm');
     row2.appendChild(bpmLbl);
 
-    var tempoSlider = document.createElement('input');
-    tempoSlider.type = 'range'; tempoSlider.id = 'bt-tempo';
-    tempoSlider.min = '40'; tempoSlider.max = '240'; tempoSlider.value = '120';
-    tempoSlider.className = 'bt-tempo-slider';
-    row2.appendChild(tempoSlider);
-
-    var tempoLbl = document.createElement('span');
-    tempoLbl.id = 'bt-tempo-lbl'; tempoLbl.className = 'bt-tempo-lbl';
-    tempoLbl.textContent = '120';
-    tempoSlider.addEventListener('input', function() {
-      tempoLbl.textContent = tempoSlider.value;
+    var tempoInput = document.createElement('input');
+    tempoInput.type = 'number'; tempoInput.inputMode = 'numeric'; tempoInput.id = 'bt-tempo';
+    tempoInput.min = '40'; tempoInput.max = '240'; tempoInput.step = '1'; tempoInput.value = '120';
+    tempoInput.className = 'bt-tempo-input';
+    // 'change' (fires on blur/Enter), not 'input' (fires on every keystroke) —
+    // was a live-dragging range slider before; a text field firing on every
+    // keystroke would briefly apply "1" then "12" while typing "120".
+    tempoInput.addEventListener('change', function() {
+      var v = Math.max(40, Math.min(240, parseInt(tempoInput.value) || 120));
+      tempoInput.value = String(v);
       // Keep the song's BPM in sync so it persists and exports at the chosen tempo.
-      if (_bt_song) _bt_song.bpm = parseInt(tempoSlider.value) || 120;
-    });
-    tempoSlider.addEventListener('change', function() {
       if (_bt_song) {
-        _bt_song.bpm = parseInt(tempoSlider.value) || 120;
+        _bt_song.bpm = v;
         if (typeof window.saveSongs === 'function') { try { window.saveSongs(); } catch(e) {} }
       }
     });
-    row2.appendChild(tempoLbl);
+    row2.appendChild(tempoInput);
 
     var meterLbl = document.createElement('label');
     meterLbl.id = 'bt-meter-lbl'; meterLbl.textContent = t('playbar.meter');
