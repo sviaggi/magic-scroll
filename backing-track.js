@@ -739,7 +739,35 @@
   }
 
   // ── Playback control ──────────────────────────────────────────────────────────
-  function _btStartFromBar(startBar) {
+  function _btStartFromBar(startBar, _retryDepth) {
+    // Confirm the shared AudioContext is actually RUNNING before touching any
+    // state below. _btPlayPause() already wraps its call to this function in
+    // _getRunningCtx().then(...), but btStart() (the public window.btStart
+    // API) and any other future direct caller don't — if the shared context
+    // (shared with the ABC/sheet-music player, see _ctx()/getSharedAudioCtx)
+    // is merely 'suspended' at that moment, the old fire-and-forget
+    // ctx.resume() below let playback "start" (progress bar advancing, bars
+    // highlighting) with no sound ever produced, and stayed broken until a
+    // full app restart since getSharedAudioCtx() never recovers a stuck
+    // 'suspended' context on its own. See startABCSynth's matching guard in
+    // the main HTML for the full writeup — same bug, same fix, applied here
+    // too since a lead sheet's backing track is "a tune" playing back same
+    // as sheet music is. Retry-capped so a pathological browser that never
+    // actually reaches 'running' can't loop forever.
+    if (typeof _getRunningCtx === 'function') {
+      var _ctxNow = _ctx();
+      if (!_ctxNow || _ctxNow.state !== 'running') {
+        if ((_retryDepth || 0) >= 2) {
+          console.error('[BT] _btStartFromBar: AudioContext would not resume after retries — giving up.');
+          if (typeof showToast === 'function') showToast(t('playbar.audioUnavailable'));
+          return;
+        }
+        _getRunningCtx()
+          .then(function() { _btStartFromBar(startBar, (_retryDepth || 0) + 1); })
+          .catch(function() { _btStartFromBar(startBar, (_retryDepth || 0) + 1); });
+        return;
+      }
+    }
     _transpose = (typeof window !== 'undefined' && typeof window.getTransposeAmount === 'function') ? window.getTransposeAmount() : 0;
     var song = (typeof songs !== 'undefined' && typeof currentIdx !== 'undefined' && currentIdx >= 0)
                ? songs[currentIdx] : null;

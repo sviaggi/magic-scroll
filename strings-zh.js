@@ -352,7 +352,7 @@ window.MS_STRINGS_ZH = {
   'newSong.openEditor':          '打开编辑器',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             '版本 1.2.2',
+  'contact.version':             '版本 1.2.3',
   'contact.bugReportsHeading':   '错误报告／捐赠',
   'contact.getInTouch':          '发现问题？联系我们：',
   'contact.includeDescription':  '请附上歌曲文件以及出错情况的描述。',
@@ -524,6 +524,7 @@ window.MS_STRINGS_ZH = {
   // ── PLAYBACK (additional) ───────────────────────────────────────────────
   'playbar.pause':               '暂停',
   'playbar.resume':              '继续',
+  'playbar.audioUnavailable':    '音频无法启动 — 请重试,如果持续出现请重启应用。',
 
   // ── LEAD-SHEET EDIT MODE (toolbar, header fields, per-bar menu) ────────
   'lsEdit.style':                     '风格',

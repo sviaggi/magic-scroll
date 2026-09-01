@@ -409,7 +409,7 @@ window.MS_STRINGS_EN = {
   'newSong.openEditor':          'Open Editor',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2.2',
+  'contact.version':             'version 1.2.3',
   'contact.bugReportsHeading':   'Bug Reports / Donations',
   'contact.getInTouch':          'Found an issue? Get in touch:',
   'contact.includeDescription':  'Please include the song file and a description of what went wrong.',
@@ -581,6 +581,7 @@ window.MS_STRINGS_EN = {
   // ── PLAYBACK (additional) ───────────────────────────────────────────────
   'playbar.pause':               'Pause',
   'playbar.resume':              'Resume',
+  'playbar.audioUnavailable':    'Audio couldn\'t start — try again, or restart the app if this keeps happening.',
 
   // ── LEAD-SHEET EDIT MODE (toolbar, header fields, per-bar menu) ────────
   'lsEdit.style':                     'Style',
@@ -715,6 +716,11 @@ window.t = function t(key, vars) {
 window.setLanguage = function setLanguage(lang) {
   window.MS_LANG = lang;
   try { localStorage.setItem('ug_lang', lang); } catch (e) {}
+  // Keep the page's declared language in sync with what's actually
+  // displayed (WCAG 3.1.1 Language of Page) — screen readers use this to
+  // pick the right pronunciation/voice, and it was left at the initial
+  // hard-coded "en" from <html lang="en"> even after switching to zh/fr.
+  if (typeof document !== 'undefined' && document.documentElement) document.documentElement.lang = lang;
   if (typeof applyI18nStrings === 'function') applyI18nStrings();
   // Fixes up stateful toggle-button labels (Edit/Save, Scroll/Stop, ...) and
   // re-measures cached layout CSS vars that a text-width/height change can
