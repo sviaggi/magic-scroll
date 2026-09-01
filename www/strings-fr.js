@@ -362,7 +362,7 @@ window.MS_STRINGS_FR = {
   'newSong.openEditor':          'Ouvrir l\'éditeur',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2.2',
+  'contact.version':             'version 1.2.3',
   'contact.bugReportsHeading':   'Rapports de bugs / Dons',
   'contact.getInTouch':          'Vous avez trouvé un problème ? Contactez-nous :',
   'contact.includeDescription':  'Merci de joindre le fichier de la chanson et une description du problème rencontré.',
@@ -534,6 +534,7 @@ window.MS_STRINGS_FR = {
   // ── PLAYBACK (additional) ───────────────────────────────────────────────
   'playbar.pause':               'Pause',
   'playbar.resume':              'Reprendre',
+  'playbar.audioUnavailable':    'Impossible de démarrer l\'audio — réessayez, ou redémarrez l\'application si cela persiste.',
 
   // ── LEAD-SHEET EDIT MODE (toolbar, header fields, per-bar menu) ────────
   'lsEdit.style':                     'Style',
