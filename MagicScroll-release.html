@@ -3298,7 +3298,7 @@
   .abc-tempo-input, .abc-plays-input {
     font-family: var(--font-mono);
     font-size: 0.78rem;
-    width: 42px;
+    width: 50px;
     padding: 3px 4px;
     text-align: center;
     background: var(--c-chrome-bg3);
@@ -3308,6 +3308,19 @@
     flex-shrink: 0;
   }
   .abc-tempo-input:focus, .abc-plays-input:focus { outline: 1px solid var(--c-accent); }
+  /* Drop the browser's default up/down spinner arrows — they render as an
+     unthemed grey widget (no way to restyle them to match the app's parchment/
+     gold palette across all browsers), visually crowd the field at this
+     compact size, and eat into the width a 3-digit BPM value needs. The field
+     is still fully editable by typing (its min/max/step attributes still
+     apply on blur via the app's own clamping code) — nothing is lost by
+     removing the arrows, only reclaimed space and a cleaner look. */
+  .abc-tempo-input::-webkit-inner-spin-button, .abc-tempo-input::-webkit-outer-spin-button,
+  .abc-plays-input::-webkit-inner-spin-button, .abc-plays-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .abc-tempo-input, .abc-plays-input { -moz-appearance: textfield; }
   /* Divider between controls and progress */
   #abc-player-inner hr {
     border: none;
@@ -3475,10 +3488,19 @@
   .bt-ctrl-btn.active { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
   /* Play btn: fixed width absorbs ▶ ↔ pause-icon change */
   .bt-play-btn { min-width: 38px; text-align: center; }
-  #bt-plays { width: 38px; padding: 1px 3px; text-align: center;
+  #bt-plays { width: 44px; padding: 1px 3px; text-align: center;
     background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-text); border-radius: 3px; font-size: 0.72rem;
     font-family: var(--font-mono); }
+  /* Drop the browser's default spinner arrows — see .abc-tempo-input's
+     equivalent rule above for why (unthemed grey widget, crowds the field,
+     eats into the width a 3-digit BPM value needs). */
+  #bt-plays::-webkit-inner-spin-button, #bt-plays::-webkit-outer-spin-button,
+  .bt-tempo-input::-webkit-inner-spin-button, .bt-tempo-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  #bt-plays, .bt-tempo-input { -moz-appearance: textfield; }
   #bt-play-btn.bt-running { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); font-weight: bold; }
   /* Pause icon, drawn with CSS instead of a font glyph — same fix and same
      reasoning as #abc-play-btn.icon-pause above: U+23F8 then U+2016 both
@@ -3499,7 +3521,7 @@
      controls don't inherit font-family from an ancestor by default, so
      font-family is declared explicitly here rather than relying on
      inheriting it from #bt-bar. */
-  .bt-tempo-input { width: 42px; padding: 1px 3px; text-align: center;
+  .bt-tempo-input { width: 48px; padding: 1px 3px; text-align: center;
     background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-text); border-radius: 3px; font-size: 0.72rem;
     font-family: var(--font-mono); flex-shrink: 0; }
@@ -3529,7 +3551,15 @@
     white-space: nowrap;
     transition: opacity 0.15s, background 0.12s;
   }
-  .bt-inst-toggle.active { opacity: 1; color: var(--c-chrome-text); }
+  /* Active/selected instrument: same "bright accent bg + dark chrome-bg text"
+     convention already used for .bt-ctrl-btn.active and #bt-play-btn.bt-running
+     just above — dark text reads reliably against --c-accent (the app's warm
+     gold/purple/green "bright" highlight colour, depending on theme) in every
+     theme, unlike the previous plain --c-chrome-text (a LIGHT colour, meant for
+     reading against the dark chrome background, not against the bright accent
+     colour an "active" state highlights with) which is exactly what produced
+     the low-contrast light-text-on-bright-highlight look. */
+  .bt-inst-toggle.active { opacity: 1; background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
   /* Hover used to only partially restore opacity (0.75) even on an inactive
      button — meant as a subtle nudge, it read as the button going MORE
      transparent/washed-out on hover instead of highlighting. Hover now goes
@@ -3537,7 +3567,13 @@
      unselected instruments, and background/color still distinguish hover
      from a true selection. */
   .bt-inst-toggle:hover { background: var(--c-chrome-bg2); opacity: 1; }
-  .bt-inst-toggle.active:hover { opacity: 1; }
+  /* Reassert the active colours on hover: .bt-inst-toggle:hover above and
+     .bt-inst-toggle.active both match an active+hovered button with equal
+     specificity (one class + one pseudo-class vs. two classes), so being
+     declared later in the file, :hover's dark background would otherwise win
+     and silently drop the bright accent background (with dark text still set
+     from .active) while hovering — reading as dark-on-dark. */
+  .bt-inst-toggle.active:hover { opacity: 1; background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
   .bt-hr { border: none; border-top: 1px solid var(--c-chrome-border); margin: 1px 0; }
   /* Instrument settings rows (inside absolute panel) */
   .bt-inst-row {
