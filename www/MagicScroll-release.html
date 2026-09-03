@@ -9260,10 +9260,10 @@ function deleteFolder(id) {
 
 // Deletes a folder AND every song inside it (as opposed to deleteFolder, which
 // only removes the folder and leaves the songs loose in the main library).
-// Reuses the same index-shifting logic removeSong() uses per song, just
-// batched — songs are removed highest-index-first so earlier indices in the
-// same pass stay valid, and every other folder's songIndices (plus
-// currentIdx) are kept in sync as each song disappears.
+// Uses the shared _spliceSongAt (see its own comment) per song, batched —
+// songs are removed highest-index-first so earlier indices in the same pass
+// stay valid — so this also keeps setlists[].order and every song's
+// _abcSetOrder in sync, not just folders[].songIndices as before.
 function deleteFolderAndSongs(id) {
   const folder = folders.find(x => x.id === id); if (!folder) return;
   const indices = (folder.songIndices || []).slice().sort((a, b) => b - a);
@@ -9272,15 +9272,9 @@ function deleteFolderAndSongs(id) {
     ? t('confirm.deleteFolderAndSongs', {name: folder.name, count: count, plural: count !== 1 ? 's' : ''})
     : t('confirm.deleteEmptyFolder', {name: folder.name});
   if (!confirm(msg)) return;
-  indices.forEach(function(i) {
-    songs.splice(i, 1);
-    folders.forEach(function(f) { f.songIndices = f.songIndices.filter(function(x) { return x !== i; }).map(function(x) { return x > i ? x - 1 : x; }); });
-    if (currentIdx === i) { currentIdx = -1; }
-    else if (currentIdx > i) { currentIdx--; }
-  });
+  indices.forEach(function(i) { if (songs[i]) _spliceSongAt(i); });
   const idx = folders.findIndex(x => x.id === id);
   if (idx >= 0) folders.splice(idx, 1);
-  if (currentIdx === -1) _showEmptyState();
   saveAll(); buildSongList(document.getElementById('search-input').value);
 }
 
@@ -9649,13 +9643,29 @@ function _showEmptyState(){
 // Splices songs[i] out and keeps every index-based reference in sync:
 // folders[].songIndices (pre-existing), setlists[].order (a setlist's order
 // array points at clone indices the exact same way a folder's songIndices
-// points at shared ones), and currentIdx. Shared by removeSong (single song)
-// and deleteSetlist (which removes a whole setlist's worth of clones at
-// once) so there's exactly one place that has to get the index-shift math
-// right.
+// points at shared ones), every song's own persisted _abcSetOrder (see the
+// "TUNE SETS" section — a Create Set stack, like folders/setlists, is just
+// another array of songs[] indices, this time living on the base song
+// itself), the live _abcSet cache, and currentIdx. Shared by removeSong
+// (single song), deleteSetlist (a whole setlist's worth of clones at once),
+// deleteFolderAndSongs, and the multiselect bulk-delete handler, so there's
+// exactly one place that has to get the index-shift math right.
 function _spliceSongAt(i) {
   folders.forEach(f => { f.songIndices = f.songIndices.filter(x => x !== i).map(x => x > i ? x - 1 : x); });
   setlists.forEach(sl => { sl.order = sl.order.filter(x => x !== i).map(x => x > i ? x - 1 : x); });
+  songs.forEach(s => {
+    if (!s._abcSetOrder) return;
+    s._abcSetOrder = s._abcSetOrder.filter(x => x !== i).map(x => x > i ? x - 1 : x);
+    if (s._abcSetOrder.length <= 1) delete s._abcSetOrder;
+  });
+  if (_abcSet) {
+    if (_abcSet.baseIdx === i) {
+      _abcSet = null;
+    } else {
+      if (_abcSet.baseIdx > i) _abcSet.baseIdx--;
+      _abcSet.order = _abcSet.order.filter(x => x !== i).map(x => x > i ? x - 1 : x);
+    }
+  }
   songs.splice(i, 1);
   if (currentIdx === i) {
     currentIdx = -1;
@@ -10075,10 +10085,17 @@ let _openSetlistId     = null;   // id of the setlist currently open, or null (o
 // them (e.g. the iReal bar editor mutating song.ireal_chart.bars) would leak
 // back into the library song despite looking like a separate object. _collab
 // is stripped rather than cloned — a copy must not inherit a live
-// collaboration channel/itemId.
+// collaboration channel/itemId. _abcSetOrder (a "Create set" stack — see the
+// "TUNE SETS" section) is stripped too: it's a list of songs[] INDICES, and
+// this clone is about to be pushed onto the end of songs[] at a brand new
+// index, so any inherited order would point at whatever songs happen to sit
+// at those old positions — the wrong tunes, or out of bounds. A set made
+// FROM WITHIN a setlist (stacking that setlist's own clones together) is
+// unaffected — it's created after cloning, so it's never subject to this.
 function _cloneSongForSetlist(src) {
   const clone = JSON.parse(JSON.stringify(src));
   delete clone._collab;
+  delete clone._abcSetOrder;
   clone._setlistOnly = true;
   return clone;
 }
@@ -10503,6 +10520,11 @@ function importSetlistsJSON(config) {
       if (!songData || typeof songData !== 'object') return;
       const clone = Object.assign({}, songData);
       delete clone._collab;
+      // Same reasoning as _cloneSongForSetlist: _abcSetOrder is a list of
+      // songs[] indices from the EXPORTING session, meaningless (or
+      // pointing at the wrong song entirely) once pushed at a new index
+      // here — strip it rather than import a broken/misleading reference.
+      delete clone._abcSetOrder;
       clone._setlistOnly = true;
       songs.push(clone);
       sl.order.push(songs.length - 1);
@@ -10952,6 +10974,13 @@ function importMagicScrollConfig(config, filename) {
     if (found >= 0) {
       alreadyHad.push(found);
     } else {
+      // _abcSetOrder (a "Create set" stack — see the "TUNE SETS" section) is
+      // a list of songs[] INDICES from the exporting session; about to be
+      // pushed at a brand new index here, so any inherited value would
+      // reference whatever song happens to sit at those old positions in
+      // THIS library instead — strip it rather than import a broken
+      // reference (same reasoning as _cloneSongForSetlist/importSetlistsJSON).
+      if (cs && cs._abcSetOrder) delete cs._abcSetOrder;
       newlyAdded.push(songs.length);
       songs.push(cs);
     }
@@ -15599,14 +15628,11 @@ document.getElementById('btn-bulk-select-all').addEventListener('click', () => {
 document.getElementById('btn-bulk-delete').addEventListener('click', () => {
   if (!selectedSongs.size) return;
   if (!confirm(t('confirm.deleteSongs', {count: selectedSongs.size}))) return;
-  // sort descending so indices don't shift as we remove
+  // sort descending so indices don't shift as we remove — see _spliceSongAt,
+  // which also keeps setlists[].order and every song's _abcSetOrder in sync
+  // (this used to only fix up folders[].songIndices).
   const indices = [...selectedSongs].sort((a,b) => b-a);
-  indices.forEach(i => {
-    folders.forEach(f => { f.songIndices = f.songIndices.filter(x => x !== i).map(x => x > i ? x-1 : x); });
-    songs.splice(i, 1);
-    if (currentIdx === i) currentIdx = -1;
-    else if (currentIdx > i) currentIdx--;
-  });
+  indices.forEach(i => { if (songs[i]) _spliceSongAt(i); });
   saveAll();
   setMultiselectMode(false);
   buildSongList('');
@@ -20575,7 +20601,26 @@ function _abcSrc(song) {
   return _abcGetText(song);
 }
 
+// _abcSet (see the "TUNE SETS" section header) is a single in-memory slot,
+// not one per song — it just gets refreshed here from whichever song's own
+// persisted _abcSetOrder is relevant right now, every time an ABC song is
+// rendered. That's enough for every song's stack to survive a reload: the
+// order itself is saved (see _abcSetApply), only the combined `text` is
+// recomputed on demand from each referenced tune's CURRENT abc_text, so an
+// edit made to any tune in the stack since it was last saved is reflected
+// rather than baked in as of creation time.
+function _abcRestoreSetIfNeeded(idx, song) {
+  if (_abcSet && _abcSet.baseIdx === idx) return;   // already current for this song
+  var order = song && song._abcSetOrder;
+  if (!order || !Array.isArray(order) || order.length < 2) return;
+  var validOrder = order.filter(function(i) { return songs[i] && songs[i]._source === 'abc'; });
+  if (validOrder.length < 2) { delete song._abcSetOrder; saveSongs(); return; }
+  var text = validOrder.map(function(i) { return (songs[i].abc_text || '').trim(); }).filter(Boolean).join('\n\n');
+  _abcSet = { baseIdx: idx, order: validOrder, text: text };
+}
+
 function renderABCSong(song) {
+  _abcRestoreSetIfNeeded(currentIdx, song);
   document.getElementById('abc-player-bar').style.display = '';
   // Reset the ABC editor UI on (re)render so the Edit button isn't left stuck on
   // "Editing" after navigating away mid-edit. (Content is autosaved on input.)
@@ -20875,12 +20920,22 @@ function _abcSetOpen() {
 function _abcSetApply() {
   const order = _setOrder.filter(i => songs[i] && songs[i]._source === 'abc');
   document.getElementById('abc-set-modal').classList.remove('open');
+  // Persisted on the base song itself (song._abcSetOrder — see the "TUNE
+  // SETS" section header comment) so the stack survives a reload, the same
+  // way song._scrollDurationSec/_abcActivePart already do. _abcSet stays as
+  // the in-memory "current" copy of whichever song's stack was touched
+  // most recently; renderABCSong rebuilds it from the persisted field
+  // whenever a different song (with its own saved stack) is opened.
+  const baseSong = songs[currentIdx];
   if (order.length <= 1) {
     _abcSet = null;                       // single tune → ordinary view
+    if (baseSong) delete baseSong._abcSetOrder;
   } else {
     const text = order.map(i => (songs[i].abc_text || '').trim()).filter(Boolean).join('\n\n');
     _abcSet = { baseIdx: currentIdx, order: order, text: text };
+    if (baseSong) baseSong._abcSetOrder = order.slice();
   }
+  saveSongs();
   if (currentIdx >= 0 && songs[currentIdx]._source === 'abc') renderABCSong(songs[currentIdx]);
 }
 document.getElementById('btn-abc-set').addEventListener('click', _abcSetOpen);
