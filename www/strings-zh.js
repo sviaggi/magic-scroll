@@ -136,6 +136,7 @@ window.MS_STRINGS_ZH = {
   'emptyState.title':           '未加载任何歌曲',
 
   // ── ALERTS (window.alert — informational; no user choice) ─────────────
+  'alert.storageFull':                '您的曲库太大，超出了此设备的存储空间，最近的更改未能保存——如果关闭应用，这些更改将会丢失。请立即使用"导出库"进行备份，然后删除一些歌曲或演出曲目单副本以释放空间。',
   'alert.themeSaved':                 '主题"{name}"已保存！',
   'alert.noCustomThemes':             '尚未保存任何自定义主题 — 请先使用"另存为主题"，然后再导出。',
   'alert.invalidThemeFile':           '该文件不是有效的主题 JSON。',

@@ -193,6 +193,7 @@ window.MS_STRINGS_EN = {
   'emptyState.title':           'No song loaded',
 
   // ── ALERTS (window.alert — informational; no user choice) ─────────────
+  'alert.storageFull':                'Your library is too large for this device’s storage, so recent changes aren’t being saved — they’ll be lost if you close the app. Use "Export library" now to back them up, then free up space by removing some songs or setlist copies.',
   'alert.themeSaved':                 'Theme "{name}" saved!',
   'alert.noCustomThemes':             'No custom themes saved yet — use "Save as Theme" first, then export.',
   'alert.invalidThemeFile':           'That file isn’t valid theme JSON.',

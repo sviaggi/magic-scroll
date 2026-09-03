@@ -5968,15 +5968,47 @@ let pendingRefreshIdx = -1;   // which song we're refreshing when the file picke
 // strip out huge raw_html before saving to localStorage (it has a ~5MB quota
 // and we don't want to blow it on a single imported page — if it's over 500KB
 // just drop it, the user can re-import)
+//
+// All three save*() functions below used to swallow a failed
+// localStorage.setItem() completely silently (a bare `catch(e){}`). Once the
+// origin's ~5MB quota actually fills up — easy to reach now that setlist
+// clones each duplicate a full song's content — every song/folder/setlist
+// added from that point on renders fine for the rest of the session (it's
+// sitting right there in memory) but silently never reaches localStorage, so
+// it quietly reverts the moment the app is closed and reopened. That's
+// indistinguishable, from the user's side, from songs randomly vanishing
+// between sessions. _warnStorageFull surfaces the failure instead — once per
+// episode; it resets the moment a save succeeds again, so a later, separate
+// failure still gets flagged rather than being permanently silenced by an
+// earlier one.
+let _storageWriteFailed = false;
+function _tryLocalStorageSet(key, value) {
+  try { localStorage.setItem(key, value); return true; } catch (e) { return false; }
+}
+function _warnStorageFull() {
+  if (_storageWriteFailed) return;
+  _storageWriteFailed = true;
+  alert(t('alert.storageFull'));
+}
 function saveSongs() {
   const lite = songs.map(s => { const c = Object.assign({}, s); if (c.raw_html && c.raw_html.length > 512000) delete c.raw_html; return c; });
-  try { localStorage.setItem('ug_songs', JSON.stringify(lite)); } catch(e) {}
+  if (_tryLocalStorageSet('ug_songs', JSON.stringify(lite))) { _storageWriteFailed = false; return; }
+  // Didn't fit even with the >500KB trim above — retry once, stripping
+  // raw_html from EVERY song regardless of size. It's only ever a cached
+  // copy of an HTML import kept for reference, never something rendering
+  // depends on, so it's the safest thing to sacrifice to try to make room
+  // before giving up and warning.
+  const stripped = lite.map(s => { if (!s.raw_html) return s; const c = Object.assign({}, s); delete c.raw_html; return c; });
+  if (_tryLocalStorageSet('ug_songs', JSON.stringify(stripped))) { _storageWriteFailed = false; return; }
+  _warnStorageFull();
 }
 function saveFolders() {
-  try { localStorage.setItem('ug_folders', JSON.stringify(folders)); } catch(e) {}
+  if (_tryLocalStorageSet('ug_folders', JSON.stringify(folders))) { _storageWriteFailed = false; return; }
+  _warnStorageFull();
 }
 function saveSetlists() {
-  try { localStorage.setItem('ug_setlists', JSON.stringify(setlists)); } catch(e) {}
+  if (_tryLocalStorageSet('ug_setlists', JSON.stringify(setlists))) { _storageWriteFailed = false; return; }
+  _warnStorageFull();
 }
 function saveAll() { saveSongs(); saveFolders(); saveSetlists(); }
 

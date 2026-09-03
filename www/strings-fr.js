@@ -146,6 +146,7 @@ window.MS_STRINGS_FR = {
   'emptyState.title':           'Aucune chanson chargée',
 
   // ── ALERTS (window.alert — informational; no user choice) ─────────────
+  'alert.storageFull':                'Votre bibliothèque est trop volumineuse pour le stockage de cet appareil, donc les changements récents ne sont pas enregistrés — ils seront perdus si vous fermez l\'application. Utilisez « Exporter la bibliothèque » maintenant pour les sauvegarder, puis libérez de l\'espace en supprimant des morceaux ou des copies de set-lists.',
   'alert.themeSaved':                 'Thème « {name} » enregistré !',
   'alert.noCustomThemes':             'Aucun thème personnalisé enregistré — utilisez d\'abord « Enregistrer comme thème », puis exportez.',
   'alert.invalidThemeFile':           'Ce fichier n\'est pas un JSON de thème valide.',
