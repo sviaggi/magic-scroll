@@ -827,6 +827,76 @@
   .folder-contents { /* songs inside this folder */ }
   .folder-contents.collapsed { display: none; }
 
+  /* ── SETLISTS — sidebar toggle + overview/open-setlist views ─────────────── */
+  #sidebar-setlists-toggle { padding: 4px 8px 6px; border-top: 1px solid var(--c-chrome-bg3); }
+  #btn-setlists-mode { width: 100%; font-size: 0.68rem; padding: 5px 6px; }
+  #btn-setlists-mode.active { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); font-weight: bold; }
+  /* One row per setlist in the overview — same visual language as .folder-row */
+  .setlist-row {
+    display: flex; align-items: center; padding: 6px 10px; cursor: pointer;
+    border-left: 2px solid var(--c-accent-dim); background: var(--c-chrome-bg2); gap: 6px; user-select: none;
+  }
+  .setlist-row:hover { background: var(--c-chrome-bg3); }
+  .setlist-row:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
+  .setlist-row .setlist-icon  { font-size: 0.78rem; color: var(--c-accent); flex-shrink: 0; }
+  .setlist-row .setlist-name  { flex: 1; font-size: 0.75rem; color: var(--c-chrome-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .setlist-row .setlist-count { font-size: 0.62rem; color: var(--c-chrome-muted); flex-shrink: 0; }
+  /* Kebab (.folder-kebab) + dropdown (.folder-menu) re-used as-is for
+     setlist rows — see _renderSetlistsOverview(). */
+  /* "← Back" row shown at the top of an open setlist's song list */
+  .setlist-back-row {
+    display: flex; align-items: center; padding: 6px 10px; cursor: pointer;
+    background: var(--c-chrome-bg2); border-bottom: 1px solid var(--c-chrome-border);
+    font-size: 0.75rem; color: var(--c-accent); gap: 6px; user-select: none;
+  }
+  .setlist-back-row:hover { background: var(--c-chrome-bg3); }
+  .setlist-empty-hint { padding: 14px 10px; text-align: center; font-size: 0.72rem; color: var(--c-chrome-muted); }
+  /* Wraps a makeSongItem() row with a drag handle for manual reordering
+     inside an open setlist — see _renderOpenSetlist(). */
+  .setlist-song-wrap { display: flex; align-items: stretch; }
+  .setlist-drag-handle {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+    width: 20px; cursor: grab; color: var(--c-chrome-muted); font-size: 0.75rem; touch-action: none;
+  }
+  .setlist-drag-handle:active { cursor: grabbing; }
+  .setlist-song-wrap .song-item { flex: 1 1 auto; min-width: 0; }
+  /* Row being dragged: dims to a faint placeholder in its current slot while
+     the ghost (below) shows the "real" copy following the pointer — see
+     _wireSetlistDrag(). The row itself is the thing that moves through the
+     DOM as other rows are dragged over, so this placeholder relocates along
+     with it, visually making room around wherever the pointer currently is. */
+  .setlist-song-wrap.setlist-drag-placeholder { opacity: 0.28; }
+  /* Floating semi-transparent copy of the row being dragged. left/top are
+     set ONCE at drag-start; tracking the pointer/finger after that is done
+     purely via `transform` (see _wireSetlistDrag's applyFrame) since a
+     transform is compositor-only and doesn't force layout on every move
+     the way rewriting left/top on a position:fixed element would. */
+  .setlist-drag-ghost {
+    position: fixed; z-index: 500; pointer-events: none; margin: 0;
+    opacity: 0.88; box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+    border-radius: 4px; background: var(--c-chrome-bg2);
+    will-change: transform;
+  }
+  /* Text selection fights with drag gestures (esp. iOS Safari's own
+     selection/callout handling) unless suppressed for the drag's duration —
+     see _wirePointerDragHandle(). */
+  body.ms-dragging-noselect, body.ms-dragging-noselect * {
+    -webkit-user-select: none !important; user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
+  /* Elements hidden entirely while Setlist mode is active — see
+     _setSetlistMode(). #sidebar-search (search input + filter + online
+     toggle) and #btn-previous-song stay visible/functional in setlist mode
+     too — search still searches the WHOLE library (+ online), not just the
+     open setlist, via buildSongList()'s own "an active query always falls
+     through to normal search rendering" rule. */
+  body.setlist-mode #btn-select-random,
+  body.setlist-mode #btn-join-collab,
+  body.setlist-mode #btn-collections,
+  body.setlist-mode #btn-multiselect,
+  body.setlist-mode #btn-new-folder { display: none; }
+
   /* ── SONG ITEMS ──────────────────────────────────────────────────────────── */
   .song-item {
     padding: 6px 6px 6px 12px;
@@ -3254,6 +3324,25 @@
     gap: 8px;
     flex-wrap: nowrap;
   }
+  /* Without their own display:flex, .abc-row-1/.abc-row-2's button/label/
+     input children default to inline-block, positioned relative to each
+     other via CSS's inline-baseline alignment — which is exactly why the
+     Play button visibly "jumped" out of line with Stop when clicked: JS
+     swaps its content between a text glyph ('▶︎') and empty text with two
+     ::before/::after pseudo-element bars (.icon-pause, see startABCSynth),
+     and those two states don't share the same synthesized baseline, so the
+     button shifted vertically relative to its never-changing sibling. Only
+     the mobile media query below gave these rows their own flex layout
+     (needed there for wrapping/sizing reasons); giving them one on desktop
+     too makes every child position off the row's own box instead of a
+     content-dependent baseline, which is what .bt-row already does for the
+     lead-sheet playbar's equivalent rows. */
+  .abc-row-1, .abc-row-2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
   /* Label text for BPM / time sig */
   #abc-player-controls label {
     font-size: 0.62rem;
@@ -3298,7 +3387,7 @@
   .abc-tempo-input, .abc-plays-input {
     font-family: var(--font-mono);
     font-size: 0.78rem;
-    width: 42px;
+    width: 50px;
     padding: 3px 4px;
     text-align: center;
     background: var(--c-chrome-bg3);
@@ -3308,6 +3397,19 @@
     flex-shrink: 0;
   }
   .abc-tempo-input:focus, .abc-plays-input:focus { outline: 1px solid var(--c-accent); }
+  /* Drop the browser's default up/down spinner arrows — they render as an
+     unthemed grey widget (no way to restyle them to match the app's parchment/
+     gold palette across all browsers), visually crowd the field at this
+     compact size, and eat into the width a 3-digit BPM value needs. The field
+     is still fully editable by typing (its min/max/step attributes still
+     apply on blur via the app's own clamping code) — nothing is lost by
+     removing the arrows, only reclaimed space and a cleaner look. */
+  .abc-tempo-input::-webkit-inner-spin-button, .abc-tempo-input::-webkit-outer-spin-button,
+  .abc-plays-input::-webkit-inner-spin-button, .abc-plays-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .abc-tempo-input, .abc-plays-input { -moz-appearance: textfield; }
   /* Divider between controls and progress */
   #abc-player-inner hr {
     border: none;
@@ -3475,10 +3577,19 @@
   .bt-ctrl-btn.active { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
   /* Play btn: fixed width absorbs ▶ ↔ pause-icon change */
   .bt-play-btn { min-width: 38px; text-align: center; }
-  #bt-plays { width: 38px; padding: 1px 3px; text-align: center;
+  #bt-plays { width: 44px; padding: 1px 3px; text-align: center;
     background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-text); border-radius: 3px; font-size: 0.72rem;
     font-family: var(--font-mono); }
+  /* Drop the browser's default spinner arrows — see .abc-tempo-input's
+     equivalent rule above for why (unthemed grey widget, crowds the field,
+     eats into the width a 3-digit BPM value needs). */
+  #bt-plays::-webkit-inner-spin-button, #bt-plays::-webkit-outer-spin-button,
+  .bt-tempo-input::-webkit-inner-spin-button, .bt-tempo-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  #bt-plays, .bt-tempo-input { -moz-appearance: textfield; }
   #bt-play-btn.bt-running { background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); font-weight: bold; }
   /* Pause icon, drawn with CSS instead of a font glyph — same fix and same
      reasoning as #abc-play-btn.icon-pause above: U+23F8 then U+2016 both
@@ -3499,7 +3610,7 @@
      controls don't inherit font-family from an ancestor by default, so
      font-family is declared explicitly here rather than relying on
      inheriting it from #bt-bar. */
-  .bt-tempo-input { width: 42px; padding: 1px 3px; text-align: center;
+  .bt-tempo-input { width: 48px; padding: 1px 3px; text-align: center;
     background: var(--c-chrome-bg); border: 1px solid var(--c-chrome-border);
     color: var(--c-chrome-text); border-radius: 3px; font-size: 0.72rem;
     font-family: var(--font-mono); flex-shrink: 0; }
@@ -3529,7 +3640,15 @@
     white-space: nowrap;
     transition: opacity 0.15s, background 0.12s;
   }
-  .bt-inst-toggle.active { opacity: 1; color: var(--c-chrome-text); }
+  /* Active/selected instrument: same "bright accent bg + dark chrome-bg text"
+     convention already used for .bt-ctrl-btn.active and #bt-play-btn.bt-running
+     just above — dark text reads reliably against --c-accent (the app's warm
+     gold/purple/green "bright" highlight colour, depending on theme) in every
+     theme, unlike the previous plain --c-chrome-text (a LIGHT colour, meant for
+     reading against the dark chrome background, not against the bright accent
+     colour an "active" state highlights with) which is exactly what produced
+     the low-contrast light-text-on-bright-highlight look. */
+  .bt-inst-toggle.active { opacity: 1; background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
   /* Hover used to only partially restore opacity (0.75) even on an inactive
      button — meant as a subtle nudge, it read as the button going MORE
      transparent/washed-out on hover instead of highlighting. Hover now goes
@@ -3537,7 +3656,13 @@
      unselected instruments, and background/color still distinguish hover
      from a true selection. */
   .bt-inst-toggle:hover { background: var(--c-chrome-bg2); opacity: 1; }
-  .bt-inst-toggle.active:hover { opacity: 1; }
+  /* Reassert the active colours on hover: .bt-inst-toggle:hover above and
+     .bt-inst-toggle.active both match an active+hovered button with equal
+     specificity (one class + one pseudo-class vs. two classes), so being
+     declared later in the file, :hover's dark background would otherwise win
+     and silently drop the bright accent background (with dark text still set
+     from .active) while hovering — reading as dark-on-dark. */
+  .bt-inst-toggle.active:hover { opacity: 1; background: var(--c-accent); color: var(--c-chrome-bg); border-color: var(--c-accent); }
   .bt-hr { border: none; border-top: 1px solid var(--c-chrome-border); margin: 1px 0; }
   /* Instrument settings rows (inside absolute panel) */
   .bt-inst-row {
@@ -3975,12 +4100,35 @@
     flex-shrink: 0;
   }
   .abc-set-empty { padding: 14px 10px; text-align: center; font-size: 0.75rem; color: var(--c-chrome-muted); margin-bottom: 14px; }
+  /* ── Setlists — "Add to setlist" modal (mirrors #abc-set-modal's chrome;
+     the checkbox list below reuses .abc-set-list/.abc-set-row/.abc-set-empty
+     directly, so only the bits unique to this modal need their own rules) */
+  #setlist-add-modal {
+    display: none; position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 20px;
+  }
+  #setlist-add-modal.open { display: flex; }
+  #setlist-name-input, #setlist-add-search {
+    flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 5px 8px; border-radius: 3px;
+    background: var(--c-chrome-bg3); color: var(--c-chrome-text); border: 1px solid var(--c-chrome-border);
+    font-family: var(--font-mono); font-size: 0.78rem;
+  }
+  #setlist-add-search { display: block; width: 100%; margin-bottom: 10px; }
   /* ── Custom instrument modal ───────────────────────────────────────────── */
   #custom-inst-modal {
     display: none; position: fixed; inset: 0; z-index: 900;
     background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 20px;
   }
   #custom-inst-modal.open { display: flex; }
+  #scroll-duration-modal {
+    display: none; position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 20px;
+  }
+  #scroll-duration-modal.open { display: flex; }
+  #scroll-duration-min, #scroll-duration-sec {
+    background: var(--c-chrome-bg3); color: var(--c-chrome-text); border: 1px solid var(--c-chrome-border);
+    border-radius: 3px; padding: 3px 6px; font-family: var(--font-mono); font-size: 0.8rem; width: 56px;
+  }
   .ci-box {
     background: var(--c-chrome-bg2); border: 1px solid var(--c-chrome-border); border-radius: 6px;
     padding: 20px 22px; max-width: 420px; width: 100%; max-height: calc(100vh - 40px); overflow-y: auto;
@@ -4669,6 +4817,9 @@ if (typeof window.t !== 'function') {
       <button id="btn-export-config" title="Save library to file · Shift+click for Save As" data-i18n="sidebar.exportLibrary" data-i18n-title="sidebar.exportLibraryTitle">Export library</button>
       <button id="btn-collections" title="Browse and add song collections" data-i18n="sidebar.collections" data-i18n-title="sidebar.collectionsTitle">📦 Collections</button>
     </div>
+    <div id="sidebar-setlists-toggle">
+      <button id="btn-setlists-mode" title="Switch to your setlists" data-i18n="sidebar.setlists" data-i18n-title="sidebar.setlistsTitle" aria-pressed="false">🎼 Setlists</button>
+    </div>
     <div id="sidebar-brand">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
     </div>
@@ -4979,6 +5130,26 @@ I hope you enjoy using your magic scroll!"></textarea>
   </div>
 </div>
 
+<!-- ── SETLISTS — "Add to setlist" modal ───────────────────────────────────── -->
+<div id="setlist-add-modal">
+  <div class="ci-box">
+    <h3 data-i18n="setlist.addTitle">🎼 Add to setlist</h3>
+    <p class="ci-hint" data-i18n="setlist.addHint">Tick songs to add. Type a new name below to create a setlist, or pick an existing one to add into it.</p>
+    <div class="ci-row">
+      <label for="setlist-name-input" data-i18n="setlist.nameLabel">Setlist</label>
+      <input type="text" id="setlist-name-input" list="setlist-name-options" placeholder="New or existing setlist name" data-i18n-placeholder="setlist.namePlaceholder" data-aria-label-from-placeholder autocomplete="off">
+      <datalist id="setlist-name-options"></datalist>
+    </div>
+    <input type="search" id="setlist-add-search" placeholder="Search your library…" data-i18n-placeholder="setlist.searchPlaceholder" data-aria-label-from-placeholder autocomplete="off" spellcheck="false">
+    <div id="setlist-add-list" class="abc-set-list"></div>
+    <div id="setlist-add-empty" class="abc-set-empty" style="display:none;" data-i18n="setlist.noMatch">No songs match this search.</div>
+    <div class="ci-actions">
+      <button id="setlist-add-cancel" type="button" data-i18n="sidebar.cancel">Cancel</button>
+      <button id="setlist-add-apply" type="button" data-i18n="setlist.addApply">Add to setlist</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── CUSTOM INSTRUMENT MODAL ──────────────────────────────────────────────── -->
 <div id="custom-inst-modal">
   <div class="ci-box">
@@ -4995,6 +5166,24 @@ I hope you enjoy using your magic scroll!"></textarea>
     <div class="ci-actions">
       <button id="ci-cancel" type="button" data-i18n="sidebar.cancel">Cancel</button>
       <button id="ci-apply" type="button" data-i18n="diagrams.useInstrument">Use instrument</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCROLL DURATION MODAL — press-and-hold #btn-scroll opens this ──────── -->
+<div id="scroll-duration-modal">
+  <div class="ci-box">
+    <h3 data-i18n="scrollDuration.title">⏱ Scroll duration</h3>
+    <p class="ci-hint" data-i18n="scrollDuration.hint">Set how long you'd like auto-scroll to take to reach the bottom of the page — the speed is calculated for you.</p>
+    <div class="ci-row">
+      <label for="scroll-duration-min" data-i18n="scrollDuration.minutesLabel">Minutes</label>
+      <input type="number" id="scroll-duration-min" min="0" max="120" step="1" value="3" inputmode="numeric">
+      <label for="scroll-duration-sec" data-i18n="scrollDuration.secondsLabel">Seconds</label>
+      <input type="number" id="scroll-duration-sec" min="0" max="59" step="1" value="30" inputmode="numeric">
+    </div>
+    <div class="ci-actions">
+      <button id="scroll-duration-cancel" type="button" data-i18n="sidebar.cancel">Cancel</button>
+      <button id="scroll-duration-apply" type="button" data-i18n="scrollDuration.apply">Start scrolling</button>
     </div>
   </div>
 </div>
@@ -5093,7 +5282,7 @@ I hope you enjoy using your magic scroll!"></textarea>
     <!-- ── App identity / version / platform links (always shown) ──── -->
     <div class="contact-app-header">
       <span class="contact-app-name"><svg class="logo-glyph-title" viewBox="0 0 243.04 563.1" aria-hidden="true" focusable="false"><path fill="currentColor" d="M69.36,445.92c4.55-1.79,8.73-3.03,13.35-3.41,4.81-.4,9.07,1.65,12.74,4.45,3.34,2.55,5.58,5.52,7.45,9.25,4.82,9.66,4.98,20.18-3.85,27.18-9.95,7.89,-21.01,14.29-32.86,18.88-2.54.98-4.86,1.3-7.6.85,1.56,4.43,3.32,9.05,6.53,12.99,6.92,8.49,16.07,14.94,26.61,18.2,8.7,2.68,17.58,2.34,26.45,1.04,3.45,-5.4,5.69-10.91,7.15-17.14,3.27-13.91,4.16-28.06,3.12-42.36-.86-16.38-3.31,-32.22-7.18-48.14l-5.91-21.34c-8.88-.23-16.98-2.22-25.27-4.78s-16.64-5.51,-24.54-9.7l-17.45-9.85-15.47-10.12-7.13-6.01c-5.33-4.49-9.36-10.01-13.28,-15.74-6.32-9.25-10.76-20.7-11.69-31.88-.6-7.24-.82-14.32.1-21.56,1.41-11.12,6.51-24.53,11.56-34.72,3.87-7.82,7.99-15.17,12.77-22.47l11.17-16.17,19.76-23.8-5.35-24.97-4.96-30.05c-1.28-13.15-1.74-25.89-.45-39,.89-9.03,2.75-17.49,6.33,-25.83,2.79-6.51,5.8-12.72,9.69-18.64,3.11-4.74,7.1-8.46,11.25-12.27,11.61,-10.64,24.09-19.65,37.74-27.57C126.3,11.87,143.66,3.25,162.22.45c6.16-.93,11.95-.34,18.02.93,9.05,1.89,17.33,6.73,22.34,14.62,4.02,6.32,5.13,13.69,4.77,21.07-.46,9.34-2.76,17.95-7.2,26.17-3.12,5.79-6.35,11.3-10.57,16.4l-17.98,21.72-10.9,10.91c-5.33,5.34-10.39,10.38-15.4,16.06l-19.1,21.63-6.51,6.71-18.72,19.97,9.13,44.52.24.66c.04.1.22-.03.43-.17,9.31-6.11,18.91-11.43,29.26-15.6,6.48-2.61,12.76-4.35,19.77-4.84,13.2-.94,26.3.61,38.32,6.31,5.19,2.46,9.93,5.55,14.54,8.91,8.47,6.17,14.63,14.28,19.47,23.43,3.78,7.15,6.7,14.27,8.13,22.29,1.53,8.62,2.55,17.04,2.78,25.81l-.32,7.65c-.4,9.43-1.96,18.37-4.15,27.5s-5.43,17.02-10.11,24.86c-2.91,4.87-5.73,9.4-9.58,13.63-6.13,6.81-12.74,12.76-20.24,18.12-10.6,7.57-21.76,13.97-33.82,19.13,4.92,18.67,7.62,37.25,8.47,56.39.58,13.08-.36,25.82-3.33,38.52-2.2,9.41-6.11,18.27-12.46,25.56-11.22,12.9-30.82,24.92-46.34,32.43-7.37,3.57-14.72,6.03-22.61,8.2-10.47,2.88-21.1,3.91-31.86,2.63-5.92-.71-11.14-2.41-16.37-5.09-6.03-3.09-11.25-6.84,-15.97-11.71-2.88-2.97-5.33-5.98-7.16-9.81-3.18-6.69-5.4-13.78-6.32-21.25-.93,-7.5-.46-18.49,2.61-25.09,4.09-8.78,10.47-15.98,18.04-22.03,11.43-9.12,24.11,-16.25,37.85-21.67ZM109.61,140.66l11.96-11.88,8.22-8.07,17.51-21.14c3.58-4.33,6.25-9.01,8.91-13.92,4.25-7.85,6.27-16.15,6.57-25.12.25-7.39-1.22-14.84-5.74,-20.71-6.98-9.07-17.79-12.66-29.03-13.02-4.28-.13-8.26,1-12.32,2.03l-5.59,4.84c-2.31,2-4.78,4.14-6.21,6.87l-7.02,13.38c-4.07,8.86-6.32,17.92-7.18,27.7-1.11,12.65-.92,24.94.52,37.59l6.16,36.58,13.25-15.15ZM184.68,370.03c9.4-14.4,13.39,-38.34,13.68-55.47.14-8.29-.89-16.2-2.13-24.37-1.26-8.27-3.51-16.15-7.72-23.32l-6.18-10.51c-3.73-5.03-7.96-9.7-13.04-13.48-13.06-9.73-24.7-14.51-41.38-15.19l-6.84,12.58c-1.06,1.95-3.19,3.32-4.86,4.91l7.86,27.03,5.33,17.88c6.81,22.85,14.06,45.29,22.56,67.57l7.5,22.16,10.68-.21,4.91-.28,3.94-.58,5.7-8.72ZM77.58,346.7l21.55,13.59-14.04-44.29-5.68-18.87-7.19-24.98-5.81-21.84-4.48-21.71-9.7,19.54c-7.05,17.52-8.89,28.47-6.89,47.46.65,6.16,2.44,11.7,4.79,17.34,3.28,7.85,11.7,20.39,17.68,25.48l9.75,8.29ZM61.15,497.09c1.07-5.41-.16-10.59-2.61-15.23-.96-1.82-1.69-3.43-3.24-5.13l.23,14.07,2.29,10.11,3.33-3.82Z"/></svg> Magic Scroll</span>
-      <span class="contact-app-version" data-i18n="contact.version">version 1.2.3</span>
+      <span class="contact-app-version" data-i18n="contact.version">version 1.2.4</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -5425,13 +5614,60 @@ window._afterLanguageSwitch = function() {
   if (tm && typeof tunerActive !== 'undefined') tm.textContent = tunerActive ? t('tuner.stopListening') : t('tuner.startListening');
   if (typeof _syncSidebarCompensation === 'function') _syncSidebarCompensation();
   if (typeof window._updateTopbarHeightVar === 'function') window._updateTopbarHeightVar();
+  // 3. The currently-open song's "Type"/"Key"/etc. meta pills (sheet music's
+  //    per-tune header, a lead sheet's header, a plain chord sheet's header)
+  //    are t('meta.*') strings baked into plain innerHTML once, at render
+  //    time — not data-i18n markup, so the sweep above never touches them.
+  //    Left alone, a song already open when the language changes keeps
+  //    showing "Type"/"Key" in whatever language was active when it was
+  //    last rendered. Re-running that song's own render function rebuilds
+  //    those pills (and everything else about the display) in the new
+  //    language — same lightweight re-render already used for transpose
+  //    changes (_afterTranspose), just triggered here instead.
+  try {
+    var _curSong = (typeof currentIdx !== 'undefined' && currentIdx >= 0 && typeof songs !== 'undefined') ? songs[currentIdx] : null;
+    if (_curSong) {
+      if (_curSong._source === 'abc' && typeof renderABCSong === 'function') renderABCSong(_curSong);
+      else if (_curSong._source === 'ireal' && typeof renderIRealSong === 'function') renderIRealSong(_curSong, { preserveScroll: true });
+      else if (typeof _renderPlainSongMetaPills === 'function') _renderPlainSongMetaPills(_curSong);
+    }
+  } catch (e) {}
+  // 4. The lead-sheet backing-track bar (backing-track.js) is built ONCE,
+  //    at load — never rebuilt per-song — so its Plays/BPM/Meter labels and
+  //    Drums/Keys/Bass/Guitar instrument names/tooltips are also stuck in
+  //    whatever language was active on first load. Relocalized in place
+  //    (not rebuilt) so no listeners or live bar state are disturbed.
+  try { if (typeof window.btRelocalize === 'function') window.btRelocalize(); } catch (e) {}
+  // 5. The Themes panel's Light/Dark preset group headings (built by
+  //    buildColorPresets(), see THEME_GROUPS) are also built once per open,
+  //    not swept by applyI18nStrings() — rebuild is cheap/stateless (plain
+  //    trigger buttons, no live input values to lose) so it's safe to always
+  //    re-run rather than gate it on the panel currently being open.
+  try { if (typeof buildColorPresets === 'function') buildColorPresets(); } catch (e) {}
 };
 
 // ── DATA — songs array, folders, scroll state, instrument ───────────────────
 let songs = [];
 let folders = [];   // [{id, name, songIndices[], collapsed}]
-try { songs   = JSON.parse(localStorage.getItem('ug_songs')   || '[]'); } catch(e) { songs = []; }
-try { folders = JSON.parse(localStorage.getItem('ug_folders') || '[]'); } catch(e) { folders = []; }
+// Setlists — an alternative library, toggled via #btn-setlists-mode (see its
+// section below). Unlike a folder (which just groups references to shared
+// songs[] entries, alphabetized on render), a setlist's `order` array points
+// at INDEPENDENT clone song objects living in songs[] (flagged _setlistOnly,
+// created by _cloneSongForSetlist) — order is manual (drag-reordered, not
+// alphabetized), and the same source song can be cloned into a setlist more
+// than once, or into several different setlists, each clone editable without
+// touching the original or any other clone. Because a clone is a genuine
+// songs[] entry with its own index, EVERY existing per-song code path
+// (renderSong/renderABCSong/renderIRealSong, autosave, transpose/capo, the
+// kebab menu, print, chord diagrams, swipe/keyboard nav) already works on it
+// completely unmodified — the only extra bookkeeping needed is keeping
+// _setlistOnly entries out of the normal library view (_songPassesFilter)
+// and keeping setlists[].order in sync with songs[] index shifts on delete
+// (see _spliceSongAt).
+let setlists = [];   // [{id, name, order:[songIdx,...]}]
+try { songs    = JSON.parse(localStorage.getItem('ug_songs')     || '[]'); } catch(e) { songs = []; }
+try { folders  = JSON.parse(localStorage.getItem('ug_folders')   || '[]'); } catch(e) { folders = []; }
+try { setlists = JSON.parse(localStorage.getItem('ug_setlists')  || '[]'); } catch(e) { setlists = []; }
 
 // ── DEMO SONGS — first-run examples ────────────────────────────────────
 // Wizard's Walk is hard-coded so it works on file://, offline, and fresh deploys.
@@ -5686,6 +5922,17 @@ function _restoreSongState(song) {
 }
 let scrollInterval  = null;
 let isScrolling     = false;
+// Press-and-hold #btn-scroll → duration dialog (see the listeners near
+// document.getElementById('btn-scroll') below). _scrollDurationPxPerSec is a
+// one-shot px/sec override computed from the requested duration; it takes
+// priority over the #scroll-speed slider for exactly one scroll run and is
+// cleared in stopScroll() so the slider governs again afterward. The chosen
+// duration itself, though, is remembered per SONG (song._scrollDurationSec,
+// persisted via saveSongs — see _openScrollDurationModal/the apply handler)
+// so reopening the dialog on a given song defaults to whatever was last set
+// for it, rather than one global default.
+let _scrollDurationPxPerSec  = null;
+const SCROLL_DURATION_DEFAULT_SEC = 210;   // 3:30 — used when a song has no remembered value yet
 let currentInstrument = 'guitar';
 let secondaryInstrument = 'none';   // optional 2nd instrument shown alongside the main one
 // Chord the player FINGERS so that, with a capo on fret `capo`, it sounds like
@@ -5727,7 +5974,10 @@ function saveSongs() {
 function saveFolders() {
   try { localStorage.setItem('ug_folders', JSON.stringify(folders)); } catch(e) {}
 }
-function saveAll() { saveSongs(); saveFolders(); }
+function saveSetlists() {
+  try { localStorage.setItem('ug_setlists', JSON.stringify(setlists)); } catch(e) {}
+}
+function saveAll() { saveSongs(); saveFolders(); saveSetlists(); }
 
 // ── LAST-VIEWED SONG — remember what was open when the app was closed, so
 // reopening lands back on it instead of always the first song in the
@@ -6021,9 +6271,13 @@ function loadAndApplySavedColors() {
 // under its own small heading, so the choice isn't just an undifferentiated
 // row of names. Within Light: Royal, Lark, Ashbury, Parchment. Within Dark:
 // Avernus, Moria, Obsidian, Mossy.
+// labelKey (not a literal string) — resolved via t() inside buildColorPresets()
+// below so the group heading picks up the active language; the preset NAMES
+// (Royal, Ashbury, Lark, Parchment, Avernus, Obsidian, Mossy, Moria) stay as
+// literal proper nouns/brand names for the themes themselves, unlocalized.
 const THEME_GROUPS = [
-  { label: 'Light', themes: {'theme-session':'Royal', 'theme-ashbury':'Ashbury', 'theme-lark':'Lark', '':'Parchment'} },
-  { label: 'Dark',  themes: {'theme-avernus':'Avernus', 'theme-dark':'Obsidian', 'theme-green':'Mossy', 'theme-moria':'Moria'} },
+  { labelKey: 'themes.groupLight', themes: {'theme-session':'Royal', 'theme-ashbury':'Ashbury', 'theme-lark':'Lark', '':'Parchment'} },
+  { labelKey: 'themes.groupDark',  themes: {'theme-avernus':'Avernus', 'theme-dark':'Obsidian', 'theme-green':'Mossy', 'theme-moria':'Moria'} },
 ];
 function buildColorPresets() {
   const wrap = document.getElementById('color-presets');
@@ -6038,7 +6292,7 @@ function buildColorPresets() {
     const heading = document.createElement('div');
     heading.className = 'settings-section-title';
     heading.style.margin = '6px 0 4px';
-    heading.textContent = group.label;
+    heading.textContent = t(group.labelKey);
     wrap.appendChild(heading);
 
     const row = document.createElement('div');
@@ -8668,6 +8922,34 @@ function updateKeyDisplay() {
     : null);
 }
 
+// Builds the Type/Key/Time/Tuning/Capo pills shown above a plain chord-sheet
+// or tab song (#display-meta). Pulled out of renderSong() as its own function
+// so it can also be called from _afterLanguageSwitch() — those pill LABELS
+// come from t('meta.*') but are only ever built once, at render time, into
+// plain innerHTML; switching the app language while this song was already
+// open left them showing whatever language was active when it was last
+// rendered, since applyI18nStrings()'s data-i18n sweep only ever touches
+// static markup, never this JS-generated content.
+function _renderPlainSongMetaPills(song) {
+  const meta=document.getElementById('display-meta'); meta.innerHTML='';
+  const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
+  // Embedded ABC sheet music (see _splitEmbeddedABC) always renders in the TRUE
+  // key — visualTranspose deliberately excludes capo in _buildEmbeddedABCBlock,
+  // same as the dedicated ABC view — so when a song contains one, this Key pill
+  // must match what's actually drawn on the staff instead of _keyWithCapo's
+  // usual capo-shifted sounding key, or the two visibly disagree (e.g. the
+  // bundled "Worth the Weight" example showing "Key: F (capo 3)" above sheet
+  // music written with a 2-sharp/D key signature). Plain chord sheets with no
+  // embedded notation keep the sounding-key display — that's still correct and
+  // useful there, since the chord letters shown ARE the capo shapes.
+  const _hasEmbeddedABC = /^X:\s*\d/m.test(song.tab_content || song.content || song.tab || '');
+  const _dispKeyText = song.key ? (_hasEmbeddedABC ? (transposeKey(song.key, transposeAmount) || song.key) : _keyWithCapo(song.key)) : null;
+  [[t('meta.type'),_dispType],[t('meta.key'),_dispKeyText],[t('meta.time'),song.timeSig||null],[t('meta.tuning'),song.tuning],[t('meta.capo'),song.capo?t('meta.fret',{n:song.capo}):null]].forEach(([l,v])=>{
+    if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
+    p.innerHTML=escapeHtml(l)+': <span>'+v+'</span>'; meta.appendChild(p);
+  });
+}
+
 // ── RENDER SONG — loads a song by index, resets transpose, scrolls to top ──
 function renderSong(idx, opts) {
   if (!songs[idx]) {
@@ -8684,6 +8966,17 @@ function renderSong(idx, opts) {
     if (_songHistory.length > 50) _songHistory.shift();
   }
   var _isNewSong = currentIdx !== idx;
+  // Stop any sheet-music (ABC) playback still running before switching songs.
+  // renderABCSong() below already calls stopABCSynth() for ABC→ABC
+  // navigation, and btCloseBar() a few lines down already stops backing-
+  // track playback when the target isn't a lead sheet — but neither of those
+  // covered navigating AWAY from a playing ABC song TO a lead sheet or a
+  // plain chord sheet: this function returns early for both of those via
+  // renderIRealSong()/the plaintext branch below without ever touching ABC's
+  // own playback state, so a still-ringing tune kept playing underneath
+  // whatever the user opened next — worst case, audibly overlapping with a
+  // freshly-started backing track once they hit Play there too.
+  if (_isNewSong && typeof stopABCSynth === 'function') { try { stopABCSynth(); } catch(e) {} }
   try {
   // If we were editing a DIFFERENT song, commit those edits to THAT song and
   // leave edit mode before switching. Otherwise the editor still holds the old
@@ -8750,7 +9043,16 @@ function renderSong(idx, opts) {
   const song=songs[idx];
   document.getElementById('empty-state').style.display='none';
   // ABC songs use a separate rendering path
-  if (song._source === 'ireal') { renderIRealSong(song); return; }
+  // Both branches below refresh the chord-diagram panel (if it's open) with
+  // THIS song's chords — the plaintext/tab branch further down already did
+  // this, but these two `return` out before ever reaching it, so switching
+  // to a lead sheet or a sheet-music song while the panel was open left it
+  // showing whatever the PREVIOUS song's chords were.
+  if (song._source === 'ireal') {
+    renderIRealSong(song);
+    if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+    return;
+  }
   if (song._source === 'abc') {
     document.getElementById('abc-song-card').style.display = '';
     document.getElementById('abc-toolbar').style.display='flex';
@@ -8762,6 +9064,7 @@ function renderSong(idx, opts) {
     updateTransposeButtons();
     updateSidebarActive();
     window.scrollTo(0, 0);
+    if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
     return;
   }
   // For non-ABC songs: hide ABC card and player bar
@@ -8773,23 +9076,7 @@ function renderSong(idx, opts) {
   document.getElementById('song-card').classList.add('visible');
   document.getElementById('display-title').textContent=song.title||'Untitled';
   document.getElementById('display-artist').textContent=song.artist||'';
-  const meta=document.getElementById('display-meta'); meta.innerHTML='';
-  const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
-  // Embedded ABC sheet music (see _splitEmbeddedABC) always renders in the TRUE
-  // key — visualTranspose deliberately excludes capo in _buildEmbeddedABCBlock,
-  // same as the dedicated ABC view — so when a song contains one, this Key pill
-  // must match what's actually drawn on the staff instead of _keyWithCapo's
-  // usual capo-shifted sounding key, or the two visibly disagree (e.g. the
-  // bundled "Worth the Weight" example showing "Key: F (capo 3)" above sheet
-  // music written with a 2-sharp/D key signature). Plain chord sheets with no
-  // embedded notation keep the sounding-key display — that's still correct and
-  // useful there, since the chord letters shown ARE the capo shapes.
-  const _hasEmbeddedABC = /^X:\s*\d/m.test(song.tab_content || song.content || song.tab || '');
-  const _dispKeyText = song.key ? (_hasEmbeddedABC ? (transposeKey(song.key, transposeAmount) || song.key) : _keyWithCapo(song.key)) : null;
-  [[t('meta.type'),_dispType],[t('meta.key'),_dispKeyText],[t('meta.time'),song.timeSig||null],[t('meta.tuning'),song.tuning],[t('meta.capo'),song.capo?t('meta.fret',{n:song.capo}):null]].forEach(([l,v])=>{
-    if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
-    p.innerHTML=escapeHtml(l)+': <span>'+v+'</span>'; meta.appendChild(p);
-  });
+  _renderPlainSongMetaPills(song);
   updateTransposeButtons(); renderTabContent(); updateSidebarActive();
   window.scrollTo(0, 0); updateScrollProgress();
   if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
@@ -9006,6 +9293,87 @@ function moveSongToFolder(songIdx, folderId) {
   saveFolders(); buildSongList(document.getElementById('search-input').value);
 }
 
+// ── SHARED DRAG-AND-DROP (pointer events: mouse + touch + pen) ─────────────
+// Native HTML5 drag-and-drop (dragstart/dragover/drop) has no touch
+// equivalent at all — a listener built on it simply never fires from a
+// finger on iOS or Android. That was true of both the original song→folder
+// dragging just below and the setlist reorder handle (see _wireSetlistDrag
+// in the Setlists section), which is why neither worked reliably there.
+// Pointer Events unify mouse/touch/pen in one API (iOS Safari 13+, Android
+// Chrome for years) and back both now instead — one shared implementation.
+//
+// handleEl — the element the user presses down on to START a drag (the
+//            whole .song-item row here, matching its existing grab surface;
+//            the ☰ handle for setlist rows, since that row also has to stay
+//            tappable/clickable everywhere else).
+// cb:
+//   filter(e)                    — optional; return false to ignore this
+//                                  pointerdown entirely (e.g. started on a
+//                                  button/checkbox)
+//   onStart(clientX, clientY)    — the 6px move threshold was crossed; a
+//                                  real drag begins (a plain tap/click never
+//                                  reaches this, so normal click handlers on
+//                                  the same element are undisturbed)
+//   onMove(clientX, clientY)     — every pointer move while dragging
+//   onDrop(clientX, clientY)     — pointer released while dragging
+//   onCancel()                   — released before the threshold, or the
+//                                  gesture was interrupted (pointercancel)
+function _wirePointerDragHandle(handleEl, cb) {
+  var THRESH = 6;
+  var dragging = false, startX = 0, startY = 0, pid = null;
+  function onMove(e) {
+    if (e.pointerId !== pid) return;
+    if (!dragging) {
+      if (Math.abs(e.clientX - startX) < THRESH && Math.abs(e.clientY - startY) < THRESH) return;
+      dragging = true;
+      // A real drag is starting: block text selection for its duration.
+      // Without this, the pointerdown+move that drives the drag also reads
+      // as a native text-selection drag to the browser (especially iOS
+      // Safari, which also wants to show its selection/callout menu),
+      // highlighting song titles as the finger/cursor moves.
+      document.body.classList.add('ms-dragging-noselect');
+      if (cb.onStart) cb.onStart(e.clientX, e.clientY);
+    }
+    e.preventDefault();
+    if (cb.onMove) cb.onMove(e.clientX, e.clientY);
+  }
+  function onUp(e) {
+    if (e.pointerId !== pid) return;
+    var wasDragging = dragging;
+    cleanup();
+    if (wasDragging) { if (cb.onDrop) cb.onDrop(e.clientX, e.clientY); }
+    else { if (cb.onCancel) cb.onCancel(); }
+  }
+  function onPointerCancel(e) {
+    if (e.pointerId !== pid) return;
+    cleanup();
+    if (cb.onCancel) cb.onCancel();
+  }
+  function cleanup() {
+    dragging = false; pid = null;
+    document.body.classList.remove('ms-dragging-noselect');
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onPointerCancel);
+  }
+  handleEl.addEventListener('pointerdown', function(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (cb.filter && !cb.filter(e)) return;
+    dragging = false; startX = e.clientX; startY = e.clientY; pid = e.pointerId;
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onPointerCancel);
+  });
+  // NOTE on touch-action: callers whose handle is a small, dedicated grab
+  // target (the setlist ☰ handle) should set `touch-action:none` on it in
+  // CSS — that stops the browser's own touch-scroll from competing with the
+  // drag gesture. This helper does NOT do that itself, because the OTHER
+  // caller (dragging a whole .song-item row into a folder) needs that same
+  // row to keep scrolling normally the rest of the time — the library list
+  // is the user's primary scroll surface, so touch-action:none across every
+  // row would break scrolling the sidebar on any touchscreen.
+}
+
 // ── SONG ITEM BUILDER ─────────────────────────────────────────────────────────
 // builds a single .song-item div with remove/refresh/move actions
 
@@ -9131,6 +9499,7 @@ function makeSongItem(i, q) {
     () => showCollabModal(i)
   ));
   menu.appendChild(makeMenuItem(t('kebab.moveToFolder'), '', () => showMoveToFolderMenu(i, kebab)));
+  menu.appendChild(makeMenuItem(t('kebab.addToSetlist'), '', () => _openAddToSetlistModal(i)));
   menu.appendChild(makeMenuItem(t('kebab.duplicate'), '', () => {
     const src  = songs[i];
     const raw  = src.title || 'Untitled';
@@ -9174,19 +9543,38 @@ function makeSongItem(i, q) {
   });
   obs.observe(document.getElementById('song-list'), { childList: true, subtree: true });
 
-  // make song items draggable into folders
-  item.setAttribute('draggable', 'true');
+  // Draggable into folders — pointer-based (see _wirePointerDragHandle) so
+  // this works from a finger on iOS/Android too, not just a mouse. A plain
+  // tap/click still reaches the row's own click handlers untouched, since
+  // onStart only fires once the drag crosses a real movement threshold.
   item.style.cursor = 'grab';
-  item.addEventListener('dragstart', e => {
-    // Don't drag if clicking a button or checkbox
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
-      e.preventDefault(); return;
-    }
-    e.dataTransfer.setData('text/song-index', String(i));
-    e.dataTransfer.effectAllowed = 'move';
-    item.style.opacity = '0.5';
+  let _dragOverFolder = null;
+  _wirePointerDragHandle(item, {
+    filter: function(e) { return e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT'; },
+    onStart: function() { item.style.opacity = '0.5'; },
+    onMove: function(x, y) {
+      if (_dragOverFolder) { _dragOverFolder.classList.remove('drag-over'); _dragOverFolder = null; }
+      const el = document.elementFromPoint(x, y);
+      const row = el && el.closest ? el.closest('.folder-row') : null;
+      if (row) { row.classList.add('drag-over'); _dragOverFolder = row; }
+    },
+    onDrop: function() {
+      item.style.opacity = '';
+      if (_dragOverFolder) {
+        _dragOverFolder.classList.remove('drag-over');
+        const folderId = _dragOverFolder.dataset.folderId;
+        _dragOverFolder = null;
+        if (folderId) {
+          moveSongToFolder(i, folderId);
+          buildSongList(document.getElementById('search-input').value);
+        }
+      }
+    },
+    onCancel: function() {
+      item.style.opacity = '';
+      if (_dragOverFolder) { _dragOverFolder.classList.remove('drag-over'); _dragOverFolder = null; }
+    },
   });
-  item.addEventListener('dragend', () => { item.style.opacity = ''; });
 
   item.appendChild(textDiv);
   item.appendChild(actions);
@@ -9257,6 +9645,24 @@ function _showEmptyState(){
   document.getElementById('empty-state').style.display='flex';
 }
 
+// Splices songs[i] out and keeps every index-based reference in sync:
+// folders[].songIndices (pre-existing), setlists[].order (a setlist's order
+// array points at clone indices the exact same way a folder's songIndices
+// points at shared ones), and currentIdx. Shared by removeSong (single song)
+// and deleteSetlist (which removes a whole setlist's worth of clones at
+// once) so there's exactly one place that has to get the index-shift math
+// right.
+function _spliceSongAt(i) {
+  folders.forEach(f => { f.songIndices = f.songIndices.filter(x => x !== i).map(x => x > i ? x - 1 : x); });
+  setlists.forEach(sl => { sl.order = sl.order.filter(x => x !== i).map(x => x > i ? x - 1 : x); });
+  songs.splice(i, 1);
+  if (currentIdx === i) {
+    currentIdx = -1;
+    _showEmptyState();
+  } else if (currentIdx > i) {
+    currentIdx--;
+  }
+}
 function removeSong(i) {
   const song = songs[i];
   if (!confirm(t('confirm.removeSong', {title: song.title || 'this song'}))) return;
@@ -9267,15 +9673,7 @@ function removeSong(i) {
   if (song._collab && song._collab.active && typeof _teardownCollabChannel === 'function') {
     _teardownCollabChannel(song._collab.itemId);
   }
-  // clean up folder references
-  folders.forEach(f => { f.songIndices = f.songIndices.filter(x => x !== i).map(x => x > i ? x - 1 : x); });
-  songs.splice(i, 1);
-  if (currentIdx === i) {
-    currentIdx = -1;
-    _showEmptyState();
-  } else if (currentIdx > i) {
-    currentIdx--;
-  }
+  _spliceSongAt(i);
   saveAll(); buildSongList(document.getElementById('search-input').value);
 }
 
@@ -9308,6 +9706,12 @@ function _songRhythms(song) {
 }
 // Does a song survive the current filter?
 function _songPassesFilter(song) {
+  // Setlist clones (see the `setlists` declaration up top) are independent
+  // songs[] entries but never belong in the normal library view — they only
+  // ever appear inside their own setlist's dedicated view (see
+  // _renderOpenSetlist), which reads setlists[].order directly rather than
+  // going through buildSongList/_songPassesFilter at all.
+  if (song && song._setlistOnly) return false;
   if (!_libFilterOff.size) return true;
   var cat = _songCategory(song);
   if (_libFilterOff.has('cat:' + cat)) return false;
@@ -9441,6 +9845,20 @@ function _buildFilterPanel() {
 }
 
 function buildSongList(query) {
+  // Setlist mode replaces the whole normal library render (folders +
+  // alphabetized songs) with either the setlists overview or one open
+  // setlist's own manually-ordered contents — see _renderSetlistsSidebar()
+  // and its section further down. Kept as an early return here (rather than
+  // a separate render entry point) so every existing call site that already
+  // calls buildSongList() to refresh the sidebar — after a save, a rename, a
+  // language switch, etc. — transparently refreshes the setlist view too
+  // when that's what's showing. An ACTIVE search query is the one exception:
+  // it falls through to the normal search-results rendering further down
+  // (which already includes online search + the type filters) regardless of
+  // setlist mode, so searching from inside a setlist still reaches your
+  // whole library — only an EMPTY query shows the setlists overview/open
+  // setlist itself.
+  if (_setlistModeActive && !(query || '').trim()) { _renderSetlistsSidebar(); return; }
   // Remove any folder menus previously moved to body
   document.querySelectorAll('body > .folder-menu').forEach(function(m){ m.remove(); });
   const list = document.getElementById('song-list');
@@ -9500,12 +9918,13 @@ function buildSongList(query) {
     const row = document.createElement('div');
     row.className = 'folder-row';
     row.style.paddingLeft = indent + 'px';
+    row.dataset.folderId = f.id;   // read by the pointer-based song→folder drag in makeSongItem
     row.innerHTML = '<span class="folder-icon">' + (f.collapsed ? '▶' : '▼') + '</span>'
       + '<span class="folder-name">' + escapeHtml(f.name) + '</span>'
       + '<button class="folder-kebab" title="' + escapeHtml(t('kebab.folderOptions')) + '">⋮</button>'
       + '<div class="folder-menu" style="display:none">'
-      + '<button class="folder-menu-item" data-action="rename">✎ ' + escapeHtml(t('kebab.rename')) + '</button>'
-      + '<button class="folder-menu-item" data-action="export">⬇ ' + escapeHtml(t('kebab.export')) + '</button>'
+      + '<button class="folder-menu-item" data-action="rename">' + escapeHtml(t('kebab.rename')) + '</button>'
+      + '<button class="folder-menu-item" data-action="export">' + escapeHtml(t('kebab.export')) + '</button>'
       + '<button class="folder-menu-item" data-action="publish-collection">☁ ' + escapeHtml(t('kebab.publishCollection')) + '</button>'
       + '<button class="folder-menu-item folder-menu-danger" data-action="delete">✕ ' + escapeHtml(t('kebab.deleteFolderKeepSongs')) + '</button>'
       + '<button class="folder-menu-item folder-menu-danger" data-action="delete-with-songs">✕ ' + escapeHtml(t('kebab.deleteFolderAndSongs')) + '</button>'
@@ -9566,17 +9985,18 @@ function buildSongList(query) {
     // (on mobile the sidebar is position:fixed+transform which traps fixed children)
     document.body.appendChild(menu);
 
-    // accept dropped songs and folders
+    // Accept a dropped FOLDER (nest it as a subfolder) — still native HTML5
+    // DnD, unlike song→folder dragging just above (see makeSongItem), which
+    // is now pointer-events-based for touch support. Folder-into-folder
+    // nesting wasn't reported broken and isn't a touch-critical gesture in
+    // the same way reordering/filing individual songs is, so it's left as-is
+    // here rather than converting a working, lower-priority path too.
     row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('drag-over'); });
     row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
     row.addEventListener('drop', e => {
       e.preventDefault(); row.classList.remove('drag-over');
-      const si = e.dataTransfer.getData('text/song-index');
       const fi = e.dataTransfer.getData('text/folder-id');
-      if (si !== '') {
-        moveSongToFolder(parseInt(si), f.id);
-        buildSongList(document.getElementById('search-input').value);
-      } else if (fi && fi !== f.id) {
+      if (fi && fi !== f.id) {
         if (!f.subfolderIds) f.subfolderIds = [];
         folders.forEach(x => { if (x.subfolderIds) x.subfolderIds = x.subfolderIds.filter(id => id !== fi); });
         if (!f.subfolderIds.includes(fi)) f.subfolderIds.push(fi);
@@ -9639,6 +10059,442 @@ function buildSongList(query) {
     list.appendChild(empty);
   }
 }
+
+// ── SETLISTS ─────────────────────────────────────────────────────────────────
+// An alternative library, toggled via #btn-setlists-mode. See the `setlists`
+// declaration up top for the data model and why a setlist's entries are
+// independent clone songs[] entries rather than shared references.
+let _setlistModeActive = false;
+let _openSetlistId     = null;   // id of the setlist currently open, or null (overview)
+
+// Deep-clones a library song into a fully independent object for a setlist —
+// JSON round-trip rather than Object.assign's shallow copy, because some
+// fields (ireal_chart in particular) are nested objects/arrays that a
+// shallow copy would still SHARE with the original, so in-place edits to
+// them (e.g. the iReal bar editor mutating song.ireal_chart.bars) would leak
+// back into the library song despite looking like a separate object. _collab
+// is stripped rather than cloned — a copy must not inherit a live
+// collaboration channel/itemId.
+function _cloneSongForSetlist(src) {
+  const clone = JSON.parse(JSON.stringify(src));
+  delete clone._collab;
+  clone._setlistOnly = true;
+  return clone;
+}
+
+function _setSetlistMode(active) {
+  _setlistModeActive = active;
+  if (!active) _openSetlistId = null;
+  document.body.classList.toggle('setlist-mode', active);
+  const btn = document.getElementById('btn-setlists-mode');
+  if (btn) { btn.classList.toggle('active', active); btn.setAttribute('aria-pressed', String(active)); }
+  const hdr = document.querySelector('#sidebar-header > span[data-i18n="sidebar.libraryHeader"]');
+  if (hdr) {
+    hdr.setAttribute('data-i18n', active ? 'sidebar.setlistsHeader' : 'sidebar.libraryHeader');
+    hdr.textContent = t(active ? 'sidebar.setlistsHeader' : 'sidebar.libraryHeader');
+  }
+  const newBtn = document.getElementById('btn-new-song-sidebar');
+  if (newBtn) {
+    newBtn.setAttribute('data-i18n', active ? 'sidebar.add' : 'sidebar.new');
+    newBtn.textContent = t(active ? 'sidebar.add' : 'sidebar.new');
+  }
+  const exportBtn = document.getElementById('btn-export-config');
+  if (exportBtn) {
+    exportBtn.setAttribute('data-i18n', active ? 'sidebar.exportSetlists' : 'sidebar.exportLibrary');
+    exportBtn.textContent = t(active ? 'sidebar.exportSetlists' : 'sidebar.exportLibrary');
+  }
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) searchInput.value = '';
+  buildSongList('');
+}
+document.getElementById('btn-setlists-mode').addEventListener('click', function() {
+  _setSetlistMode(!_setlistModeActive);
+});
+
+function _renderSetlistsSidebar() {
+  const list = document.getElementById('song-list');
+  // Remove any kebab menus previously moved to body by a prior render of
+  // the setlists overview (see _renderSetlistsOverview) — mirrors the
+  // equivalent cleanup buildSongList does for folder-menus.
+  document.querySelectorAll('body > .folder-menu').forEach(m => m.remove());
+  list.innerHTML = '';
+  document.getElementById('btn-search-clear').style.display = 'none';
+  const sl = _openSetlistId ? setlists.find(s => s.id === _openSetlistId) : null;
+  if (sl) _renderOpenSetlist(sl); else _renderSetlistsOverview();
+}
+
+function _renderSetlistsOverview() {
+  const list = document.getElementById('song-list');
+  if (!setlists.length) {
+    const empty = document.createElement('div');
+    empty.className = 'setlist-empty-hint';
+    empty.textContent = t('setlist.noSetlistsYet');
+    list.appendChild(empty);
+    return;
+  }
+  setlists.forEach(sl => {
+    const row = document.createElement('div');
+    row.className = 'setlist-row';
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    const count = (sl.order || []).length;
+    // Kebab menu re-uses the exact same .folder-kebab/.folder-menu widget
+    // folders use (click-outside-to-close and the body-append-to-escape-
+    // the-sidebar's-stacking-context handling are already wired globally
+    // for that class — see the delegated listener near buildSongList and
+    // the "Close settings panel when clicking outside" document handler).
+    row.innerHTML = '<span class="setlist-icon">🎼</span>'
+      + '<span class="setlist-name">' + escapeHtml(sl.name || 'Untitled') + '</span>'
+      + '<span class="setlist-count">' + t('setlist.songCount', { n: count }) + '</span>'
+      + '<button type="button" class="folder-kebab" title="' + escapeHtml(t('kebab.setlistOptions')) + '">⋮</button>'
+      + '<div class="folder-menu" style="display:none">'
+      + '<button class="folder-menu-item" data-action="rename">' + escapeHtml(t('kebab.rename')) + '</button>'
+      + '<button class="folder-menu-item" data-action="export">' + escapeHtml(t('kebab.export')) + '</button>'
+      + '<button class="folder-menu-item folder-menu-danger" data-action="delete">' + escapeHtml(t('kebab.remove')) + '</button>'
+      + '</div>';
+    const open = () => { _openSetlistId = sl.id; buildSongList(''); };
+    row.addEventListener('click', e => { if (e.target.closest('.folder-kebab, .folder-menu')) return; open(); });
+    row.addEventListener('keydown', e => {
+      if (e.target !== row) return;
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+    const kebab = row.querySelector('.folder-kebab');
+    const menu  = row.querySelector('.folder-menu');
+    kebab.addEventListener('click', e => {
+      e.stopPropagation();
+      document.querySelectorAll('.folder-menu').forEach(m => { if (m !== menu) m.style.display = 'none'; });
+      if (menu.style.display !== 'none') { menu.style.display = 'none'; return; }
+      const rect = kebab.getBoundingClientRect();
+      menu.style.top   = (rect.bottom + 2) + 'px';
+      menu.style.left  = rect.left + 'px';
+      menu.style.right = 'auto';
+      menu.style.display = 'block';
+    });
+    menu.querySelectorAll('.folder-menu-item').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        menu.style.display = 'none';
+        const action = btn.dataset.action;
+        if (action === 'rename') renameSetlist(sl.id);
+        else if (action === 'export') exportSetlist(sl.id);
+        else if (action === 'delete') deleteSetlist(sl.id);
+      });
+    });
+    // Move menu to body so it escapes the sidebar's stacking context — same
+    // reason renderFolder's kebab menu does this (see there).
+    document.body.appendChild(menu);
+    list.appendChild(row);
+  });
+}
+
+function _renderOpenSetlist(sl) {
+  const list = document.getElementById('song-list');
+  // Self-heal: drop any indices that no longer point at a real song (e.g.
+  // the underlying clone was somehow removed by a path outside removeSong/
+  // deleteSetlist) rather than rendering a broken row for them.
+  const before = sl.order.length;
+  sl.order = sl.order.filter(i => !!songs[i]);
+  if (sl.order.length !== before) saveSetlists();
+
+  const back = document.createElement('div');
+  back.className = 'setlist-back-row';
+  back.setAttribute('role', 'button');
+  back.setAttribute('tabindex', '0');
+  back.textContent = '← ' + t('setlist.backToSetlists');
+  const goBack = () => { _openSetlistId = null; buildSongList(''); };
+  back.addEventListener('click', goBack);
+  back.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBack(); } });
+  list.appendChild(back);
+
+  if (!sl.order.length) {
+    const empty = document.createElement('div');
+    empty.className = 'setlist-empty-hint';
+    empty.textContent = t('setlist.emptySetlist');
+    list.appendChild(empty);
+    return;
+  }
+
+  sl.order.forEach((songIdx, pos) => {
+    const item = makeSongItem(songIdx, '');
+    if (!item) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'setlist-song-wrap';
+    wrap.dataset.setlistPos = pos;   // read by _wireSetlistDrag's elementFromPoint lookup
+    const handle = document.createElement('div');
+    handle.className = 'setlist-drag-handle';
+    handle.textContent = '☰';
+    handle.title = t('setlist.dragToReorder');
+    wrap.appendChild(handle);
+    wrap.appendChild(item);
+    _wireSetlistDrag(wrap, handle, sl, pos);
+    list.appendChild(wrap);
+  });
+}
+
+// Pointer-based reorder (see _wirePointerDragHandle) starting from the ☰
+// handle only, so grabbing the song title, checkbox, or kebab menu never
+// starts a drag — same restriction the old native-DnD version had, just
+// without native DnD's complete absence of a touch equivalent, which is why
+// dragging never worked on iOS/Android (or, per report, reliably at all).
+//
+// UX: rather than a top/bottom line indicating where a drop would land, a
+// semi-transparent floating copy ("ghost") tracks the pointer/finger, and
+// the real row — dimmed to a placeholder in place — is physically walked
+// through the DOM to sit wherever the ghost currently hovers, so the other
+// rows visibly slide out of its way as it moves. `wrap` itself carries the
+// placeholder, so "where the placeholder currently sits in the DOM" *is*
+// the live drop position; nothing else needs to track it separately.
+function _wireSetlistDrag(wrap, handle, sl, pos) {
+  let ghost = null, listEl = null, baseLeft = 0, baseTop = 0, grabDx = 0, grabDy = 0;
+  // rAF-throttled move loop: native pointermove can fire far more often than
+  // the display refreshes (touch especially), and each "real" move below
+  // does a hit-test + getBoundingClientRect + a DOM reorder, all of which
+  // force a synchronous layout. Doing that on every single event — rather
+  // than once per animation frame — was the source of the reported
+  // dragging lag; coalescing to one pass per frame fixes it regardless of
+  // how fast pointer events arrive.
+  let pendingX = 0, pendingY = 0, rafId = null;
+  // Skip re-running the hit-test/reorder work when the pointer is still
+  // over the same row on the same side as last time — otherwise even
+  // holding perfectly still re-triggers a layout + DOM mutation on every
+  // frame for no change in outcome.
+  let lastTarget = null, lastBefore = null;
+
+  function applyFrame() {
+    rafId = null;
+    if (!ghost) return;
+    // Position via `transform` (compositor-only) rather than left/top
+    // (which forces layout on a position:fixed element every write).
+    ghost.style.transform = 'translate(' + (pendingX - grabDx - baseLeft) + 'px, ' + (pendingY - grabDy - baseTop) + 'px)';
+
+    const el = document.elementFromPoint(pendingX, pendingY);
+    const target = el && el.closest ? el.closest('.setlist-song-wrap') : null;
+    if (!target || target === wrap || !listEl || !listEl.contains(target)) return;
+    const rect = target.getBoundingClientRect();
+    const before = (pendingY - rect.top) < rect.height / 2;
+    if (target === lastTarget && before === lastBefore) return;
+    lastTarget = target; lastBefore = before;
+    listEl.insertBefore(wrap, before ? target : target.nextSibling);
+  }
+
+  function finish(cancelled) {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    ghost = null;
+    lastTarget = null; lastBefore = null;
+    wrap.classList.remove('setlist-drag-placeholder');
+    if (cancelled || !listEl) { _renderSetlistsSidebar(); return; }
+    // Translate the DOM's current row order back into song indices: each
+    // row still carries the ORIGINAL position it was rendered at in its
+    // dataset.setlistPos (never rewritten during the drag), which indexes
+    // straight into the pre-drag sl.order.
+    const rows = Array.from(listEl.querySelectorAll('.setlist-song-wrap'));
+    const newOrder = rows.map(r => sl.order[parseInt(r.dataset.setlistPos)]);
+    const unchanged = newOrder.length === sl.order.length && newOrder.every((v, i) => v === sl.order[i]);
+    if (!unchanged) { sl.order = newOrder; saveSetlists(); }
+    _renderSetlistsSidebar();
+  }
+
+  _wirePointerDragHandle(handle, {
+    onStart: function(x, y) {
+      listEl = wrap.parentElement;
+      const rect = wrap.getBoundingClientRect();
+      grabDx = x - rect.left;
+      grabDy = y - rect.top;
+      baseLeft = rect.left; baseTop = rect.top;
+
+      ghost = wrap.cloneNode(true);
+      ghost.classList.add('setlist-drag-ghost');
+      ghost.style.width = rect.width + 'px';
+      ghost.style.height = rect.height + 'px';
+      ghost.style.left = baseLeft + 'px';
+      ghost.style.top = baseTop + 'px';
+      document.body.appendChild(ghost);
+
+      wrap.classList.add('setlist-drag-placeholder');
+    },
+    onMove: function(x, y) {
+      pendingX = x; pendingY = y;
+      if (rafId == null) rafId = requestAnimationFrame(applyFrame);
+    },
+    onDrop: function() { finish(false); },
+    onCancel: function() { finish(true); },
+  });
+}
+
+function deleteSetlist(id) {
+  const sl = setlists.find(s => s.id === id);
+  if (!sl) return;
+  if (!confirm(t('confirm.removeSetlist', { name: sl.name || 'this setlist' }))) return;
+  // Descending order: removing a higher index first never shifts the
+  // position of a still-pending lower index (see _spliceSongAt's comment).
+  sl.order.slice().sort((a, b) => b - a).forEach(i => { if (songs[i]) _spliceSongAt(i); });
+  setlists = setlists.filter(s => s.id !== id);
+  if (_openSetlistId === id) _openSetlistId = null;
+  saveAll();
+  buildSongList('');
+}
+
+function renameSetlist(id) {
+  const sl = setlists.find(s => s.id === id); if (!sl) return;
+  const name = prompt(t('prompt.renameSetlist'), sl.name);
+  if (name && name.trim()) { sl.name = name.trim(); saveSetlists(); _renderSetlistsSidebar(); }
+}
+
+// Exports just this one setlist, reusing the same shape exportSetlists()
+// writes (an array with a single entry) so the file can be re-imported the
+// same way (see loadFile's json.setlists branch / importSetlistsJSON).
+function exportSetlist(id) {
+  const sl = setlists.find(s => s.id === id); if (!sl) return;
+  const data = JSON.stringify({
+    _magic_scroll_setlists_version: 1,
+    exported: new Date().toISOString(),
+    setlists: [{
+      name: sl.name,
+      songs: sl.order.map(i => {
+        const s = songs[i]; if (!s) return null;
+        const c = Object.assign({}, s);
+        if (c.raw_html && c.raw_html.length > 512000) delete c.raw_html;
+        return c;
+      }).filter(Boolean),
+    }],
+  }, null, 2);
+  _downloadConfigBlob(data, (sl.name || 'setlist').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.json');
+}
+
+// ── "Add to setlist" modal ───────────────────────────────────────────────────
+function _populateSetlistNameOptions() {
+  const dl = document.getElementById('setlist-name-options');
+  if (dl) dl.innerHTML = setlists.map(sl => '<option value="' + escapeHtml(sl.name) + '">').join('');
+}
+function _setlistAddRenderList(q) {
+  q = (q || '').toLowerCase();
+  const host = document.getElementById('setlist-add-list');
+  host.innerHTML = '';
+  let shown = 0;
+  songs.forEach((s, i) => {
+    if (s._setlistOnly) return;   // only real library songs can be added
+    const title = s.title || 'Untitled', artist = s.artist || '';
+    if (q && (title + ' ' + artist).toLowerCase().indexOf(q) === -1) return;
+    shown++;
+    const row = document.createElement('label');
+    row.className = 'abc-set-row';
+    row.innerHTML = '<input type="checkbox" data-song-idx="' + i + '">'
+      + '<span class="as-title">' + escapeHtml(title) + '</span>';
+    host.appendChild(row);
+  });
+  document.getElementById('setlist-add-empty').style.display = shown ? 'none' : '';
+}
+// presetSongIdx — optional; when opened from a song's own kebab menu
+// ("Add to setlist"), pre-checks that one song so the user only has to
+// name/pick the setlist, same as picking a folder from that same menu.
+function _openAddToSetlistModal(presetSongIdx) {
+  document.getElementById('setlist-name-input').value =
+    (_openSetlistId && setlists.find(s => s.id === _openSetlistId)?.name) || '';
+  document.getElementById('setlist-add-search').value = '';
+  _populateSetlistNameOptions();
+  _setlistAddRenderList('');
+  if (typeof presetSongIdx === 'number') {
+    const cb = document.querySelector('#setlist-add-list input[data-song-idx="' + presetSongIdx + '"]');
+    if (cb) cb.checked = true;
+  }
+  document.getElementById('setlist-add-modal').classList.add('open');
+}
+document.getElementById('setlist-add-search').addEventListener('input', function() { _setlistAddRenderList(this.value); });
+document.getElementById('setlist-add-cancel').addEventListener('click', function() {
+  document.getElementById('setlist-add-modal').classList.remove('open');
+});
+document.getElementById('setlist-add-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+document.getElementById('setlist-add-apply').addEventListener('click', function() {
+  const name = document.getElementById('setlist-name-input').value.trim();
+  if (!name) { alert(t('alert.setlistNameRequired')); return; }
+  const checked = Array.prototype.slice.call(
+    document.querySelectorAll('#setlist-add-list input[type="checkbox"]:checked')
+  ).map(function(cb) { return parseInt(cb.dataset.songIdx); });
+  if (!checked.length) { alert(t('alert.setlistNoSongsSelected')); return; }
+  let sl = setlists.find(s => s.name.toLowerCase() === name.toLowerCase());
+  if (!sl) {
+    sl = { id: 'sl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: name, order: [] };
+    setlists.push(sl);
+  }
+  checked.forEach(function(i) {
+    const src = songs[i];
+    if (!src) return;
+    const clone = _cloneSongForSetlist(src);
+    songs.push(clone);
+    sl.order.push(songs.length - 1);
+  });
+  saveAll();
+  document.getElementById('setlist-add-modal').classList.remove('open');
+  _openSetlistId = sl.id;
+  _setlistModeActive = true;
+  document.body.classList.add('setlist-mode');
+  const btn = document.getElementById('btn-setlists-mode');
+  if (btn) { btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true'); }
+  buildSongList('');
+});
+
+// ── Export setlists (replaces "Export library" while setlist mode is on;
+// see the branch added to #btn-export-config's own listener below) ─────────
+function _buildSetlistsJSON() {
+  return JSON.stringify({
+    _magic_scroll_setlists_version: 1,
+    exported: new Date().toISOString(),
+    setlists: setlists.map(function(sl) {
+      return {
+        name: sl.name,
+        songs: sl.order.map(function(i) {
+          const s = songs[i]; if (!s) return null;
+          const c = Object.assign({}, s);
+          if (c.raw_html && c.raw_html.length > 512000) delete c.raw_html;
+          return c;
+        }).filter(Boolean),
+      };
+    }),
+  }, null, 2);
+}
+function exportSetlists() {
+  _downloadConfigBlob(_buildSetlistsJSON(), 'magic-scroll-setlists.json');
+}
+
+// Imports a file produced by exportSetlists() (or hand-authored in the same
+// shape). Each imported setlist MERGES into an existing setlist of the same
+// name (case-insensitive) if one exists — matching the same name-is-the-key
+// convention the "Add to setlist" modal already uses — or creates a new one
+// otherwise. Every song in the file is cloned fresh as its own independent
+// _setlistOnly songs[] entry (never wired back to whatever songs[] index it
+// happened to have in the exporting session — those indices are meaningless
+// here), so importing twice just doubles up the songs rather than colliding.
+function importSetlistsJSON(config) {
+  if (!config || !Array.isArray(config.setlists)) { alert(t('alert.invalidSetlistsFile')); return; }
+  let importedSetlists = 0, importedSongs = 0;
+  config.setlists.forEach(function(entry) {
+    if (!entry || typeof entry.name !== 'string' || !Array.isArray(entry.songs)) return;
+    let sl = setlists.find(s => s.name.toLowerCase() === entry.name.toLowerCase());
+    if (!sl) {
+      sl = { id: 'sl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: entry.name, order: [] };
+      setlists.push(sl);
+    }
+    importedSetlists++;
+    entry.songs.forEach(function(songData) {
+      if (!songData || typeof songData !== 'object') return;
+      const clone = Object.assign({}, songData);
+      delete clone._collab;
+      clone._setlistOnly = true;
+      songs.push(clone);
+      sl.order.push(songs.length - 1);
+      importedSongs++;
+    });
+  });
+  saveAll();
+  buildSongList('');
+  if (typeof showToast === 'function') showToast(t('setlist.importSummary', { setlists: importedSetlists, songs: importedSongs }));
+}
+// Reachable via the normal "Open files" drop-zone/file-picker/drag-drop —
+// see loadFile()'s json.setlists branch and the FSA showOpenFilePicker
+// branch above — rather than a dedicated import button/input.
 
 // Wire up search input
 document.getElementById('search-input').addEventListener('input', e => {
@@ -9891,6 +10747,10 @@ document.getElementById('refresh-file-input').addEventListener('change', e => {
 });
 
 // ── NEW FOLDER ────────────────────────────────────────────────────────────────
+// Hidden entirely in setlist mode (see body.setlist-mode CSS) — folders
+// aren't a setlist concept, and setlist JSON files are opened/dropped the
+// same way any other file is (see loadFile's json.setlists branch), so a
+// dedicated "Import setlists" button/input isn't needed either.
 document.getElementById('btn-new-folder').addEventListener('click', () => {
   const name = prompt(t('prompt.folderName'));
   if (name && name.trim()) createFolder(name.trim());
@@ -9954,6 +10814,11 @@ var _FSA_OPTS = {
 
 // Save: write to known handle silently; first time (or Shift+click) → pick location
 document.getElementById('btn-export-config').addEventListener('click', async function(e) {
+  // "Export library" becomes "Export setlists" while Setlist mode is on
+  // (see _setSetlistMode) — a plain one-shot download, not the full
+  // silent-save/Save-As file-handle flow below, since setlists are a much
+  // smaller, occasional export rather than the main working library file.
+  if (_setlistModeActive) { exportSetlists(); return; }
   var data = _buildConfigJSON();
   var saveAs = e.shiftKey;
 
@@ -10024,6 +10889,10 @@ document.getElementById('drop-zone').addEventListener('click', async function() 
               // Magic Scroll library — store handle for in-place saves
               _configFileHandle = handle;
               importMagicScrollConfig(json, file.name);
+              continue;
+            }
+            if (json.setlists && Array.isArray(json.setlists)) {
+              importSetlistsJSON(json);
               continue;
             }
           } catch(pe) { /* not valid JSON — fall through to loadFile */ }
@@ -10983,6 +11852,13 @@ function loadFile(file) {
           importMagicScrollConfig(json, file.name);
           return;
         }
+        // Detect Magic Scroll setlists export (see _buildSetlistsJSON) —
+        // opened/dropped the same way as any other file, no dedicated
+        // "Import setlists" button needed.
+        if (!Array.isArray(json) && Array.isArray(json.setlists)) {
+          importSetlistsJSON(json);
+          return;
+        }
         data = Array.isArray(json) ? json : [json];
       } catch(err) { alert(t('alert.jsonParseError', {message: err.message})); return; }
     } else if (name.endsWith('.abc')) {
@@ -11245,8 +12121,14 @@ function _scrollStep(ts) {
   // step="any" on #scroll-speed lets the slider land on fractional values
   // (a smooth drag, not integer stops) — parseFloat so that resolution
   // actually reaches the scroll rate instead of being silently truncated.
-  const speed   = parseFloat(document.getElementById('scroll-speed').value) || 1;
-  const amount  = _scrollPxPerSec(speed) * dt + _scrollCarry;
+  // _scrollDurationPxPerSec (set by the press-and-hold duration dialog, see
+  // near #btn-scroll's listeners) takes priority when present — a one-shot
+  // override for this run only, cleared in stopScroll() so the slider goes
+  // back to governing speed afterward.
+  const pxPerSec = (_scrollDurationPxPerSec != null)
+    ? _scrollDurationPxPerSec
+    : _scrollPxPerSec(parseFloat(document.getElementById('scroll-speed').value) || 1);
+  const amount  = pxPerSec * dt + _scrollCarry;
   const whole   = Math.floor(amount);
   _scrollCarry  = amount - whole;
   if (whole > 0) window.scrollBy(0, whole);
@@ -11287,6 +12169,7 @@ function _setScrollBtnState(active) {
 function stopScroll() {
   if (scrollInterval) cancelAnimationFrame(scrollInterval);
   scrollInterval = null; isScrolling = false; _scrollLastTs = null;
+  _scrollDurationPxPerSec = null;   // one-shot: a later plain toggle uses the slider again
   const _bs = document.getElementById('btn-scroll');
   _setScrollBtnState(false);
   _bs.classList.remove('active');
@@ -11314,7 +12197,69 @@ function safeToggleScroll() {
   toggleScroll();
 }
 
-document.getElementById('btn-scroll').addEventListener('click', safeToggleScroll);
+// Press-and-hold #btn-scroll opens a dialog to set how long auto-scroll
+// should take to reach the bottom of the page, instead of the usual
+// play/pause toggle. Pointer events unify mouse + touch in one listener set.
+// The long-press timer is cancelled by any pointerup/leave/cancel before it
+// fires, so a normal tap/click still falls through to safeToggleScroll();
+// once the timer DOES fire, _scrollLongPressed suppresses the click that
+// the same press-and-release will otherwise also generate.
+let _scrollHoldTimer   = null;
+let _scrollLongPressed = false;
+const SCROLL_HOLD_MS = 550;
+function _scrollHoldStart() {
+  _scrollLongPressed = false;
+  clearTimeout(_scrollHoldTimer);
+  _scrollHoldTimer = setTimeout(function() {
+    _scrollLongPressed = true;
+    _openScrollDurationModal();
+  }, SCROLL_HOLD_MS);
+}
+function _scrollHoldCancel() { clearTimeout(_scrollHoldTimer); _scrollHoldTimer = null; }
+function _openScrollDurationModal() {
+  // Default from the currently-open song's own remembered duration (see the
+  // apply handler below), falling back to 3:30 for a song that's never had
+  // one set.
+  const song = (currentIdx >= 0 && songs[currentIdx]) ? songs[currentIdx] : null;
+  const totalSec = (song && song._scrollDurationSec > 0) ? song._scrollDurationSec : SCROLL_DURATION_DEFAULT_SEC;
+  const minEl = document.getElementById('scroll-duration-min');
+  const secEl = document.getElementById('scroll-duration-sec');
+  if (minEl) minEl.value = Math.floor(totalSec / 60);
+  if (secEl) secEl.value = totalSec % 60;
+  document.getElementById('scroll-duration-modal').classList.add('open');
+}
+const _btnScrollEl = document.getElementById('btn-scroll');
+_btnScrollEl.addEventListener('pointerdown', _scrollHoldStart);
+_btnScrollEl.addEventListener('pointerup', _scrollHoldCancel);
+_btnScrollEl.addEventListener('pointerleave', _scrollHoldCancel);
+_btnScrollEl.addEventListener('pointercancel', _scrollHoldCancel);
+_btnScrollEl.addEventListener('click', function(e) {
+  if (_scrollLongPressed) { e.preventDefault(); e.stopPropagation(); _scrollLongPressed = false; return; }
+  safeToggleScroll();
+});
+
+document.getElementById('scroll-duration-cancel').addEventListener('click', function() {
+  document.getElementById('scroll-duration-modal').classList.remove('open');
+});
+document.getElementById('scroll-duration-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+document.getElementById('scroll-duration-apply').addEventListener('click', function() {
+  const mins = Math.max(0, parseInt(document.getElementById('scroll-duration-min').value) || 0);
+  const secs = Math.max(0, Math.min(59, parseInt(document.getElementById('scroll-duration-sec').value) || 0));
+  const totalSec = mins * 60 + secs;
+  document.getElementById('scroll-duration-modal').classList.remove('open');
+  if (totalSec <= 0) return;
+  // Remembered per SONG (not globally) so reopening the dialog later on this
+  // same song defaults to whatever was last set for it — a fast ballad and a
+  // long medley shouldn't share one duration.
+  const song = (currentIdx >= 0 && songs[currentIdx]) ? songs[currentIdx] : null;
+  if (song) { song._scrollDurationSec = totalSec; saveSongs(); }
+  const scrollMax = document.documentElement.scrollHeight - window.innerHeight;
+  if (scrollMax <= 0) return;   // page doesn't scroll — nothing to time
+  _scrollDurationPxPerSec = scrollMax / totalSec;
+  if (!isScrolling) toggleScroll();   // else: already running — new rate applies on the next _scrollStep frame
+});
 
 // Track whether the ABC player bar has focus (for spacebar routing)
 let abcPlayerFocused = false;
@@ -11322,6 +12267,31 @@ document.getElementById('abc-player-bar').addEventListener('mousedown', () => { 
 document.addEventListener('mousedown', e => {
   if (!document.getElementById('abc-player-bar').contains(e.target)) abcPlayerFocused = false;
 });
+
+// Moves to the adjacent song — shared by the desktop arrow-key/PageUp/
+// PageDown handler below and the mobile swipe gesture just after it, so both
+// stay perfectly in sync with one piece of logic instead of two copies
+// drifting apart. When the currently-open song belongs to the setlist that's
+// presently open (_openSetlistId), "adjacent" means the next/previous entry
+// in THAT setlist's own manual order (sl.order) — raw songs[] index order
+// would be meaningless there, since a setlist's clone entries are scattered
+// wherever they happened to be pushed, not contiguous. Otherwise it falls
+// back to plain library (songs[]) order, same as before.
+function _goToAdjacentSong(delta) {
+  if (_openSetlistId) {
+    const sl = setlists.find(s => s.id === _openSetlistId);
+    if (sl) {
+      const pos = sl.order.indexOf(currentIdx);
+      if (pos >= 0) {
+        const newPos = pos + delta;
+        if (newPos >= 0 && newPos < sl.order.length) renderSong(sl.order[newPos]);
+        return;
+      }
+    }
+  }
+  const i = currentIdx + delta;
+  if (i >= 0 && i < songs.length) renderSong(i);
+}
 
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
@@ -11346,8 +12316,8 @@ document.addEventListener('keydown', e => {
                  || e.target.tagName === 'SELECT'
                  || e.target.isContentEditable;
   if (!_inEditor) {
-    if (e.code === 'ArrowRight' || e.code === 'PageDown') { const i = currentIdx+1; if (i < songs.length) renderSong(i); }
-    if (e.code === 'ArrowLeft'  || e.code === 'PageUp')   { const i = currentIdx-1; if (i >= 0) renderSong(i); }
+    if (e.code === 'ArrowRight' || e.code === 'PageDown') _goToAdjacentSong(1);
+    if (e.code === 'ArrowLeft'  || e.code === 'PageUp')   _goToAdjacentSong(-1);
     // Shift+H — toggle chord visibility (None mode)
     if (e.shiftKey && e.key === 'H') {
       e.preventDefault();
@@ -11356,6 +12326,43 @@ document.addEventListener('keydown', e => {
     }
   }
 });
+
+// ── SWIPE NAVIGATION — mobile finger-swipe to the adjacent song ─────────────
+// Scoped to #main (the shared wrapper around the plain/ABC/iReal song cards —
+// see its declaration in the markup) rather than document, so it never
+// competes with the sidebar's own touch handling or the ABC/backing-track
+// player bars, which live outside #main as sibling elements. Only touchend is
+// acted on (touchstart just records the starting point) so ordinary vertical
+// scrolling/reading is never interrupted mid-gesture — a swipe only fires
+// once the finger lifts, and only if the gesture was predominantly
+// horizontal and past a minimum distance, so it doesn't fire on scroll
+// gestures that drift slightly sideways.
+let _swipeStartX = null, _swipeStartY = null, _swipeStartT = 0;
+const SWIPE_MIN_DX      = 60;   // px — minimum horizontal travel to count as a swipe
+const SWIPE_MAX_OFF_RATIO = 0.6; // |dy| must stay under this fraction of |dx|
+const SWIPE_MAX_MS      = 800;  // ignore slow drags (unlikely to be an intentional flick)
+function _swipeTouchStart(e) {
+  if (e.touches.length !== 1) { _swipeStartX = null; return; }
+  const t = e.touches[0];
+  _swipeStartX = t.clientX; _swipeStartY = t.clientY; _swipeStartT = Date.now();
+}
+function _swipeTouchEnd(e) {
+  if (_swipeStartX == null) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - _swipeStartX, dy = t.clientY - _swipeStartY;
+  const dt = Date.now() - _swipeStartT;
+  _swipeStartX = null;
+  if (dt > SWIPE_MAX_MS) return;
+  if (Math.abs(dx) < SWIPE_MIN_DX) return;
+  if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_OFF_RATIO) return;
+  _goToAdjacentSong(dx < 0 ? 1 : -1);   // swipe left → next song, swipe right → previous
+}
+(function () {
+  const _swipeEl = document.getElementById('main');
+  if (!_swipeEl) return;
+  _swipeEl.addEventListener('touchstart', _swipeTouchStart, { passive: true });
+  _swipeEl.addEventListener('touchend',   _swipeTouchEnd,   { passive: true });
+})();
 
 // ── CHORD POPUP — lists unique chords in the song, click one to see its diagram
 
@@ -13936,15 +14943,18 @@ function showChordTooltip(span, x, y) {
 }
 
 function positionTooltip(x, y) {
-  // wait one frame so offsetWidth/Height are measured after display:block
-  requestAnimationFrame(() => {
-    const tw = chordHoverEl.offsetWidth  || 96;
-    const th = chordHoverEl.offsetHeight || 110;
-    const px = x + 14 + tw > window.innerWidth  ? x - tw - 10 : x + 14;
-    const py = y - th - 10 < 0                  ? y + 16       : y - th - 10;
-    chordHoverEl.style.left = px + 'px';
-    chordHoverEl.style.top  = py + 'px';
-  });
+  // Measure synchronously — reading offsetWidth/Height right after the
+  // innerHTML/display:block change above forces the browser to lay it out
+  // immediately rather than waiting for the next paint. Deferring this to
+  // requestAnimationFrame (the previous approach) let the browser paint one
+  // frame with the NEW chord's content still sitting at the OLD chord's
+  // left/top, which read as a flash/jump to the old location on every hover.
+  const tw = chordHoverEl.offsetWidth  || 96;
+  const th = chordHoverEl.offsetHeight || 110;
+  const px = x + 14 + tw > window.innerWidth  ? x - tw - 10 : x + 14;
+  const py = y - th - 10 < 0                  ? y + 16       : y - th - 10;
+  chordHoverEl.style.left = px + 'px';
+  chordHoverEl.style.top  = py + 'px';
 }
 
 // .abc-chord-sym covers chord symbols inside an embedded ABC block (see
@@ -16785,7 +17795,11 @@ function openNewSongModal() {
   sel ? sel.focus() : document.getElementById('ns-title').focus();
 }
 
-document.getElementById('btn-new-song-sidebar').addEventListener('click', openNewSongModal);
+document.getElementById('btn-new-song-sidebar').addEventListener('click', function() {
+  // "New" becomes "Add" while Setlist mode is on (see _setSetlistMode) —
+  // same button, different action, rather than swapping listeners.
+  if (_setlistModeActive) _openAddToSetlistModal(); else openNewSongModal();
+});
 
 // ── Per-piece toolbar dropdown menus (Save ▾ / Sheet music ▾) ────────────────
 // Reusable open/close/position wiring for the .tb-menu dropdowns added to the
@@ -17266,15 +18280,25 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
   const _tuneRow = document.getElementById('pp-tune-row');
   const _tuneSel = document.getElementById('pp-tune-idx');
   if (_ps && _ps._source === 'abc') {
-    const _blks = _abcTuneBlocks(_ps.abc_text);
+    // _abcSrc, not _ps.abc_text: a "Create set" stack's combined text lives
+    // in _abcSet, not on the base song itself — see the matching fix in
+    // btn-print-go below.
+    const _blks = _abcTuneBlocks(_abcSrc(_ps));
     if (_blks.length > 1) {
       _tuneSel.innerHTML = '';
+      // "All tunes" prints the whole set together (see btn-print-go) — default
+      // selection, since a set is normally meant to be printed as one unit.
+      // Individual tunes stay selectable below for anyone who wants just one.
+      const allOpt = document.createElement('option');
+      allOpt.value = 'all'; allOpt.textContent = t('printPanel.allTunes');
+      _tuneSel.appendChild(allOpt);
       _blks.forEach(function(blk, i) {
         const tm = blk.match(/^T:\s*(.+)/m);
         const opt = document.createElement('option');
         opt.value = i; opt.textContent = (i+1) + '. ' + (tm ? tm[1].trim() : 'Tune '+(i+1));
         _tuneSel.appendChild(opt);
       });
+      _tuneSel.value = 'all';
       _tuneRow.style.display = '';
     } else { _tuneRow.style.display = 'none'; }
   } else { _tuneRow.style.display = 'none'; }
@@ -17593,41 +18617,180 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   // scale) so it fits paper, one SVG per staff line so the print can paginate
   // between lines, and re-inject whistle tabs if they're on.
   if (song._source === 'abc') {
-    const tuneIdx  = parseInt(document.getElementById('pp-tune-idx')?.value || '0') || 0;
-    const blocks   = _abcTuneBlocks(song.abc_text);
-    const blk      = blocks[tuneIdx] || blocks[0] || '';
-    const tm       = blk.match(/^T:\s*(.+)/m);
-    const tuneTitle= tm ? tm[1].trim() : song.title;
+    const tuneSelRaw = document.getElementById('pp-tune-idx')?.value;
+    // _abcSrc(song), not song.abc_text: when "Create set" has stacked other
+    // library tunes under this song (_abcSet), the combined multi-song text
+    // lives in _abcSet.text — the on-screen renderer already reads through
+    // _abcSrc for exactly this reason (see renderABCSong's identical
+    // `_abcTuneBlocks(_abcSrc(song))` line). Printing straight from
+    // song.abc_text only ever saw this song's own tune(s), so stacked-set
+    // tunes silently never made it into the print job regardless of the
+    // "which tune" selector or "fit to one page".
+    const blocks   = _abcTuneBlocks(_abcSrc(song));
+    // Which tune(s) to print. "all" (the print panel's default for any
+    // multi-tune file — see btn-print-open) prints the whole set together;
+    // a specific index prints just that one tune; a single-tune file always
+    // prints its one tune regardless of the selector.
+    const printIdxs = blocks.length <= 1
+      ? [0]
+      : (tuneSelRaw === 'all' || tuneSelRaw == null)
+        ? blocks.map(function(_, i) { return i; })
+        : [parseInt(tuneSelRaw) || 0];
+    const isSet = printIdxs.length > 1;
     const _pf      = _resolvePrintFonts();
+    const includeDiagrams = document.getElementById('pp-diagrams') ? document.getElementById('pp-diagrams').checked : true;
+    let diagInst = (typeof resolveInst === 'function') ? resolveInst(currentInstrument) : currentInstrument;
+    if (!diagInst || diagInst === 'none') diagInst = 'guitar';
 
-    // Off-screen render at print scale. ~680px staff fits a Letter/A4 page once
-    // the print body padding is applied. Kept on-screen-positioned (not display
-    // none) so getBBox works for tab placement.
-    const tmp = document.createElement('div');
-    tmp.id = '_abc-print-tmp';
-    tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:760px;';
-    document.body.appendChild(tmp);
-    let _vo;
-    try {
-      _vo = ABCJS.renderAbc(tmp, blk, {
-        staffwidth: 680, scale: 1.0, oneSvgPerLine: true,
-        paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 34 : 14),
-        visualTranspose: transposeAmount,
+    // Renders ONE tune off-screen and resolves with its printable HTML
+    // fragment (header + staff lines). Each tune uses ITS OWN effective
+    // transpose — _abcEffectiveTr(i) combines that tune's per-tune Key-
+    // dropdown offset with the top-bar transpose, exactly like the on-screen
+    // per-tune render loop. The print path previously used the bare top-bar
+    // transposeAmount everywhere, so a tune whose key had been changed via
+    // its own Key dropdown (or changed back via the dropdown after a top-bar
+    // shift) silently printed in the wrong key — the sounding key shown
+    // on screen and the printed key could disagree.
+    function _renderTuneForPrint(i) {
+      return new Promise(function(resolve) {
+        const blk = blocks[i] || '';
+        const tr  = _abcEffectiveTr(i);
+        const tm  = blk.match(/^T:\s*(.+)/m);
+        const tuneName = tm ? tm[1].trim() : ('Tune ' + (i + 1));
+        // Strip the textual header fields (title/composer/type/etc.) before
+        // rendering — same as the on-screen path (see renderABCSong's
+        // identical renderBlock line) and for the same reason: our own
+        // header markup already shows title/artist, so leaving T:/C: in
+        // would make abcjs draw a SECOND copy of the title baked into the
+        // SVG — in abcjs's own default font, not the app's resolved title
+        // font — regardless of anything the print CSS sets, since text
+        // drawn INSIDE the SVG isn't HTML and doesn't inherit it.
+        const renderBlock = blk.replace(/^[TCROASZNBDH]:[^\n]*\n?/gm, '');
+
+        // Chord diagrams for the primary instrument, shown beside the title
+        // — same data + rendering call as the plain chord-sheet print
+        // branch below (renderChordDiagram, primary capo), just sourced
+        // from THIS tune's own ABC chord symbols at THIS tune's own
+        // effective transpose.
+        let diagHtml = '';
+        if (includeDiagrams && typeof extractAbcChords === 'function') {
+          const _abcChords = extractAbcChords(blk, tr);
+          let _cells = '';
+          _abcChords.forEach(function(name) {
+            const shape = (typeof _fingering === 'function') ? _fingering(name, primaryCapo) : name;
+            const svg = renderChordDiagram(shape, diagInst, 0.45, '#1a1208');
+            if (svg) _cells += '<div class="pd-diag"><div class="pd-name">' +
+              escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+')</small>' : '') +
+              '</div>' + svg + '</div>';
+          });
+          if (_cells) diagHtml = '<div class="pd-diagrams">' + _cells + '</div>';
+        }
+
+        // Off-screen render at print scale. staffwidth is kept a little under
+        // a Letter/A4 page's usable width (~710px / ~688px respectively once
+        // the 1.2cm/1.4cm body padding is subtracted) rather than right up
+        // against it — abcjs can slightly exceed its target width for a
+        // line's final barline/courtesy accidentals, and with only ~8px of
+        // slack at 680px that overshoot had nowhere to go but past the page
+        // edge (notes trailing off one side). NOTE: staffwidth also controls
+        // how many bars abcjs fits per line, so shrinking it isn't free — an
+        // earlier attempt at 620 (68px of slack) traded that overflow fix
+        // for a much denser line-wrap, which pushed some tunes from 1 page
+        // to 2. 660 keeps the safety margin (28px, 3.5x the original) much
+        // smaller so bar-per-line density stays close to the original 680
+        // behavior. Kept on-screen-positioned (not display:none) so getBBox
+        // works for tab placement. Each tune gets its own tmp div (id
+        // suffixed by i) so concurrent renders for a multi-tune set can't
+        // collide.
+        const tmp = document.createElement('div');
+        tmp.id = '_abc-print-tmp-' + i;
+        tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:720px;';
+        document.body.appendChild(tmp);
+        try {
+          ABCJS.renderAbc(tmp, renderBlock, {
+            staffwidth: 660, scale: 1.0, oneSvgPerLine: true,
+            paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 34 : 14),
+            visualTranspose: tr,
+            // gchordfont is what actually matters post-stripping (chord
+            // symbols like "G"/"Bm" are inline annotations, not header
+            // lines, so they're still drawn by abcjs itself); the rest are
+            // harmless placeholders since nothing exercises them. IMPORTANT:
+            // this must stay a plain, single-face string like the on-screen
+            // render uses (see the matching `format:` block in the main
+            // per-tune ABCJS.renderAbc call, 'Palatino Linotype,Palatino,
+            // serif 11') — NOT the app's own `_pf.chord`/`_pf.title`, which
+            // are full CSS font-STACKS with quoted, comma-separated names
+            // (e.g. "'Valeson-ExtBla', 'Courier Prime', ... monospace").
+            // abcjs's format-string parser expects "facename size", and a
+            // multi-name quoted stack there is exactly the kind of value the
+            // on-screen path deliberately avoids feeding it. The real app
+            // chord font is applied afterward by the `text.abc-chord-sym`
+            // CSS !important rule below (same mechanism the on-screen
+            // `.abc-chord-sym` rule already uses successfully) — this format
+            // option is just a safe, neutral default so nothing renders in
+            // abcjs's own built-in font before that CSS applies.
+            format: {
+              titlefont:      'Palatino Linotype,Palatino,serif 16',
+              subtitlefont:   'Palatino Linotype,Palatino,serif 12',
+              composerfont:   'Palatino Linotype,Palatino,serif 11',
+              tempofont:      'Palatino Linotype,Palatino,serif 10',
+              vocalfont:      'Palatino Linotype,Palatino,serif 10',
+              wordsfont:      'Palatino Linotype,Palatino,serif 10',
+              annotationfont: 'Palatino Linotype,Palatino,serif 9',
+              partsfont:      'Palatino Linotype,Palatino,serif 12',
+              textfont:       'Palatino Linotype,Palatino,serif 11',
+              gchordfont:     'Palatino Linotype,Palatino,serif 11',
+            },
+          });
+        } catch (e) { /* fall through; tmp may still hold a render */ }
+
+        // Wait two frames so the off-screen SVGs have laid out (getBBox valid).
+        requestAnimationFrame(function(){ requestAnimationFrame(function() {
+          let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
+          if (_wtActive) { try { _wtInjectTabsPrint(svgs, renderBlock, tr); } catch (e) {} }
+          if (_notesActive) { try { _injectNoteNamesPrint(svgs, renderBlock, tr); } catch (e) {} }
+          try { _wireAbcChordDiagrams(tmp); } catch (e) {}  // tag chord symbols so the chord font applies
+          let body = svgs.length
+            ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
+            : tmp.innerHTML;
+          if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
+          // A set shows each tune's OWN name as a smaller sub-header (the
+          // overall set title/artist is shown once, above all tunes); a
+          // single tune keeps the original layout — the file's title/artist
+          // as the one and only header.
+          const headerHtml = isSet
+            ? '<div class="pd-header pd-header-tune"><div class="pd-header-text"><h1>' +
+                escapeHtml(tuneName) + '</h1></div>' + diagHtml + '</div>'
+            : '<div class="pd-header"><div class="pd-header-text"><h1>' +
+                escapeHtml(song.title || 'Untitled') + '</h1><h2>' +
+                escapeHtml(song.artist || '') + '</h2></div>' + diagHtml + '</div>';
+          resolve({ tuneName: tuneName, html: headerHtml + body });
+        }); });
       });
-    } catch (e) { /* fall through; tmp may still hold a render */ }
+    }
 
-    const _finishAbcPrint = function() {
-      let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
-      if (_wtActive) { try { _wtInjectTabsPrint(svgs); } catch (e) {} }
-      if (_notesActive) { try { _injectNoteNamesPrint(svgs, blk); } catch (e) {} }
-      try { _wireAbcChordDiagrams(tmp); } catch (e) {}  // tag chord symbols so the chord font applies
-      let body = svgs.length
-        ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
-        : tmp.innerHTML;
-      if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
+    Promise.all(printIdxs.map(_renderTuneForPrint)).then(function(results) {
+      // A "Create set" stack (_abcSet) combines DIFFERENT library songs under
+      // one title bar on screen (see renderABCSong's #abc-title, joined with
+      // " · "); mirror that here instead of showing only the base song's own
+      // title/artist above every other song's tunes.
+      const _isStackedSet = !!(_abcSet && _abcSet.baseIdx === currentIdx && _abcSet.order && _abcSet.order.length > 1);
+      const setDisplayTitle = _isStackedSet
+        ? _abcSet.order.map(function(i){ return (songs[i] && songs[i].title) || 'Untitled'; }).join(' · ')
+        : (song.title || 'Untitled');
+      const printJobTitle = isSet ? (setDisplayTitle || 'Sheet music') : (results[0].tuneName || song.title || 'Sheet music');
+      // Sets are joined with a plain divider (NOT a forced page-break) —
+      // tunes should share a page when they fit, per how a printed set is
+      // normally expected to read; abcjs's oneSvgPerLine + .abc-pline still
+      // protects every individual staff line from splitting mid-system.
+      const setTitleHtml = isSet
+        ? '<div class="pd-set-header"><h1>' + escapeHtml(setDisplayTitle) +
+          '</h1><h2>' + escapeHtml(_isStackedSet ? '' : (song.artist || '')) + '</h2></div>'
+        : '';
+      const body = results.map(function(r){ return r.html; }).join(isSet ? '<div class="pd-tune-sep"></div>' : '');
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <base href="${_printBaseHref()}">
-<title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
+<title>${printJobTitle.replace(/</g,'&lt;')}</title>
 <style>
   ${_fontCSS}
   /* margin:0 suppresses the browser's auto page header/footer (title/URL/date/
@@ -17636,13 +18799,33 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
   body { font-family:${_pf.body}; background:white; color:#1a1208; margin:0; padding:1.2cm 1.4cm; }
+  /* Title/artist share this row with the chord-diagram strip, right-justified
+     into it — same layout as the plain chord-sheet print branch's .pd-header. */
+  .pd-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10pt;
+               flex-wrap:wrap; margin-bottom:8pt; padding-bottom:6pt; border-bottom:1px solid #ccc; }
+  .pd-header-text { flex:1 1 auto; min-width:0; }
   h1   { font-family:${_pf.title}; font-size:16pt; margin:0 0 3pt; line-height:1.2; }
   h2   { font-family:${_pf.title}; font-size:11pt; font-style:italic; font-weight:normal; color:#555;
-         margin:0 0 12pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
+         margin:0; }
+  /* Whole-set title, shown once above every tune when printing a set. */
+  .pd-set-header { margin-bottom:10pt; padding-bottom:8pt; border-bottom:2px solid #999; }
+  .pd-set-header h1 { font-size:19pt; }
+  /* Each tune's own sub-header within a set — smaller than the set title so
+     the hierarchy (set > tune) reads clearly, but otherwise the same
+     title+diagrams layout as the single-tune header above. */
+  .pd-header-tune { margin-top:14pt; page-break-after: avoid; break-after: avoid; }
+  .pd-header-tune h1 { font-size:13pt; }
+  .pd-tune-sep { height:0; }
+  .pd-diagrams { display:flex; flex-wrap:wrap; justify-content:flex-end; align-content:flex-start;
+                 gap:3pt 6pt; flex:0 1 auto; max-width:48%; }
+  .pd-diag { display:flex; flex-direction:column; align-items:center; gap:1pt; }
+  .pd-name { font-family:${_pf.chord}; font-size:6pt; font-weight:bold; color:#8a3b00; }
   /* Each staff line (and its whistle tabs) stays together; a line that would run
      off the page bottom moves to the next page. */
   .abc-pline { page-break-inside: avoid; break-inside: avoid; margin: 0 0 4pt; }
-  svg  { display:block; max-width:100%; height:auto; overflow:visible; }
+  /* Scoped to staff-line SVGs specifically (not the small chord-diagram SVGs
+     in .pd-diagrams, which should stay at their own natural small size). */
+  .abc-pline svg { display:block; max-width:100%; height:auto; overflow:visible; }
   svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#1a1208 !important; }
   svg line { stroke:#1a1208 !important; }
   .wt-tab { color:#1a1208 !important; }
@@ -17651,14 +18834,10 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   text.abc-chord-sym, text.abc-chord-sym tspan { font-family:${_pf.chord} !important; }
   ${_chordsHidden ? 'text.abcjs-chord{display:none;}' : ''}
 </style></head><body>
-<h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
-<h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
-${body}
+${setTitleHtml}${body}
 </body></html>`;
-      _emitPrintDoc(html, tuneTitle || song.title);
-    };
-    // Wait two frames so the off-screen SVGs have laid out (getBBox valid).
-    requestAnimationFrame(function(){ requestAnimationFrame(_finishAbcPrint); });
+      _emitPrintDoc(html, printJobTitle);
+    });
     return;
   }
 
@@ -18667,7 +19846,27 @@ function abcToNotes(abcText, bpm, semitoneShift) {
     }
     if (c === ':' && body[i+1] === ':') { curEndRep = true; flushBar(); pendStartRep = true; i += 2; continue; } // ::
     if (c === '[' && /\d/.test(body[i+1])) { flushBar(); pendEnding = +body[i+1]; i += 2; continue; }            // [1 [2
-    if (c === '[' || c === ']') { i += 1; continue; }   // note-chord brackets
+    if (c === '[') {
+      // Chord bracket [CEG] — abcjs draws these as ONE stacked notehead group
+      // (a single .abcjs-note element in the SVG), but naively stripping just
+      // the bracket characters (as before) leaves "CEG" as three SEPARATE
+      // sequential note events here. That permanently desyncs this 1-note-
+      // per-event sequence from the SVG's 1-element-per-chord count for every
+      // note after the first chord in the tune — the likely cause of whistle-
+      // tab/note-name labels drifting onto the wrong notes partway through a
+      // tune. A whistle can only show one fingering at a time anyway, so
+      // collapse the bracket to its FIRST pitch and let any duration digits
+      // after the closing bracket (standard ABC chord syntax, e.g. [CEG]2)
+      // attach normally to that single representative note.
+      var close = body.indexOf(']', i + 1);
+      if (close === -1) { i += 1; continue; }  // malformed; skip just the bracket char
+      var inner = body.slice(i + 1, close);
+      var firstNoteM = inner.match(/[_^=]*[A-Ga-gz][',]*/);
+      if (firstNoteM) curText += firstNoteM[0];
+      i = close + 1;
+      continue;
+    }
+    if (c === ']') { i += 1; continue; }
     curText += c; i += 1;
   }
   flushBar();
@@ -19500,6 +20699,18 @@ function renderABCSong(song) {
       paddingbottom: _wtActive ? 110 : (_notesActive ? 34 : 20),
       paddingtop: 15,
       scale: _wtActive ? 1.3 : 1.0,  // 1.3 spreads staves ~1.5x further apart
+      // staffsep is abcjs's own gap BETWEEN staff systems (i.e. between one
+      // line of music and the next) — _wtInjectTabs() below only ever places
+      // the fingering-diagram tab row in whatever gap abcjs already left (the
+      // exact midpoint between one system's bottom and the next one's top),
+      // it never creates extra room itself. The 1.3x scale above stretches
+      // that gap along with everything else, but not by enough once a whole
+      // row of tab diagrams needs to fit in it — this is what let a tab row
+      // overlap the next staff. abcjs's unscaled default (~appx. 40) already
+      // wasn't enough even before scaling; explicitly widening it here (and
+      // relying on the 1.3x scale to enlarge it further, same as everything
+      // else) gives the tab row real breathing room instead.
+      staffsep: _wtActive ? 100 : undefined,
       visualTranspose: _abcEffectiveTr(i),
       // Explicit font stack prevents theme display-fonts cascading into SVG text
       format: {
@@ -19586,8 +20797,12 @@ function _abcSetPopulateTypeFilter() {
   const types = new Set();
   songs.forEach(s => { if (s._source === 'abc') { const t = _abcSongType(s); if (t) types.add(t); } });
   const sorted = [...types].sort((a, b) => a.localeCompare(b));
-  sel.innerHTML = '<option value="">All types</option>' +
-    sorted.map(t => '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>').join('');
+  // t(), not the literal "All types" — this rebuilds the <select> from
+  // scratch every time the panel populates (see callers below), which wiped
+  // out the data-i18n="createSet.allTypes" markup on the original static
+  // <option> the very first time it ran, regardless of active language.
+  sel.innerHTML = '<option value="">' + escapeHtml(t('createSet.allTypes')) + '</option>' +
+    sorted.map(type => '<option value="' + escapeHtml(type) + '">' + escapeHtml(type) + '</option>').join('');
   sel.value = sorted.includes(prev) ? prev : '';
 }
 function _abcSetRenderList(q) {
@@ -20740,7 +21955,14 @@ const WT_FINGERS = {
   10:[0,0,0,0,.5,.5], 22:[0,0,0,0,.5,.5], 34:[0,0,0,0,.5,.5],
 };
 let _wtActive   = false;
-let _wtBaseMidi = 62;
+// Seed from the <select>'s actual value (not just the hardcoded default) in
+// case the browser already restored a non-default selection on page load —
+// see the resync in the btn-whistle-tab click handler below for why this
+// matters (a restored <select> value doesn't fire 'change').
+let _wtBaseMidi = (function(){
+  var el = document.getElementById('whistle-tab-key');
+  return (el && parseInt(el.value)) || 62;
+})();
 var _wtRafMap   = {};  // notDiv.id → pending rAF id, for cancellation
 let _chordsHidden = false;   // "Hide Chords" toggle
 let _notesActive  = false;   // "Note Names" toggle
@@ -20908,14 +22130,19 @@ function _wtInjectTabs(notDiv, visualObj, tuneIdx, blockSrc) {
 // SVG is a single system. Consumes the tune's MIDI sequence in order across the
 // SVGs and drops a fingering diagram under each note. Synchronous (caller waits a
 // couple of frames so getBBox is valid). Heavily guarded — never breaks the print.
-function _wtInjectTabsPrint(svgs) {
+// blockSrc/tr let a caller scope this to ONE tune block within a multi-tune
+// print (each tune in a set needs its OWN notes + its OWN effective
+// transpose — see btn-print-go's "All tunes" path); omitted, it falls back
+// to the whole active part and the bare global transpose, same as before.
+function _wtInjectTabsPrint(svgs, blockSrc, tr) {
   var song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song || !svgs || !svgs.length) return;
-  var _wtPrintSrc = _abcGetText(song);   // honor the active tab for multi-part songs
+  var _wtPrintSrc = blockSrc || _abcGetText(song);   // honor the active tab for multi-part songs
   if (!_wtPrintSrc) return;
+  var _wtPrintTr = (tr != null) ? tr : (transposeAmount || 0);
   var midiSeq = [];
   try {
-    abcToNotes(_wtPrintSrc, 120, transposeAmount || 0)
+    abcToNotes(_wtPrintSrc, 120, _wtPrintTr)
       .filter(function(n){ return n.freq > 0; })
       .forEach(function(n){ midiSeq.push(Math.round(freqToMidi(n.freq))); });
   } catch (e) {}
@@ -20945,6 +22172,28 @@ function _wtInjectTabsPrint(svgs) {
       g.setAttribute('transform', 'translate(' + info.x + ',' + tabY + ')');
       svgEl.appendChild(g);
     });
+    // Grow the SVG's own box to actually contain what we just drew. Each
+    // print SVG is one staff line (oneSvgPerLine) stacked directly below the
+    // next with only a small CSS margin (.abc-pline) — so if the tab
+    // diagrams we appended sit lower than the height/viewBox abcjs already
+    // fixed at render time (from `paddingbottom`), they don't get clipped,
+    // they just spill downward past this SVG's own box (`overflow:visible`)
+    // and land on top of the next line's staff. Measuring the tab group's
+    // real bounding box and, if needed, extending height + viewBox to match
+    // fixes this regardless of whether `paddingbottom` guessed too small —
+    // same "widen the box instead of shrinking to guess a magic number"
+    // approach as the page-width fix above.
+    try {
+      var tabsBBox = svgEl.getBBox();
+      var neededH = Math.ceil(tabsBBox.y + tabsBBox.height + 6);  // +6px breathing room
+      if (neededH > svgH) {
+        var vb = svgEl.viewBox && svgEl.viewBox.baseVal;
+        if (vb && vb.width > 0) {
+          svgEl.setAttribute('viewBox', vb.x + ' ' + vb.y + ' ' + vb.width + ' ' + neededH);
+        }
+        svgEl.setAttribute('height', neededH);
+      }
+    } catch (e) {}
   });
 }
 
@@ -21012,14 +22261,17 @@ function _injectNoteNames(notDiv, tuneIdx, blockSrc) {
 }
 
 // Note names for PRINT — mirrors _wtInjectTabsPrint's per-SVG, in-order
-// consumption of the MIDI sequence (one staff line per SVG).
-function _injectNoteNamesPrint(svgs, blockSrc) {
+// consumption of the MIDI sequence (one staff line per SVG). tr scopes this
+// to one tune's own effective transpose within a multi-tune "All tunes" print
+// (see btn-print-go); omitted, it falls back to the bare global transpose.
+function _injectNoteNamesPrint(svgs, blockSrc, tr) {
   var song = currentIdx >= 0 ? songs[currentIdx] : null;
   var src = blockSrc || (song && song.abc_text) || '';
   if (!src || !svgs || !svgs.length) return;
+  var _nnPrintTr = (tr != null) ? tr : (transposeAmount || 0);
   var midiSeq = [];
   try {
-    abcToNotes(src, 120, transposeAmount || 0)
+    abcToNotes(src, 120, _nnPrintTr)
       .filter(function(n) { return n.freq > 0; })
       .forEach(function(n) { midiSeq.push(Math.round(freqToMidi(n.freq))); });
   } catch (e) {}
@@ -21058,8 +22310,19 @@ function _wtDiagramGroup(midi) {
   // top holes (left hand, nearest mouthpiece) are closest (bottom of diagram).
   // The + mouthpiece marker sits at the very bottom, just below the last hole.
   var ns='http://www.w3.org/2000/svg', HR=1.7, HS=4.5, GAP=2.0;
-  var raw=midi-_wtBaseMidi, inR=raw>=0&&raw<=35;
-  var rel=((raw%36)+36)%36, fingers=inR?WT_FINGERS[rel]:null;
+  var raw=midi-_wtBaseMidi;
+  // rel wraps raw into 0–35 (3 octaves) via double-modulo, so it's already
+  // valid for ANY raw — including negative ones, i.e. notes BELOW the
+  // whistle's base note (e.g. a tune's melody dipping under the tonic, very
+  // common — see the D/E/F# just below a G tonic in a tune like "Brighton
+  // Camp"). WT_FINGERS itself has all 36 keys (0–35) populated, so rel always
+  // resolves. The previous `inR = raw>=0 && raw<=35` gate checked the
+  // UNWRAPPED raw instead of rel, so any note below the whistle's base
+  // octave — even one that wraps to a perfectly valid fingering — got
+  // rejected and drawn as an all-grey "unknown" diagram. That's the actual
+  // bug behind whistle tabs showing the same blank/grey symbol for notes
+  // like D, E and F# on a G whistle in a G-key tune.
+  var rel=((raw%36)+36)%36, fingers=WT_FINGERS[rel];
   var g=document.createElementNS(ns,'g'); g.classList.add('wt-tab');
   g.setAttribute('fill','currentColor');
 
@@ -21099,7 +22362,18 @@ function _wtDiagramGroup(midi) {
 document.getElementById('btn-whistle-tab').addEventListener('click', function() {
   _wtActive = !_wtActive;
   this.classList.toggle('wt-on', _wtActive);
-  document.getElementById('whistle-tab-key').style.display = _wtActive ? '' : 'none';
+  var _wtKeySel = document.getElementById('whistle-tab-key');
+  // Resync _wtBaseMidi from the <select>'s actual current value rather than
+  // trusting whatever it was last set to. Browsers (Firefox in particular)
+  // can restore a <select>'s chosen option on page reload/back-forward
+  // navigation WITHOUT firing a 'change' event — the only place that was
+  // updating _wtBaseMidi — so the dropdown could visibly show e.g. "G
+  // whistle" while _wtBaseMidi silently stayed at its hardcoded default (62,
+  // D whistle). That mismatch fed wrong fingering diagrams AND a wrong
+  // cross-fingering warning (labelled with the correct whistle name, since
+  // that's read live from the DOM, but computed against the stale key).
+  _wtBaseMidi = parseInt(_wtKeySel.value) || 62;
+  _wtKeySel.style.display = _wtActive ? '' : 'none';
   if (!_wtActive) {
     // Cancel any pending tab-injection frames and scrub existing diagrams
     Object.keys(_wtRafMap).forEach(function(k) {
@@ -21874,7 +23148,18 @@ function renderIRealSong(song, opts){
             const avail=(_lsCellW/Math.max(1,nChords))*0.94;
             svg=makeSqueezeboxSVG(key,currentInstrument,Math.min(0.5,avail/baseW),true);
           } else {
-            svg=renderChordDiagram(key, currentInstrument, _diagScale, _lsInk);
+            // Instruments that share a tuning with an existing chord-engine
+            // entry (jazz tenor banjo, mandocello, Irish tenor banjo, tenor
+            // guitar — see INSTRUMENT_ALIASES) are stored under the ALIAS
+            // key in chord-engine.js's TUNINGS table, not their own id.
+            // Every other diagram call site resolves through resolveInst()
+            // first; this one passed currentInstrument straight through, so
+            // chord-engine's lookup found no tuning for e.g. 'mandocello' or
+            // 'tenor_banjo_jazz' and silently returned no voicing — exactly
+            // the "diagrams won't display on lead sheets for jazz banjo
+            // CGDA / mandocello" bug.
+            const _lsInst = typeof resolveInst === 'function' ? resolveInst(currentInstrument) : currentInstrument;
+            svg=renderChordDiagram(key, _lsInst, _diagScale, _lsInk);
           }
           if(svg){ const dg=document.createElement('span'); dg.innerHTML=svg; unit.appendChild(dg); }
         }
@@ -23541,7 +24826,7 @@ document.getElementById('online-preview-add').addEventListener('click', function
 // "#foo-modal.open { display:flex }"), or — collections-modal only — a
 // direct style.display toggle. Rather than touching every individual
 // open()/close() call site (roughly twenty, written at different times for
-// different features), this watches all nine modals centrally via
+// different features), this watches all eleven modals centrally via
 // MutationObserver: the moment any one of them becomes visible it (1) gives
 // it role="dialog"/aria-modal/aria-labelledby (static — safe to set once,
 // since a hidden dialog is invisible to assistive tech regardless), (2)
@@ -23550,14 +24835,15 @@ document.getElementById('online-preview-add').addEventListener('click', function
 // doesn't fight the handful of modals (new-song-modal, join-collab-modal,
 // collab-username-modal) that already focus a specific field on open, (4)
 // traps Tab/Shift+Tab inside it, and (5) closes it on Escape by clicking
-// the modal element itself — every one of these nine already treats a
+// the modal element itself — every one of these eleven already treats a
 // click on itself (as opposed to a descendant) as "clicked the backdrop,
 // close" (see each modal's own "e.target === this" listener), so this
 // reuses that exact same, already-correct close path instead of guessing
 // at which button is "cancel" per modal.
 (function () {
   var MODAL_IDS = ['new-song-modal', 'abc-set-modal', 'custom-inst-modal', 'publish-modal',
-    'collab-modal', 'join-collab-modal', 'collab-username-modal', 'online-preview-modal', 'collections-modal'];
+    'collab-modal', 'join-collab-modal', 'collab-username-modal', 'online-preview-modal', 'collections-modal',
+    'scroll-duration-modal', 'setlist-add-modal'];
   var openModalEl = null, openModalTrigger = null;
 
   function focusablesIn(el) {
