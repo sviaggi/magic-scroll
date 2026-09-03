@@ -5141,6 +5141,7 @@ I hope you enjoy using your magic scroll!"></textarea>
       <datalist id="setlist-name-options"></datalist>
     </div>
     <input type="search" id="setlist-add-search" placeholder="Search your library…" data-i18n-placeholder="setlist.searchPlaceholder" data-aria-label-from-placeholder autocomplete="off" spellcheck="false">
+    <div id="setlist-add-order" class="abc-set-order"></div>
     <div id="setlist-add-list" class="abc-set-list"></div>
     <div id="setlist-add-empty" class="abc-set-empty" style="display:none;" data-i18n="setlist.noMatch">No songs match this search.</div>
     <div class="ci-actions">
@@ -10367,6 +10368,23 @@ function _populateSetlistNameOptions() {
   const dl = document.getElementById('setlist-name-options');
   if (dl) dl.innerHTML = setlists.map(sl => '<option value="' + escapeHtml(sl.name) + '">').join('');
 }
+// Selection lives here — a persistent array of song indices — rather than
+// being read back from whichever checkboxes happen to be checked in the DOM
+// at apply-time. Narrowing the search (or the type filter, elsewhere) tears
+// down and rebuilds #setlist-add-list's rows from scratch on every
+// keystroke (see _setlistAddRenderList), which used to silently forget any
+// selection that scrolled out of the current results: only songs still
+// visible under the LATEST query ever got checked at all. Mirrors
+// _setOrder/_abcSetRenderList's already-correct pattern for the "Create
+// set" modal — selection state lives independently of what's currently
+// rendered, and each render just reflects it via `checked`.
+let _setlistAddSelected = [];
+function _setlistAddRenderSelected() {
+  const el = document.getElementById('setlist-add-order');
+  if (!el) return;
+  const names = _setlistAddSelected.map(i => (songs[i] && songs[i].title) || 'Untitled');
+  el.textContent = names.length ? t('setlist.selectedSummary', { n: names.length, names: names.join(', ') }) : t('setlist.noneSelected');
+}
 function _setlistAddRenderList(q) {
   q = (q || '').toLowerCase();
   const host = document.getElementById('setlist-add-list');
@@ -10379,8 +10397,15 @@ function _setlistAddRenderList(q) {
     shown++;
     const row = document.createElement('label');
     row.className = 'abc-set-row';
-    row.innerHTML = '<input type="checkbox" data-song-idx="' + i + '">'
+    const checked = _setlistAddSelected.indexOf(i) >= 0;
+    row.innerHTML = '<input type="checkbox" data-song-idx="' + i + '"' + (checked ? ' checked' : '') + '>'
       + '<span class="as-title">' + escapeHtml(title) + '</span>';
+    row.querySelector('input').addEventListener('change', function() {
+      const at = _setlistAddSelected.indexOf(i);
+      if (this.checked) { if (at < 0) _setlistAddSelected.push(i); }
+      else if (at >= 0) _setlistAddSelected.splice(at, 1);
+      _setlistAddRenderSelected();
+    });
     host.appendChild(row);
   });
   document.getElementById('setlist-add-empty').style.display = shown ? 'none' : '';
@@ -10392,12 +10417,10 @@ function _openAddToSetlistModal(presetSongIdx) {
   document.getElementById('setlist-name-input').value =
     (_openSetlistId && setlists.find(s => s.id === _openSetlistId)?.name) || '';
   document.getElementById('setlist-add-search').value = '';
+  _setlistAddSelected = (typeof presetSongIdx === 'number') ? [presetSongIdx] : [];
   _populateSetlistNameOptions();
   _setlistAddRenderList('');
-  if (typeof presetSongIdx === 'number') {
-    const cb = document.querySelector('#setlist-add-list input[data-song-idx="' + presetSongIdx + '"]');
-    if (cb) cb.checked = true;
-  }
+  _setlistAddRenderSelected();
   document.getElementById('setlist-add-modal').classList.add('open');
 }
 document.getElementById('setlist-add-search').addEventListener('input', function() { _setlistAddRenderList(this.value); });
@@ -10410,9 +10433,7 @@ document.getElementById('setlist-add-modal').addEventListener('click', function(
 document.getElementById('setlist-add-apply').addEventListener('click', function() {
   const name = document.getElementById('setlist-name-input').value.trim();
   if (!name) { alert(t('alert.setlistNameRequired')); return; }
-  const checked = Array.prototype.slice.call(
-    document.querySelectorAll('#setlist-add-list input[type="checkbox"]:checked')
-  ).map(function(cb) { return parseInt(cb.dataset.songIdx); });
+  const checked = _setlistAddSelected.slice();
   if (!checked.length) { alert(t('alert.setlistNoSongsSelected')); return; }
   let sl = setlists.find(s => s.name.toLowerCase() === name.toLowerCase());
   if (!sl) {

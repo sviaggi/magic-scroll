@@ -251,6 +251,8 @@ window.MS_STRINGS_ZH = {
   'setlist.namePlaceholder':    '新建或现有演出曲目单名称',
   'setlist.searchPlaceholder':  '搜索你的曲库…',
   'setlist.noMatch':            '没有符合此搜索的歌曲。',
+  'setlist.selectedSummary':    '已选择 {n} 首：{names}',
+  'setlist.noneSelected':       '尚未选择任何歌曲',
   'setlist.addApply':           '添加到演出曲目单',
   'setlist.noSetlistsYet':      '还没有演出曲目单——点击"添加"来创建一个。',
   'setlist.emptySetlist':       '此演出曲目单是空的——点击"添加"来添加歌曲。',

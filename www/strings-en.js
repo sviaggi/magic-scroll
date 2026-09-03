@@ -308,6 +308,8 @@ window.MS_STRINGS_EN = {
   'setlist.namePlaceholder':    'New or existing setlist name',
   'setlist.searchPlaceholder':  'Search your library…',
   'setlist.noMatch':            'No songs match this search.',
+  'setlist.selectedSummary':    '{n} selected: {names}',
+  'setlist.noneSelected':       'No songs selected yet',
   'setlist.addApply':           'Add to setlist',
   'setlist.noSetlistsYet':      'No setlists yet — tap Add to create one.',
   'setlist.emptySetlist':       'This setlist is empty — tap Add to add songs.',

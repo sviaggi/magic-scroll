@@ -261,6 +261,8 @@ window.MS_STRINGS_FR = {
   'setlist.namePlaceholder':    'Nom de set-list nouveau ou existant',
   'setlist.searchPlaceholder':  'Rechercher dans votre bibliothèque…',
   'setlist.noMatch':            'Aucun morceau ne correspond à cette recherche.',
+  'setlist.selectedSummary':    '{n} sélectionné(s) : {names}',
+  'setlist.noneSelected':       'Aucun morceau sélectionné pour l\'instant',
   'setlist.addApply':           'Ajouter à la set-list',
   'setlist.noSetlistsYet':      'Aucune set-list pour l\'instant — appuyez sur Ajouter pour en créer une.',
   'setlist.emptySetlist':       'Cette set-list est vide — appuyez sur Ajouter pour y ajouter des morceaux.',
