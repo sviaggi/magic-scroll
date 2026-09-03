@@ -3254,6 +3254,25 @@
     gap: 8px;
     flex-wrap: nowrap;
   }
+  /* Without their own display:flex, .abc-row-1/.abc-row-2's button/label/
+     input children default to inline-block, positioned relative to each
+     other via CSS's inline-baseline alignment — which is exactly why the
+     Play button visibly "jumped" out of line with Stop when clicked: JS
+     swaps its content between a text glyph ('▶︎') and empty text with two
+     ::before/::after pseudo-element bars (.icon-pause, see startABCSynth),
+     and those two states don't share the same synthesized baseline, so the
+     button shifted vertically relative to its never-changing sibling. Only
+     the mobile media query below gave these rows their own flex layout
+     (needed there for wrapping/sizing reasons); giving them one on desktop
+     too makes every child position off the row's own box instead of a
+     content-dependent baseline, which is what .bt-row already does for the
+     lead-sheet playbar's equivalent rows. */
+  .abc-row-1, .abc-row-2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
   /* Label text for BPM / time sig */
   #abc-player-controls label {
     font-size: 0.62rem;
@@ -8720,6 +8739,17 @@ function renderSong(idx, opts) {
     if (_songHistory.length > 50) _songHistory.shift();
   }
   var _isNewSong = currentIdx !== idx;
+  // Stop any sheet-music (ABC) playback still running before switching songs.
+  // renderABCSong() below already calls stopABCSynth() for ABC→ABC
+  // navigation, and btCloseBar() a few lines down already stops backing-
+  // track playback when the target isn't a lead sheet — but neither of those
+  // covered navigating AWAY from a playing ABC song TO a lead sheet or a
+  // plain chord sheet: this function returns early for both of those via
+  // renderIRealSong()/the plaintext branch below without ever touching ABC's
+  // own playback state, so a still-ringing tune kept playing underneath
+  // whatever the user opened next — worst case, audibly overlapping with a
+  // freshly-started backing track once they hit Play there too.
+  if (_isNewSong && typeof stopABCSynth === 'function') { try { stopABCSynth(); } catch(e) {} }
   try {
   // If we were editing a DIFFERENT song, commit those edits to THAT song and
   // leave edit mode before switching. Otherwise the editor still holds the old
@@ -8786,7 +8816,11 @@ function renderSong(idx, opts) {
   const song=songs[idx];
   document.getElementById('empty-state').style.display='none';
   // ABC songs use a separate rendering path
-  if (song._source === 'ireal') { renderIRealSong(song); return; }
+  if (song._source === 'ireal') {
+    renderIRealSong(song);
+    if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
+    return;
+  }
   if (song._source === 'abc') {
     document.getElementById('abc-song-card').style.display = '';
     document.getElementById('abc-toolbar').style.display='flex';
@@ -8798,6 +8832,7 @@ function renderSong(idx, opts) {
     updateTransposeButtons();
     updateSidebarActive();
     window.scrollTo(0, 0);
+    if (document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
     return;
   }
   // For non-ABC songs: hide ABC card and player bar
@@ -17635,27 +17670,97 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
     const tm       = blk.match(/^T:\s*(.+)/m);
     const tuneTitle= tm ? tm[1].trim() : song.title;
     const _pf      = _resolvePrintFonts();
+    // Strip the textual header fields (title/composer/type/etc.) before
+    // rendering — same as the on-screen path (see renderABCSong's identical
+    // renderBlock line) and for the same reason: our own <h1>/<h2> already
+    // show title/artist, so leaving T:/C: in would make abcjs draw a SECOND
+    // copy of the title baked into the SVG — in abcjs's own default font,
+    // not the app's resolved title font — regardless of anything the print
+    // CSS below sets, since text drawn INSIDE the SVG isn't <h1>/<h2> and
+    // doesn't inherit it.
+    const renderBlock = blk.replace(/^[TCROASZNBDH]:[^\n]*\n?/gm, '');
 
-    // Off-screen render at print scale. ~680px staff fits a Letter/A4 page once
-    // the print body padding is applied. Kept on-screen-positioned (not display
-    // none) so getBBox works for tab placement.
+    // Chord diagrams for the primary instrument, shown beside the title —
+    // same data + rendering call as the plain chord-sheet print branch below
+    // (renderChordDiagram, primary capo), just sourced from the ABC chord
+    // symbols instead of extractChords().
+    const includeDiagrams = document.getElementById('pp-diagrams') ? document.getElementById('pp-diagrams').checked : true;
+    let diagInst = (typeof resolveInst === 'function') ? resolveInst(currentInstrument) : currentInstrument;
+    if (!diagInst || diagInst === 'none') diagInst = 'guitar';
+    let diagHtml = '';
+    if (includeDiagrams && typeof extractAbcChords === 'function') {
+      const _abcChords = extractAbcChords(blk, transposeAmount);
+      let _cells = '';
+      _abcChords.forEach(function(name) {
+        const shape = (typeof _fingering === 'function') ? _fingering(name, primaryCapo) : name;
+        const svg = renderChordDiagram(shape, diagInst, 0.45, '#1a1208');
+        if (svg) _cells += '<div class="pd-diag"><div class="pd-name">' +
+          escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+')</small>' : '') +
+          '</div>' + svg + '</div>';
+      });
+      if (_cells) diagHtml = '<div class="pd-diagrams">' + _cells + '</div>';
+    }
+
+    // Off-screen render at print scale. staffwidth is kept a little under a
+    // Letter/A4 page's usable width (~710px / ~688px respectively once the
+    // 1.2cm/1.4cm body padding is subtracted) rather than right up against
+    // it — abcjs can slightly exceed its target width for a line's final
+    // barline/courtesy accidentals, and with only ~8px of slack at 680px
+    // that overshoot had nowhere to go but past the page edge (notes
+    // trailing off one side). NOTE: staffwidth also controls how many bars
+    // abcjs fits per line, so shrinking it isn't free — an earlier attempt
+    // at 620 (68px of slack) traded that overflow fix for a much denser
+    // line-wrap, which pushed some tunes from 1 page to 2. 660 keeps the
+    // safety margin (28px, 3.5x the original) much smaller so bar-per-line
+    // density stays close to the original 680 behavior.
+    // Kept on-screen-positioned (not display:none) so getBBox works for tab
+    // placement.
     const tmp = document.createElement('div');
     tmp.id = '_abc-print-tmp';
-    tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:760px;';
+    tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:720px;';
     document.body.appendChild(tmp);
     let _vo;
     try {
-      _vo = ABCJS.renderAbc(tmp, blk, {
-        staffwidth: 680, scale: 1.0, oneSvgPerLine: true,
+      _vo = ABCJS.renderAbc(tmp, renderBlock, {
+        staffwidth: 660, scale: 1.0, oneSvgPerLine: true,
         paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 34 : 14),
         visualTranspose: transposeAmount,
+        // gchordfont is what actually matters post-stripping (chord symbols
+        // like "G"/"Bm" are inline annotations, not header lines, so they're
+        // still drawn by abcjs itself); the rest are harmless placeholders
+        // since nothing exercises them. IMPORTANT: this must stay a plain,
+        // single-face string like the on-screen render uses (see the
+        // matching `format:` block in the main per-tune ABCJS.renderAbc call,
+        // 'Palatino Linotype,Palatino,serif 11') — NOT the app's own
+        // `_pf.chord`/`_pf.title`, which are full CSS font-STACKS with
+        // quoted, comma-separated names (e.g. "'Valeson-ExtBla', 'Courier
+        // Prime', ... monospace"). abcjs's format-string parser expects
+        // "facename size", and a multi-name quoted stack there is exactly
+        // the kind of value the on-screen path deliberately avoids feeding
+        // it. The real app chord font is applied afterward by the
+        // `text.abc-chord-sym` CSS !important rule below (same mechanism
+        // the on-screen `.abc-chord-sym` rule already uses successfully) —
+        // this format option is just a safe, neutral default so nothing
+        // renders in abcjs's own built-in font before that CSS applies.
+        format: {
+          titlefont:      'Palatino Linotype,Palatino,serif 16',
+          subtitlefont:   'Palatino Linotype,Palatino,serif 12',
+          composerfont:   'Palatino Linotype,Palatino,serif 11',
+          tempofont:      'Palatino Linotype,Palatino,serif 10',
+          vocalfont:      'Palatino Linotype,Palatino,serif 10',
+          wordsfont:      'Palatino Linotype,Palatino,serif 10',
+          annotationfont: 'Palatino Linotype,Palatino,serif 9',
+          partsfont:      'Palatino Linotype,Palatino,serif 12',
+          textfont:       'Palatino Linotype,Palatino,serif 11',
+          gchordfont:     'Palatino Linotype,Palatino,serif 11',
+        },
       });
     } catch (e) { /* fall through; tmp may still hold a render */ }
 
     const _finishAbcPrint = function() {
       let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
       if (_wtActive) { try { _wtInjectTabsPrint(svgs); } catch (e) {} }
-      if (_notesActive) { try { _injectNoteNamesPrint(svgs, blk); } catch (e) {} }
+      if (_notesActive) { try { _injectNoteNamesPrint(svgs, renderBlock); } catch (e) {} }
       try { _wireAbcChordDiagrams(tmp); } catch (e) {}  // tag chord symbols so the chord font applies
       let body = svgs.length
         ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
@@ -17672,13 +17777,24 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   html,body { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   * { box-sizing:border-box; }
   body { font-family:${_pf.body}; background:white; color:#1a1208; margin:0; padding:1.2cm 1.4cm; }
+  /* Title/artist share this row with the chord-diagram strip, right-justified
+     into it — same layout as the plain chord-sheet print branch's .pd-header. */
+  .pd-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10pt;
+               flex-wrap:wrap; margin-bottom:8pt; padding-bottom:6pt; border-bottom:1px solid #ccc; }
+  .pd-header-text { flex:1 1 auto; min-width:0; }
   h1   { font-family:${_pf.title}; font-size:16pt; margin:0 0 3pt; line-height:1.2; }
   h2   { font-family:${_pf.title}; font-size:11pt; font-style:italic; font-weight:normal; color:#555;
-         margin:0 0 12pt; padding-bottom:5pt; border-bottom:1px solid #ccc; }
+         margin:0; }
+  .pd-diagrams { display:flex; flex-wrap:wrap; justify-content:flex-end; align-content:flex-start;
+                 gap:3pt 6pt; flex:0 1 auto; max-width:48%; }
+  .pd-diag { display:flex; flex-direction:column; align-items:center; gap:1pt; }
+  .pd-name { font-family:${_pf.chord}; font-size:6pt; font-weight:bold; color:#8a3b00; }
   /* Each staff line (and its whistle tabs) stays together; a line that would run
      off the page bottom moves to the next page. */
   .abc-pline { page-break-inside: avoid; break-inside: avoid; margin: 0 0 4pt; }
-  svg  { display:block; max-width:100%; height:auto; overflow:visible; }
+  /* Scoped to staff-line SVGs specifically (not the small chord-diagram SVGs
+     in .pd-diagrams, which should stay at their own natural small size). */
+  .abc-pline svg { display:block; max-width:100%; height:auto; overflow:visible; }
   svg text,svg path,svg rect,svg ellipse,svg polygon { fill:#1a1208 !important; }
   svg line { stroke:#1a1208 !important; }
   .wt-tab { color:#1a1208 !important; }
@@ -17687,8 +17803,13 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   text.abc-chord-sym, text.abc-chord-sym tspan { font-family:${_pf.chord} !important; }
   ${_chordsHidden ? 'text.abcjs-chord{display:none;}' : ''}
 </style></head><body>
-<h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
-<h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
+<div class="pd-header">
+  <div class="pd-header-text">
+    <h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
+    <h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
+  </div>
+  ${diagHtml}
+</div>
 ${body}
 </body></html>`;
       _emitPrintDoc(html, tuneTitle || song.title);
@@ -18703,7 +18824,27 @@ function abcToNotes(abcText, bpm, semitoneShift) {
     }
     if (c === ':' && body[i+1] === ':') { curEndRep = true; flushBar(); pendStartRep = true; i += 2; continue; } // ::
     if (c === '[' && /\d/.test(body[i+1])) { flushBar(); pendEnding = +body[i+1]; i += 2; continue; }            // [1 [2
-    if (c === '[' || c === ']') { i += 1; continue; }   // note-chord brackets
+    if (c === '[') {
+      // Chord bracket [CEG] — abcjs draws these as ONE stacked notehead group
+      // (a single .abcjs-note element in the SVG), but naively stripping just
+      // the bracket characters (as before) leaves "CEG" as three SEPARATE
+      // sequential note events here. That permanently desyncs this 1-note-
+      // per-event sequence from the SVG's 1-element-per-chord count for every
+      // note after the first chord in the tune — the likely cause of whistle-
+      // tab/note-name labels drifting onto the wrong notes partway through a
+      // tune. A whistle can only show one fingering at a time anyway, so
+      // collapse the bracket to its FIRST pitch and let any duration digits
+      // after the closing bracket (standard ABC chord syntax, e.g. [CEG]2)
+      // attach normally to that single representative note.
+      var close = body.indexOf(']', i + 1);
+      if (close === -1) { i += 1; continue; }  // malformed; skip just the bracket char
+      var inner = body.slice(i + 1, close);
+      var firstNoteM = inner.match(/[_^=]*[A-Ga-gz][',]*/);
+      if (firstNoteM) curText += firstNoteM[0];
+      i = close + 1;
+      continue;
+    }
+    if (c === ']') { i += 1; continue; }
     curText += c; i += 1;
   }
   flushBar();
@@ -19536,6 +19677,18 @@ function renderABCSong(song) {
       paddingbottom: _wtActive ? 110 : (_notesActive ? 34 : 20),
       paddingtop: 15,
       scale: _wtActive ? 1.3 : 1.0,  // 1.3 spreads staves ~1.5x further apart
+      // staffsep is abcjs's own gap BETWEEN staff systems (i.e. between one
+      // line of music and the next) — _wtInjectTabs() below only ever places
+      // the fingering-diagram tab row in whatever gap abcjs already left (the
+      // exact midpoint between one system's bottom and the next one's top),
+      // it never creates extra room itself. The 1.3x scale above stretches
+      // that gap along with everything else, but not by enough once a whole
+      // row of tab diagrams needs to fit in it — this is what let a tab row
+      // overlap the next staff. abcjs's unscaled default (~appx. 40) already
+      // wasn't enough even before scaling; explicitly widening it here (and
+      // relying on the 1.3x scale to enlarge it further, same as everything
+      // else) gives the tab row real breathing room instead.
+      staffsep: _wtActive ? 100 : undefined,
       visualTranspose: _abcEffectiveTr(i),
       // Explicit font stack prevents theme display-fonts cascading into SVG text
       format: {
@@ -20776,7 +20929,14 @@ const WT_FINGERS = {
   10:[0,0,0,0,.5,.5], 22:[0,0,0,0,.5,.5], 34:[0,0,0,0,.5,.5],
 };
 let _wtActive   = false;
-let _wtBaseMidi = 62;
+// Seed from the <select>'s actual value (not just the hardcoded default) in
+// case the browser already restored a non-default selection on page load —
+// see the resync in the btn-whistle-tab click handler below for why this
+// matters (a restored <select> value doesn't fire 'change').
+let _wtBaseMidi = (function(){
+  var el = document.getElementById('whistle-tab-key');
+  return (el && parseInt(el.value)) || 62;
+})();
 var _wtRafMap   = {};  // notDiv.id → pending rAF id, for cancellation
 let _chordsHidden = false;   // "Hide Chords" toggle
 let _notesActive  = false;   // "Note Names" toggle
@@ -20981,6 +21141,28 @@ function _wtInjectTabsPrint(svgs) {
       g.setAttribute('transform', 'translate(' + info.x + ',' + tabY + ')');
       svgEl.appendChild(g);
     });
+    // Grow the SVG's own box to actually contain what we just drew. Each
+    // print SVG is one staff line (oneSvgPerLine) stacked directly below the
+    // next with only a small CSS margin (.abc-pline) — so if the tab
+    // diagrams we appended sit lower than the height/viewBox abcjs already
+    // fixed at render time (from `paddingbottom`), they don't get clipped,
+    // they just spill downward past this SVG's own box (`overflow:visible`)
+    // and land on top of the next line's staff. Measuring the tab group's
+    // real bounding box and, if needed, extending height + viewBox to match
+    // fixes this regardless of whether `paddingbottom` guessed too small —
+    // same "widen the box instead of shrinking to guess a magic number"
+    // approach as the page-width fix above.
+    try {
+      var tabsBBox = svgEl.getBBox();
+      var neededH = Math.ceil(tabsBBox.y + tabsBBox.height + 6);  // +6px breathing room
+      if (neededH > svgH) {
+        var vb = svgEl.viewBox && svgEl.viewBox.baseVal;
+        if (vb && vb.width > 0) {
+          svgEl.setAttribute('viewBox', vb.x + ' ' + vb.y + ' ' + vb.width + ' ' + neededH);
+        }
+        svgEl.setAttribute('height', neededH);
+      }
+    } catch (e) {}
   });
 }
 
@@ -21094,8 +21276,19 @@ function _wtDiagramGroup(midi) {
   // top holes (left hand, nearest mouthpiece) are closest (bottom of diagram).
   // The + mouthpiece marker sits at the very bottom, just below the last hole.
   var ns='http://www.w3.org/2000/svg', HR=1.7, HS=4.5, GAP=2.0;
-  var raw=midi-_wtBaseMidi, inR=raw>=0&&raw<=35;
-  var rel=((raw%36)+36)%36, fingers=inR?WT_FINGERS[rel]:null;
+  var raw=midi-_wtBaseMidi;
+  // rel wraps raw into 0–35 (3 octaves) via double-modulo, so it's already
+  // valid for ANY raw — including negative ones, i.e. notes BELOW the
+  // whistle's base note (e.g. a tune's melody dipping under the tonic, very
+  // common — see the D/E/F# just below a G tonic in a tune like "Brighton
+  // Camp"). WT_FINGERS itself has all 36 keys (0–35) populated, so rel always
+  // resolves. The previous `inR = raw>=0 && raw<=35` gate checked the
+  // UNWRAPPED raw instead of rel, so any note below the whistle's base
+  // octave — even one that wraps to a perfectly valid fingering — got
+  // rejected and drawn as an all-grey "unknown" diagram. That's the actual
+  // bug behind whistle tabs showing the same blank/grey symbol for notes
+  // like D, E and F# on a G whistle in a G-key tune.
+  var rel=((raw%36)+36)%36, fingers=WT_FINGERS[rel];
   var g=document.createElementNS(ns,'g'); g.classList.add('wt-tab');
   g.setAttribute('fill','currentColor');
 
@@ -21135,7 +21328,18 @@ function _wtDiagramGroup(midi) {
 document.getElementById('btn-whistle-tab').addEventListener('click', function() {
   _wtActive = !_wtActive;
   this.classList.toggle('wt-on', _wtActive);
-  document.getElementById('whistle-tab-key').style.display = _wtActive ? '' : 'none';
+  var _wtKeySel = document.getElementById('whistle-tab-key');
+  // Resync _wtBaseMidi from the <select>'s actual current value rather than
+  // trusting whatever it was last set to. Browsers (Firefox in particular)
+  // can restore a <select>'s chosen option on page reload/back-forward
+  // navigation WITHOUT firing a 'change' event — the only place that was
+  // updating _wtBaseMidi — so the dropdown could visibly show e.g. "G
+  // whistle" while _wtBaseMidi silently stayed at its hardcoded default (62,
+  // D whistle). That mismatch fed wrong fingering diagrams AND a wrong
+  // cross-fingering warning (labelled with the correct whistle name, since
+  // that's read live from the DOM, but computed against the stale key).
+  _wtBaseMidi = parseInt(_wtKeySel.value) || 62;
+  _wtKeySel.style.display = _wtActive ? '' : 'none';
   if (!_wtActive) {
     // Cancel any pending tab-injection frames and scrub existing diagrams
     Object.keys(_wtRafMap).forEach(function(k) {
@@ -21910,7 +22114,18 @@ function renderIRealSong(song, opts){
             const avail=(_lsCellW/Math.max(1,nChords))*0.94;
             svg=makeSqueezeboxSVG(key,currentInstrument,Math.min(0.5,avail/baseW),true);
           } else {
-            svg=renderChordDiagram(key, currentInstrument, _diagScale, _lsInk);
+            // Instruments that share a tuning with an existing chord-engine
+            // entry (jazz tenor banjo, mandocello, Irish tenor banjo, tenor
+            // guitar — see INSTRUMENT_ALIASES) are stored under the ALIAS
+            // key in chord-engine.js's TUNINGS table, not their own id.
+            // Every other diagram call site resolves through resolveInst()
+            // first; this one passed currentInstrument straight through, so
+            // chord-engine's lookup found no tuning for e.g. 'mandocello' or
+            // 'tenor_banjo_jazz' and silently returned no voicing — exactly
+            // the "diagrams won't display on lead sheets for jazz banjo
+            // CGDA / mandocello" bug.
+            const _lsInst = typeof resolveInst === 'function' ? resolveInst(currentInstrument) : currentInstrument;
+            svg=renderChordDiagram(key, _lsInst, _diagScale, _lsInk);
           }
           if(svg){ const dg=document.createElement('span'); dg.innerHTML=svg; unit.appendChild(dg); }
         }
