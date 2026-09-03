@@ -352,7 +352,7 @@ window.MS_STRINGS_ZH = {
   'newSong.openEditor':          '打开编辑器',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             '版本 1.2.3',
+  'contact.version':             '版本 1.2.4',
   'contact.bugReportsHeading':   '错误报告／捐赠',
   'contact.getInTouch':          '发现问题？联系我们：',
   'contact.includeDescription':  '请附上歌曲文件以及出错情况的描述。',
@@ -459,6 +459,7 @@ window.MS_STRINGS_ZH = {
   'printPanel.skipChoruses':            '跳过重复副歌',
   'printPanel.condensedNote':           '（和弦以方括号内联显示，每页容纳更多内容）',
   'printPanel.whichTune':               '选择曲目',
+  'printPanel.allTunes':                '全部曲目(整套)',
   'printPanel.fittingHint':             '要把所有内容排在一页上并保持美观易读可能有些困难！你可以考虑复制一份歌曲文件，制作一个专门用于打印的版本，删除其中多余/不必要的信息（歌名、修饰性文字、超链接）。',
   'printPanel.printNow':                '🖨 立即打印',
 

@@ -5153,7 +5153,7 @@ I hope you enjoy using your magic scroll!"></textarea>
            bumping it there would prematurely mark the actual release build as
            1.2.2 too, before these dev-build changes are vetted and promoted.
            This build number is dev-build-only and intentionally not translated. -->
-      <span class="contact-app-version">version 1.2.3-dev</span>
+      <span class="contact-app-version">version 1.2.4-dev</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -5485,6 +5485,24 @@ window._afterLanguageSwitch = function() {
   if (tm && typeof tunerActive !== 'undefined') tm.textContent = tunerActive ? t('tuner.stopListening') : t('tuner.startListening');
   if (typeof _syncSidebarCompensation === 'function') _syncSidebarCompensation();
   if (typeof window._updateTopbarHeightVar === 'function') window._updateTopbarHeightVar();
+  // 3. The currently-open song's "Type"/"Key"/etc. meta pills (sheet music's
+  //    per-tune header, a lead sheet's header, a plain chord sheet's header)
+  //    are t('meta.*') strings baked into plain innerHTML once, at render
+  //    time — not data-i18n markup, so the sweep above never touches them.
+  //    Left alone, a song already open when the language changes keeps
+  //    showing "Type"/"Key" in whatever language was active when it was
+  //    last rendered. Re-running that song's own render function rebuilds
+  //    those pills (and everything else about the display) in the new
+  //    language — same lightweight re-render already used for transpose
+  //    changes (_afterTranspose), just triggered here instead.
+  try {
+    var _curSong = (typeof currentIdx !== 'undefined' && currentIdx >= 0 && typeof songs !== 'undefined') ? songs[currentIdx] : null;
+    if (_curSong) {
+      if (_curSong._source === 'abc' && typeof renderABCSong === 'function') renderABCSong(_curSong);
+      else if (_curSong._source === 'ireal' && typeof renderIRealSong === 'function') renderIRealSong(_curSong, { preserveScroll: true });
+      else if (typeof _renderPlainSongMetaPills === 'function') _renderPlainSongMetaPills(_curSong);
+    }
+  } catch (e) {}
 };
 
 // ── DATA — songs array, folders, scroll state, instrument ───────────────────
@@ -8728,6 +8746,34 @@ function updateKeyDisplay() {
     : null);
 }
 
+// Builds the Type/Key/Time/Tuning/Capo pills shown above a plain chord-sheet
+// or tab song (#display-meta). Pulled out of renderSong() as its own function
+// so it can also be called from _afterLanguageSwitch() — those pill LABELS
+// come from t('meta.*') but are only ever built once, at render time, into
+// plain innerHTML; switching the app language while this song was already
+// open left them showing whatever language was active when it was last
+// rendered, since applyI18nStrings()'s data-i18n sweep only ever touches
+// static markup, never this JS-generated content.
+function _renderPlainSongMetaPills(song) {
+  const meta=document.getElementById('display-meta'); meta.innerHTML='';
+  const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
+  // Embedded ABC sheet music (see _splitEmbeddedABC) always renders in the TRUE
+  // key — visualTranspose deliberately excludes capo in _buildEmbeddedABCBlock,
+  // same as the dedicated ABC view — so when a song contains one, this Key pill
+  // must match what's actually drawn on the staff instead of _keyWithCapo's
+  // usual capo-shifted sounding key, or the two visibly disagree (e.g. the
+  // bundled "Worth the Weight" example showing "Key: F (capo 3)" above sheet
+  // music written with a 2-sharp/D key signature). Plain chord sheets with no
+  // embedded notation keep the sounding-key display — that's still correct and
+  // useful there, since the chord letters shown ARE the capo shapes.
+  const _hasEmbeddedABC = /^X:\s*\d/m.test(song.tab_content || song.content || song.tab || '');
+  const _dispKeyText = song.key ? (_hasEmbeddedABC ? (transposeKey(song.key, transposeAmount) || song.key) : _keyWithCapo(song.key)) : null;
+  [[t('meta.type'),_dispType],[t('meta.key'),_dispKeyText],[t('meta.time'),song.timeSig||null],[t('meta.tuning'),song.tuning],[t('meta.capo'),song.capo?t('meta.fret',{n:song.capo}):null]].forEach(([l,v])=>{
+    if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
+    p.innerHTML=escapeHtml(l)+': <span>'+v+'</span>'; meta.appendChild(p);
+  });
+}
+
 // ── RENDER SONG — loads a song by index, resets transpose, scrolls to top ──
 function renderSong(idx, opts) {
   if (!songs[idx]) {
@@ -8854,23 +8900,7 @@ function renderSong(idx, opts) {
   document.getElementById('song-card').classList.add('visible');
   document.getElementById('display-title').textContent=song.title||'Untitled';
   document.getElementById('display-artist').textContent=song.artist||'';
-  const meta=document.getElementById('display-meta'); meta.innerHTML='';
-  const _dispType = (song._source==='plaintext') ? _songContentType(song) : (song.type||null);
-  // Embedded ABC sheet music (see _splitEmbeddedABC) always renders in the TRUE
-  // key — visualTranspose deliberately excludes capo in _buildEmbeddedABCBlock,
-  // same as the dedicated ABC view — so when a song contains one, this Key pill
-  // must match what's actually drawn on the staff instead of _keyWithCapo's
-  // usual capo-shifted sounding key, or the two visibly disagree (e.g. the
-  // bundled "Worth the Weight" example showing "Key: F (capo 3)" above sheet
-  // music written with a 2-sharp/D key signature). Plain chord sheets with no
-  // embedded notation keep the sounding-key display — that's still correct and
-  // useful there, since the chord letters shown ARE the capo shapes.
-  const _hasEmbeddedABC = /^X:\s*\d/m.test(song.tab_content || song.content || song.tab || '');
-  const _dispKeyText = song.key ? (_hasEmbeddedABC ? (transposeKey(song.key, transposeAmount) || song.key) : _keyWithCapo(song.key)) : null;
-  [[t('meta.type'),_dispType],[t('meta.key'),_dispKeyText],[t('meta.time'),song.timeSig||null],[t('meta.tuning'),song.tuning],[t('meta.capo'),song.capo?t('meta.fret',{n:song.capo}):null]].forEach(([l,v])=>{
-    if(!v)return; const p=document.createElement('div'); p.className='meta-pill';
-    p.innerHTML=escapeHtml(l)+': <span>'+v+'</span>'; meta.appendChild(p);
-  });
+  _renderPlainSongMetaPills(song);
   updateTransposeButtons(); renderTabContent(); updateSidebarActive();
   window.scrollTo(0, 0); updateScrollProgress();
   if(document.getElementById('diagram-panel').classList.contains('visible')) renderDiagrams();
@@ -17347,15 +17377,25 @@ document.getElementById('btn-print-open').addEventListener('click', function(e) 
   const _tuneRow = document.getElementById('pp-tune-row');
   const _tuneSel = document.getElementById('pp-tune-idx');
   if (_ps && _ps._source === 'abc') {
-    const _blks = _abcTuneBlocks(_ps.abc_text);
+    // _abcSrc, not _ps.abc_text: a "Create set" stack's combined text lives
+    // in _abcSet, not on the base song itself — see the matching fix in
+    // btn-print-go below.
+    const _blks = _abcTuneBlocks(_abcSrc(_ps));
     if (_blks.length > 1) {
       _tuneSel.innerHTML = '';
+      // "All tunes" prints the whole set together (see btn-print-go) — default
+      // selection, since a set is normally meant to be printed as one unit.
+      // Individual tunes stay selectable below for anyone who wants just one.
+      const allOpt = document.createElement('option');
+      allOpt.value = 'all'; allOpt.textContent = t('printPanel.allTunes');
+      _tuneSel.appendChild(allOpt);
       _blks.forEach(function(blk, i) {
         const tm = blk.match(/^T:\s*(.+)/m);
         const opt = document.createElement('option');
         opt.value = i; opt.textContent = (i+1) + '. ' + (tm ? tm[1].trim() : 'Tune '+(i+1));
         _tuneSel.appendChild(opt);
       });
+      _tuneSel.value = 'all';
       _tuneRow.style.display = '';
     } else { _tuneRow.style.display = 'none'; }
   } else { _tuneRow.style.display = 'none'; }
@@ -17674,111 +17714,180 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   // scale) so it fits paper, one SVG per staff line so the print can paginate
   // between lines, and re-inject whistle tabs if they're on.
   if (song._source === 'abc') {
-    const tuneIdx  = parseInt(document.getElementById('pp-tune-idx')?.value || '0') || 0;
-    const blocks   = _abcTuneBlocks(song.abc_text);
-    const blk      = blocks[tuneIdx] || blocks[0] || '';
-    const tm       = blk.match(/^T:\s*(.+)/m);
-    const tuneTitle= tm ? tm[1].trim() : song.title;
+    const tuneSelRaw = document.getElementById('pp-tune-idx')?.value;
+    // _abcSrc(song), not song.abc_text: when "Create set" has stacked other
+    // library tunes under this song (_abcSet), the combined multi-song text
+    // lives in _abcSet.text — the on-screen renderer already reads through
+    // _abcSrc for exactly this reason (see renderABCSong's identical
+    // `_abcTuneBlocks(_abcSrc(song))` line). Printing straight from
+    // song.abc_text only ever saw this song's own tune(s), so stacked-set
+    // tunes silently never made it into the print job regardless of the
+    // "which tune" selector or "fit to one page".
+    const blocks   = _abcTuneBlocks(_abcSrc(song));
+    // Which tune(s) to print. "all" (the print panel's default for any
+    // multi-tune file — see btn-print-open) prints the whole set together;
+    // a specific index prints just that one tune; a single-tune file always
+    // prints its one tune regardless of the selector.
+    const printIdxs = blocks.length <= 1
+      ? [0]
+      : (tuneSelRaw === 'all' || tuneSelRaw == null)
+        ? blocks.map(function(_, i) { return i; })
+        : [parseInt(tuneSelRaw) || 0];
+    const isSet = printIdxs.length > 1;
     const _pf      = _resolvePrintFonts();
-    // Strip the textual header fields (title/composer/type/etc.) before
-    // rendering — same as the on-screen path (see renderABCSong's identical
-    // renderBlock line) and for the same reason: our own <h1>/<h2> already
-    // show title/artist, so leaving T:/C: in would make abcjs draw a SECOND
-    // copy of the title baked into the SVG — in abcjs's own default font,
-    // not the app's resolved title font — regardless of anything the print
-    // CSS below sets, since text drawn INSIDE the SVG isn't <h1>/<h2> and
-    // doesn't inherit it.
-    const renderBlock = blk.replace(/^[TCROASZNBDH]:[^\n]*\n?/gm, '');
-
-    // Chord diagrams for the primary instrument, shown beside the title —
-    // same data + rendering call as the plain chord-sheet print branch below
-    // (renderChordDiagram, primary capo), just sourced from the ABC chord
-    // symbols instead of extractChords().
     const includeDiagrams = document.getElementById('pp-diagrams') ? document.getElementById('pp-diagrams').checked : true;
     let diagInst = (typeof resolveInst === 'function') ? resolveInst(currentInstrument) : currentInstrument;
     if (!diagInst || diagInst === 'none') diagInst = 'guitar';
-    let diagHtml = '';
-    if (includeDiagrams && typeof extractAbcChords === 'function') {
-      const _abcChords = extractAbcChords(blk, transposeAmount);
-      let _cells = '';
-      _abcChords.forEach(function(name) {
-        const shape = (typeof _fingering === 'function') ? _fingering(name, primaryCapo) : name;
-        const svg = renderChordDiagram(shape, diagInst, 0.45, '#1a1208');
-        if (svg) _cells += '<div class="pd-diag"><div class="pd-name">' +
-          escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+')</small>' : '') +
-          '</div>' + svg + '</div>';
+
+    // Renders ONE tune off-screen and resolves with its printable HTML
+    // fragment (header + staff lines). Each tune uses ITS OWN effective
+    // transpose — _abcEffectiveTr(i) combines that tune's per-tune Key-
+    // dropdown offset with the top-bar transpose, exactly like the on-screen
+    // per-tune render loop. The print path previously used the bare top-bar
+    // transposeAmount everywhere, so a tune whose key had been changed via
+    // its own Key dropdown (or changed back via the dropdown after a top-bar
+    // shift) silently printed in the wrong key — the sounding key shown
+    // on screen and the printed key could disagree.
+    function _renderTuneForPrint(i) {
+      return new Promise(function(resolve) {
+        const blk = blocks[i] || '';
+        const tr  = _abcEffectiveTr(i);
+        const tm  = blk.match(/^T:\s*(.+)/m);
+        const tuneName = tm ? tm[1].trim() : ('Tune ' + (i + 1));
+        // Strip the textual header fields (title/composer/type/etc.) before
+        // rendering — same as the on-screen path (see renderABCSong's
+        // identical renderBlock line) and for the same reason: our own
+        // header markup already shows title/artist, so leaving T:/C: in
+        // would make abcjs draw a SECOND copy of the title baked into the
+        // SVG — in abcjs's own default font, not the app's resolved title
+        // font — regardless of anything the print CSS sets, since text
+        // drawn INSIDE the SVG isn't HTML and doesn't inherit it.
+        const renderBlock = blk.replace(/^[TCROASZNBDH]:[^\n]*\n?/gm, '');
+
+        // Chord diagrams for the primary instrument, shown beside the title
+        // — same data + rendering call as the plain chord-sheet print
+        // branch below (renderChordDiagram, primary capo), just sourced
+        // from THIS tune's own ABC chord symbols at THIS tune's own
+        // effective transpose.
+        let diagHtml = '';
+        if (includeDiagrams && typeof extractAbcChords === 'function') {
+          const _abcChords = extractAbcChords(blk, tr);
+          let _cells = '';
+          _abcChords.forEach(function(name) {
+            const shape = (typeof _fingering === 'function') ? _fingering(name, primaryCapo) : name;
+            const svg = renderChordDiagram(shape, diagInst, 0.45, '#1a1208');
+            if (svg) _cells += '<div class="pd-diag"><div class="pd-name">' +
+              escapeHtml(name) + (primaryCapo ? ' <small>(capo '+primaryCapo+')</small>' : '') +
+              '</div>' + svg + '</div>';
+          });
+          if (_cells) diagHtml = '<div class="pd-diagrams">' + _cells + '</div>';
+        }
+
+        // Off-screen render at print scale. staffwidth is kept a little under
+        // a Letter/A4 page's usable width (~710px / ~688px respectively once
+        // the 1.2cm/1.4cm body padding is subtracted) rather than right up
+        // against it — abcjs can slightly exceed its target width for a
+        // line's final barline/courtesy accidentals, and with only ~8px of
+        // slack at 680px that overshoot had nowhere to go but past the page
+        // edge (notes trailing off one side). NOTE: staffwidth also controls
+        // how many bars abcjs fits per line, so shrinking it isn't free — an
+        // earlier attempt at 620 (68px of slack) traded that overflow fix
+        // for a much denser line-wrap, which pushed some tunes from 1 page
+        // to 2. 660 keeps the safety margin (28px, 3.5x the original) much
+        // smaller so bar-per-line density stays close to the original 680
+        // behavior. Kept on-screen-positioned (not display:none) so getBBox
+        // works for tab placement. Each tune gets its own tmp div (id
+        // suffixed by i) so concurrent renders for a multi-tune set can't
+        // collide.
+        const tmp = document.createElement('div');
+        tmp.id = '_abc-print-tmp-' + i;
+        tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:720px;';
+        document.body.appendChild(tmp);
+        try {
+          ABCJS.renderAbc(tmp, renderBlock, {
+            staffwidth: 660, scale: 1.0, oneSvgPerLine: true,
+            paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 34 : 14),
+            visualTranspose: tr,
+            // gchordfont is what actually matters post-stripping (chord
+            // symbols like "G"/"Bm" are inline annotations, not header
+            // lines, so they're still drawn by abcjs itself); the rest are
+            // harmless placeholders since nothing exercises them. IMPORTANT:
+            // this must stay a plain, single-face string like the on-screen
+            // render uses (see the matching `format:` block in the main
+            // per-tune ABCJS.renderAbc call, 'Palatino Linotype,Palatino,
+            // serif 11') — NOT the app's own `_pf.chord`/`_pf.title`, which
+            // are full CSS font-STACKS with quoted, comma-separated names
+            // (e.g. "'Valeson-ExtBla', 'Courier Prime', ... monospace").
+            // abcjs's format-string parser expects "facename size", and a
+            // multi-name quoted stack there is exactly the kind of value the
+            // on-screen path deliberately avoids feeding it. The real app
+            // chord font is applied afterward by the `text.abc-chord-sym`
+            // CSS !important rule below (same mechanism the on-screen
+            // `.abc-chord-sym` rule already uses successfully) — this format
+            // option is just a safe, neutral default so nothing renders in
+            // abcjs's own built-in font before that CSS applies.
+            format: {
+              titlefont:      'Palatino Linotype,Palatino,serif 16',
+              subtitlefont:   'Palatino Linotype,Palatino,serif 12',
+              composerfont:   'Palatino Linotype,Palatino,serif 11',
+              tempofont:      'Palatino Linotype,Palatino,serif 10',
+              vocalfont:      'Palatino Linotype,Palatino,serif 10',
+              wordsfont:      'Palatino Linotype,Palatino,serif 10',
+              annotationfont: 'Palatino Linotype,Palatino,serif 9',
+              partsfont:      'Palatino Linotype,Palatino,serif 12',
+              textfont:       'Palatino Linotype,Palatino,serif 11',
+              gchordfont:     'Palatino Linotype,Palatino,serif 11',
+            },
+          });
+        } catch (e) { /* fall through; tmp may still hold a render */ }
+
+        // Wait two frames so the off-screen SVGs have laid out (getBBox valid).
+        requestAnimationFrame(function(){ requestAnimationFrame(function() {
+          let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
+          if (_wtActive) { try { _wtInjectTabsPrint(svgs, renderBlock, tr); } catch (e) {} }
+          if (_notesActive) { try { _injectNoteNamesPrint(svgs, renderBlock, tr); } catch (e) {} }
+          try { _wireAbcChordDiagrams(tmp); } catch (e) {}  // tag chord symbols so the chord font applies
+          let body = svgs.length
+            ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
+            : tmp.innerHTML;
+          if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
+          // A set shows each tune's OWN name as a smaller sub-header (the
+          // overall set title/artist is shown once, above all tunes); a
+          // single tune keeps the original layout — the file's title/artist
+          // as the one and only header.
+          const headerHtml = isSet
+            ? '<div class="pd-header pd-header-tune"><div class="pd-header-text"><h1>' +
+                escapeHtml(tuneName) + '</h1></div>' + diagHtml + '</div>'
+            : '<div class="pd-header"><div class="pd-header-text"><h1>' +
+                escapeHtml(song.title || 'Untitled') + '</h1><h2>' +
+                escapeHtml(song.artist || '') + '</h2></div>' + diagHtml + '</div>';
+          resolve({ tuneName: tuneName, html: headerHtml + body });
+        }); });
       });
-      if (_cells) diagHtml = '<div class="pd-diagrams">' + _cells + '</div>';
     }
 
-    // Off-screen render at print scale. staffwidth is kept a little under a
-    // Letter/A4 page's usable width (~710px / ~688px respectively once the
-    // 1.2cm/1.4cm body padding is subtracted) rather than right up against
-    // it — abcjs can slightly exceed its target width for a line's final
-    // barline/courtesy accidentals, and with only ~8px of slack at 680px
-    // that overshoot had nowhere to go but past the page edge (notes
-    // trailing off one side). NOTE: staffwidth also controls how many bars
-    // abcjs fits per line, so shrinking it isn't free — an earlier attempt
-    // at 620 (68px of slack) traded that overflow fix for a much denser
-    // line-wrap, which pushed some tunes from 1 page to 2. 660 keeps the
-    // safety margin (28px, 3.5x the original) much smaller so bar-per-line
-    // density stays close to the original 680 behavior.
-    // Kept on-screen-positioned (not display:none) so getBBox works for tab
-    // placement.
-    const tmp = document.createElement('div');
-    tmp.id = '_abc-print-tmp';
-    tmp.style.cssText = 'position:absolute;left:-100000px;top:0;width:720px;';
-    document.body.appendChild(tmp);
-    let _vo;
-    try {
-      _vo = ABCJS.renderAbc(tmp, renderBlock, {
-        staffwidth: 660, scale: 1.0, oneSvgPerLine: true,
-        paddingtop: 8, paddingbottom: _wtActive ? 88 : (_notesActive ? 34 : 14),
-        visualTranspose: transposeAmount,
-        // gchordfont is what actually matters post-stripping (chord symbols
-        // like "G"/"Bm" are inline annotations, not header lines, so they're
-        // still drawn by abcjs itself); the rest are harmless placeholders
-        // since nothing exercises them. IMPORTANT: this must stay a plain,
-        // single-face string like the on-screen render uses (see the
-        // matching `format:` block in the main per-tune ABCJS.renderAbc call,
-        // 'Palatino Linotype,Palatino,serif 11') — NOT the app's own
-        // `_pf.chord`/`_pf.title`, which are full CSS font-STACKS with
-        // quoted, comma-separated names (e.g. "'Valeson-ExtBla', 'Courier
-        // Prime', ... monospace"). abcjs's format-string parser expects
-        // "facename size", and a multi-name quoted stack there is exactly
-        // the kind of value the on-screen path deliberately avoids feeding
-        // it. The real app chord font is applied afterward by the
-        // `text.abc-chord-sym` CSS !important rule below (same mechanism
-        // the on-screen `.abc-chord-sym` rule already uses successfully) —
-        // this format option is just a safe, neutral default so nothing
-        // renders in abcjs's own built-in font before that CSS applies.
-        format: {
-          titlefont:      'Palatino Linotype,Palatino,serif 16',
-          subtitlefont:   'Palatino Linotype,Palatino,serif 12',
-          composerfont:   'Palatino Linotype,Palatino,serif 11',
-          tempofont:      'Palatino Linotype,Palatino,serif 10',
-          vocalfont:      'Palatino Linotype,Palatino,serif 10',
-          wordsfont:      'Palatino Linotype,Palatino,serif 10',
-          annotationfont: 'Palatino Linotype,Palatino,serif 9',
-          partsfont:      'Palatino Linotype,Palatino,serif 12',
-          textfont:       'Palatino Linotype,Palatino,serif 11',
-          gchordfont:     'Palatino Linotype,Palatino,serif 11',
-        },
-      });
-    } catch (e) { /* fall through; tmp may still hold a render */ }
-
-    const _finishAbcPrint = function() {
-      let svgs = Array.prototype.slice.call(tmp.querySelectorAll('svg'));
-      if (_wtActive) { try { _wtInjectTabsPrint(svgs); } catch (e) {} }
-      if (_notesActive) { try { _injectNoteNamesPrint(svgs, renderBlock); } catch (e) {} }
-      try { _wireAbcChordDiagrams(tmp); } catch (e) {}  // tag chord symbols so the chord font applies
-      let body = svgs.length
-        ? svgs.map(function(s){ return '<div class="abc-pline">' + s.outerHTML + '</div>'; }).join('')
-        : tmp.innerHTML;
-      if (tmp.parentNode) tmp.parentNode.removeChild(tmp);
+    Promise.all(printIdxs.map(_renderTuneForPrint)).then(function(results) {
+      // A "Create set" stack (_abcSet) combines DIFFERENT library songs under
+      // one title bar on screen (see renderABCSong's #abc-title, joined with
+      // " · "); mirror that here instead of showing only the base song's own
+      // title/artist above every other song's tunes.
+      const _isStackedSet = !!(_abcSet && _abcSet.baseIdx === currentIdx && _abcSet.order && _abcSet.order.length > 1);
+      const setDisplayTitle = _isStackedSet
+        ? _abcSet.order.map(function(i){ return (songs[i] && songs[i].title) || 'Untitled'; }).join(' · ')
+        : (song.title || 'Untitled');
+      const printJobTitle = isSet ? (setDisplayTitle || 'Sheet music') : (results[0].tuneName || song.title || 'Sheet music');
+      // Sets are joined with a plain divider (NOT a forced page-break) —
+      // tunes should share a page when they fit, per how a printed set is
+      // normally expected to read; abcjs's oneSvgPerLine + .abc-pline still
+      // protects every individual staff line from splitting mid-system.
+      const setTitleHtml = isSet
+        ? '<div class="pd-set-header"><h1>' + escapeHtml(setDisplayTitle) +
+          '</h1><h2>' + escapeHtml(_isStackedSet ? '' : (song.artist || '')) + '</h2></div>'
+        : '';
+      const body = results.map(function(r){ return r.html; }).join(isSet ? '<div class="pd-tune-sep"></div>' : '');
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <base href="${_printBaseHref()}">
-<title>${(tuneTitle||song.title||'Sheet music').replace(/</g,'&lt;')}</title>
+<title>${printJobTitle.replace(/</g,'&lt;')}</title>
 <style>
   ${_fontCSS}
   /* margin:0 suppresses the browser's auto page header/footer (title/URL/date/
@@ -17795,6 +17904,15 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   h1   { font-family:${_pf.title}; font-size:16pt; margin:0 0 3pt; line-height:1.2; }
   h2   { font-family:${_pf.title}; font-size:11pt; font-style:italic; font-weight:normal; color:#555;
          margin:0; }
+  /* Whole-set title, shown once above every tune when printing a set. */
+  .pd-set-header { margin-bottom:10pt; padding-bottom:8pt; border-bottom:2px solid #999; }
+  .pd-set-header h1 { font-size:19pt; }
+  /* Each tune's own sub-header within a set — smaller than the set title so
+     the hierarchy (set > tune) reads clearly, but otherwise the same
+     title+diagrams layout as the single-tune header above. */
+  .pd-header-tune { margin-top:14pt; page-break-after: avoid; break-after: avoid; }
+  .pd-header-tune h1 { font-size:13pt; }
+  .pd-tune-sep { height:0; }
   .pd-diagrams { display:flex; flex-wrap:wrap; justify-content:flex-end; align-content:flex-start;
                  gap:3pt 6pt; flex:0 1 auto; max-width:48%; }
   .pd-diag { display:flex; flex-direction:column; align-items:center; gap:1pt; }
@@ -17813,19 +17931,10 @@ document.getElementById('btn-print-go').addEventListener('click', async () => {
   text.abc-chord-sym, text.abc-chord-sym tspan { font-family:${_pf.chord} !important; }
   ${_chordsHidden ? 'text.abcjs-chord{display:none;}' : ''}
 </style></head><body>
-<div class="pd-header">
-  <div class="pd-header-text">
-    <h1>${(song.title||'Untitled').replace(/</g,'&lt;')}</h1>
-    <h2>${(song.artist||'').replace(/</g,'&lt;')}</h2>
-  </div>
-  ${diagHtml}
-</div>
-${body}
+${setTitleHtml}${body}
 </body></html>`;
-      _emitPrintDoc(html, tuneTitle || song.title);
-    };
-    // Wait two frames so the off-screen SVGs have laid out (getBBox valid).
-    requestAnimationFrame(function(){ requestAnimationFrame(_finishAbcPrint); });
+      _emitPrintDoc(html, printJobTitle);
+    });
     return;
   }
 
@@ -21114,14 +21223,19 @@ function _wtInjectTabs(notDiv, visualObj, tuneIdx, blockSrc) {
 // SVG is a single system. Consumes the tune's MIDI sequence in order across the
 // SVGs and drops a fingering diagram under each note. Synchronous (caller waits a
 // couple of frames so getBBox is valid). Heavily guarded — never breaks the print.
-function _wtInjectTabsPrint(svgs) {
+// blockSrc/tr let a caller scope this to ONE tune block within a multi-tune
+// print (each tune in a set needs its OWN notes + its OWN effective
+// transpose — see btn-print-go's "All tunes" path); omitted, it falls back
+// to the whole active part and the bare global transpose, same as before.
+function _wtInjectTabsPrint(svgs, blockSrc, tr) {
   var song = currentIdx >= 0 ? songs[currentIdx] : null;
   if (!song || !svgs || !svgs.length) return;
-  var _wtPrintSrc = _abcGetText(song);   // honor the active tab for multi-part songs
+  var _wtPrintSrc = blockSrc || _abcGetText(song);   // honor the active tab for multi-part songs
   if (!_wtPrintSrc) return;
+  var _wtPrintTr = (tr != null) ? tr : (transposeAmount || 0);
   var midiSeq = [];
   try {
-    abcToNotes(_wtPrintSrc, 120, transposeAmount || 0)
+    abcToNotes(_wtPrintSrc, 120, _wtPrintTr)
       .filter(function(n){ return n.freq > 0; })
       .forEach(function(n){ midiSeq.push(Math.round(freqToMidi(n.freq))); });
   } catch (e) {}
@@ -21240,14 +21354,17 @@ function _injectNoteNames(notDiv, tuneIdx, blockSrc) {
 }
 
 // Note names for PRINT — mirrors _wtInjectTabsPrint's per-SVG, in-order
-// consumption of the MIDI sequence (one staff line per SVG).
-function _injectNoteNamesPrint(svgs, blockSrc) {
+// consumption of the MIDI sequence (one staff line per SVG). tr scopes this
+// to one tune's own effective transpose within a multi-tune "All tunes" print
+// (see btn-print-go); omitted, it falls back to the bare global transpose.
+function _injectNoteNamesPrint(svgs, blockSrc, tr) {
   var song = currentIdx >= 0 ? songs[currentIdx] : null;
   var src = blockSrc || (song && song.abc_text) || '';
   if (!src || !svgs || !svgs.length) return;
+  var _nnPrintTr = (tr != null) ? tr : (transposeAmount || 0);
   var midiSeq = [];
   try {
-    abcToNotes(src, 120, transposeAmount || 0)
+    abcToNotes(src, 120, _nnPrintTr)
       .filter(function(n) { return n.freq > 0; })
       .forEach(function(n) { midiSeq.push(Math.round(freqToMidi(n.freq))); });
   } catch (e) {}

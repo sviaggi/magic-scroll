@@ -409,7 +409,7 @@ window.MS_STRINGS_EN = {
   'newSong.openEditor':          'Open Editor',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2.3',
+  'contact.version':             'version 1.2.4',
   'contact.bugReportsHeading':   'Bug Reports / Donations',
   'contact.getInTouch':          'Found an issue? Get in touch:',
   'contact.includeDescription':  'Please include the song file and a description of what went wrong.',
@@ -516,6 +516,7 @@ window.MS_STRINGS_EN = {
   'printPanel.skipChoruses':            'Skip repeated choruses',
   'printPanel.condensedNote':           '(chords inline in brackets, more per page)',
   'printPanel.whichTune':               'Which tune',
+  'printPanel.allTunes':                'All tunes (whole set)',
   'printPanel.fittingHint':             'Fitting everything on one page in a nice, legible format can be difficult! It might be worth duplicating the song file to make a print-ready version that\'s edited to remove any redundant/unnecessary information (song titles, flavour text, hyperlinks).',
   'printPanel.printNow':                '🖨 Print now',
 

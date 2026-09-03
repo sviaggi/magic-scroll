@@ -362,7 +362,7 @@ window.MS_STRINGS_FR = {
   'newSong.openEditor':          'Ouvrir l\'éditeur',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2.3',
+  'contact.version':             'version 1.2.4',
   'contact.bugReportsHeading':   'Rapports de bugs / Dons',
   'contact.getInTouch':          'Vous avez trouvé un problème ? Contactez-nous :',
   'contact.includeDescription':  'Merci de joindre le fichier de la chanson et une description du problème rencontré.',
@@ -469,6 +469,7 @@ window.MS_STRINGS_FR = {
   'printPanel.skipChoruses':            'Ignorer les refrains répétés',
   'printPanel.condensedNote':           '(accords en ligne entre crochets, plus de contenu par page)',
   'printPanel.whichTune':               'Quel morceau',
+  'printPanel.allTunes':                'Tous les morceaux (ensemble complet)',
   'printPanel.fittingHint':             'Faire tenir l\'ensemble sur une page tout en restant lisible peut être difficile ! Il peut être utile de dupliquer le fichier de la chanson pour créer une version prête à imprimer, débarrassée des informations superflues (titres, texte d\'ambiance, hyperliens).',
   'printPanel.printNow':                '🖨 Imprimer maintenant',
 
