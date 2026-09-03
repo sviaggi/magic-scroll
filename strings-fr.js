@@ -477,6 +477,8 @@ window.MS_STRINGS_FR = {
   'themes.panelTitle':           '🎨 Thèmes',
   'themes.closeTitle':           'Fermer',
   'themes.presetThemes':         'Thèmes prédéfinis',
+  'themes.groupLight':           'Clair',
+  'themes.groupDark':            'Sombre',
   'themes.uiColours':            'Couleurs de l\'interface',
   'themes.uiBg':                 'Fond de l\'interface',
   'themes.uiBgAlt':              'Fond alt. de l\'interface',

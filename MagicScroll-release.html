@@ -5498,6 +5498,18 @@ window._afterLanguageSwitch = function() {
       else if (typeof _renderPlainSongMetaPills === 'function') _renderPlainSongMetaPills(_curSong);
     }
   } catch (e) {}
+  // 4. The lead-sheet backing-track bar (backing-track.js) is built ONCE,
+  //    at load — never rebuilt per-song — so its Plays/BPM/Meter labels and
+  //    Drums/Keys/Bass/Guitar instrument names/tooltips are also stuck in
+  //    whatever language was active on first load. Relocalized in place
+  //    (not rebuilt) so no listeners or live bar state are disturbed.
+  try { if (typeof window.btRelocalize === 'function') window.btRelocalize(); } catch (e) {}
+  // 5. The Themes panel's Light/Dark preset group headings (built by
+  //    buildColorPresets(), see THEME_GROUPS) are also built once per open,
+  //    not swept by applyI18nStrings() — rebuild is cheap/stateless (plain
+  //    trigger buttons, no live input values to lose) so it's safe to always
+  //    re-run rather than gate it on the panel currently being open.
+  try { if (typeof buildColorPresets === 'function') buildColorPresets(); } catch (e) {}
 };
 
 // ── DATA — songs array, folders, scroll state, instrument ───────────────────
@@ -6094,9 +6106,13 @@ function loadAndApplySavedColors() {
 // under its own small heading, so the choice isn't just an undifferentiated
 // row of names. Within Light: Royal, Lark, Ashbury, Parchment. Within Dark:
 // Avernus, Moria, Obsidian, Mossy.
+// labelKey (not a literal string) — resolved via t() inside buildColorPresets()
+// below so the group heading picks up the active language; the preset NAMES
+// (Royal, Ashbury, Lark, Parchment, Avernus, Obsidian, Mossy, Moria) stay as
+// literal proper nouns/brand names for the themes themselves, unlocalized.
 const THEME_GROUPS = [
-  { label: 'Light', themes: {'theme-session':'Royal', 'theme-ashbury':'Ashbury', 'theme-lark':'Lark', '':'Parchment'} },
-  { label: 'Dark',  themes: {'theme-avernus':'Avernus', 'theme-dark':'Obsidian', 'theme-green':'Mossy', 'theme-moria':'Moria'} },
+  { labelKey: 'themes.groupLight', themes: {'theme-session':'Royal', 'theme-ashbury':'Ashbury', 'theme-lark':'Lark', '':'Parchment'} },
+  { labelKey: 'themes.groupDark',  themes: {'theme-avernus':'Avernus', 'theme-dark':'Obsidian', 'theme-green':'Mossy', 'theme-moria':'Moria'} },
 ];
 function buildColorPresets() {
   const wrap = document.getElementById('color-presets');
@@ -6111,7 +6127,7 @@ function buildColorPresets() {
     const heading = document.createElement('div');
     heading.className = 'settings-section-title';
     heading.style.margin = '6px 0 4px';
-    heading.textContent = group.label;
+    heading.textContent = t(group.labelKey);
     wrap.appendChild(heading);
 
     const row = document.createElement('div');
@@ -19884,8 +19900,12 @@ function _abcSetPopulateTypeFilter() {
   const types = new Set();
   songs.forEach(s => { if (s._source === 'abc') { const t = _abcSongType(s); if (t) types.add(t); } });
   const sorted = [...types].sort((a, b) => a.localeCompare(b));
-  sel.innerHTML = '<option value="">All types</option>' +
-    sorted.map(t => '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>').join('');
+  // t(), not the literal "All types" — this rebuilds the <select> from
+  // scratch every time the panel populates (see callers below), which wiped
+  // out the data-i18n="createSet.allTypes" markup on the original static
+  // <option> the very first time it ran, regardless of active language.
+  sel.innerHTML = '<option value="">' + escapeHtml(t('createSet.allTypes')) + '</option>' +
+    sorted.map(type => '<option value="' + escapeHtml(type) + '">' + escapeHtml(type) + '</option>').join('');
   sel.value = sorted.includes(prev) ? prev : '';
 }
 function _abcSetRenderList(q) {

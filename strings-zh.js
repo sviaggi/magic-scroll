@@ -467,6 +467,8 @@ window.MS_STRINGS_ZH = {
   'themes.panelTitle':           '🎨 主题',
   'themes.closeTitle':           '关闭',
   'themes.presetThemes':         '预设主题',
+  'themes.groupLight':           '浅色',
+  'themes.groupDark':            '深色',
   'themes.uiColours':            '界面颜色',
   'themes.uiBg':                 '界面背景',
   'themes.uiBgAlt':              '界面背景（副）',

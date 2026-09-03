@@ -1225,6 +1225,63 @@
     container.appendChild(inner);
   }
 
+  // Re-applies translated text/titles to the bar's already-built DOM after a
+  // live language switch, WITHOUT rebuilding it — _buildBTBar() above only
+  // ever runs once, at load (see the DOMContentLoaded/immediate call just
+  // below), so its t()-derived labels (Plays/BPM/Meter, the Drums/Keys/Bass/
+  // Guitar instrument names + their mute/unmute tooltips, the settings-panel
+  // row labels, the meter dropdown's "Auto" option, the play/stop/settings
+  // button tooltips, and the "Bar N" progress label) stay stuck in whatever
+  // language was active when the app first loaded — same stale-render gap
+  // as the one fixed for the song-header meta pills (applyI18nStrings()'s
+  // data-i18n sweep never reaches this dynamically-built bar either).
+  // Rebuilding the whole bar instead of relocalizing in place would tear
+  // down and recreate every event listener and risks losing live, DOM-only
+  // state that isn't mirrored into _bt_state/_bt_song (the meter <select>'s
+  // current choice in particular) — updating text/titles in place sidesteps
+  // both problems.
+  function _btRelocalize() {
+    var playBtn = document.getElementById('bt-play-btn');
+    if (playBtn) playBtn.title = t('playbar.playPause');
+    var stopBtn = document.getElementById('bt-stop-btn');
+    if (stopBtn) stopBtn.title = t('playbar.stopReturn');
+    var playsLbl = document.getElementById('bt-plays-lbl');
+    if (playsLbl) playsLbl.textContent = t('playbar.plays');
+    var playsInput = document.getElementById('bt-plays');
+    if (playsInput) playsInput.title = t('playbar.playsTitle');
+    var bpmLbl = document.getElementById('bt-bpm-lbl');
+    if (bpmLbl) bpmLbl.textContent = t('playbar.bpm');
+    var meterLbl = document.getElementById('bt-meter-lbl');
+    if (meterLbl) meterLbl.textContent = t('playbar.meter');
+    var timeSigSel = document.getElementById('bt-time-sig');
+    if (timeSigSel) {
+      timeSigSel.title = t('playbar.meterTitle');
+      // Only "auto" carries translated text — the rest are literal time
+      // signatures ("4/4" etc.) and stay as-is; re-set by textContent (not
+      // by rebuilding the <option> list) so the current selection survives.
+      var autoOpt = timeSigSel.querySelector('option[value="auto"]');
+      if (autoOpt) autoOpt.textContent = t('playbar.meterAuto');
+    }
+    var settBtn = document.getElementById('bt-settings-btn');
+    if (settBtn) settBtn.title = t('playbar.perInstSettings');
+    // Settings-panel instrument rows and the bottom instrument-toggle pills
+    // are both built via the same BT_INSTRUMENTS.forEach order, so a plain
+    // index match is safe here without needing a data-id lookup.
+    document.querySelectorAll('.bt-inst-name').forEach(function(lbl, i) {
+      var inst = BT_INSTRUMENTS[i]; if (inst) lbl.textContent = _btInstLabel(inst.label);
+    });
+    BT_INSTRUMENTS.forEach(function(inst) {
+      var btn = document.querySelector('.bt-inst-toggle[data-id="' + inst.id + '"]');
+      if (!btn) return;
+      var st = _bt_state[inst.id];
+      btn.textContent = _btInstLabel(inst.label);
+      btn.title = t(st && st.enabled ? 'playbar.mute' : 'playbar.unmute', { inst: _btInstLabel(inst.label) });
+    });
+    var curLbl = document.getElementById('bt-bar-cur');
+    var prog   = document.getElementById('bt-progress');
+    if (curLbl && prog) curLbl.textContent = t('playbar.bar', { n: (parseInt(prog.value) || 0) + 1 });
+  }
+
   // Initialise
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _buildBTBar);
@@ -1263,6 +1320,7 @@
   window.btGetSong      = function() { return _bt_song; };
   window.btOpenBar      = btOpenBar;
   window.btCloseBar     = btCloseBar;
+  window.btRelocalize   = _btRelocalize;
   // Live-update the sounding transpose (e.g. when the capo or key changes) so a
   // playing backing track follows immediately — the scheduler reads _transpose
   // per note, so subsequent bars use the new value.

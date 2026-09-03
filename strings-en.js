@@ -524,6 +524,8 @@ window.MS_STRINGS_EN = {
   'themes.panelTitle':           '🎨 Themes',
   'themes.closeTitle':           'Close',
   'themes.presetThemes':         'Preset Themes',
+  'themes.groupLight':           'Light',
+  'themes.groupDark':            'Dark',
   'themes.uiColours':            'UI Colours',
   'themes.uiBg':                 'UI BG',
   'themes.uiBgAlt':              'UI BG Alt',
