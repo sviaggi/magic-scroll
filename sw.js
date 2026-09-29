@@ -7,9 +7,9 @@
 // "Revert sw.js CACHE_VERSION to v1.2" history) rather than churning it on
 // every SW change; the browser detects the new fetch handler purely from
 // this file's bytes changing, independent of that constant.
-// Bumped to v1.2.1 for the 1.2.1 bugfix release.
+// Bumped to v1.2.6 for the 1.2.6 bugfix release (native-app export/save fix).
 
-const CACHE_VERSION = 'magic-scroll-v1.2.1';
+const CACHE_VERSION = 'magic-scroll-v1.2.6';
 const SHARE_CACHE   = 'magic-scroll-share-target';
 
 // ── Install ───────────────────────────────────────────────────────────────────

@@ -5288,7 +5288,7 @@ I hope you enjoy using your magic scroll!"></textarea>
            bumping it there would prematurely mark the actual release build as
            1.2.2 too, before these dev-build changes are vetted and promoted.
            This build number is dev-build-only and intentionally not translated. -->
-      <span class="contact-app-version">version 1.2.5-dev</span>
+      <span class="contact-app-version">version 1.2.6-dev</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -5986,7 +5986,17 @@ let pendingRefreshIdx = -1;   // which song we're refreshing when the file picke
 // episode; it resets the moment a save succeeds again, so a later, separate
 // failure still gets flagged rather than being permanently silenced by an
 // earlier one.
-let _storageWriteFailed = false;
+// v1.2.6: declared with `var` rather than `let` deliberately — the app's
+// empty-library starter-pack seeding path can call saveAll() (and therefore
+// this file's saveSongs()/_warnStorageFull()) synchronously, earlier in this
+// same inline <script>'s linear execution than this line. With `let`, that
+// reference would land in the temporal dead zone and throw an uncaught
+// ReferenceError, which — since this is all one <script> tag — silently
+// aborts every later statement in it (song-list rendering, all button
+// wiring, etc.), breaking first launch for any brand-new user with an empty
+// library. `var` hoists with an immediate `undefined` value and no TDZ, so
+// the same early call now just sees a falsy value and proceeds normally.
+var _storageWriteFailed = false;
 function _tryLocalStorageSet(key, value) {
   try { localStorage.setItem(key, value); return true; } catch (e) { return false; }
 }
@@ -6566,11 +6576,7 @@ document.getElementById('btn-theme-export').addEventListener('click', () => {
     themes: customs,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'magic-scroll-themes.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  _shareOrDownloadBlob(blob, 'magic-scroll-themes.json');
   if (typeof showToast === 'function') showToast('Exported ' + names.length + ' theme' + (names.length===1?'':'s'));
 });
 
@@ -8013,6 +8019,55 @@ function _isNativeApp() {
     return /^(capacitor|ionic|file):$/i.test(location.protocol);
   } catch (e) { return false; }
 }
+// ── SHARE-OR-DOWNLOAD (native-app export/save fix, v1.2.6) ─────────────────
+// Every "Save As…"/"Export …" action in the app builds a Blob and clicks a
+// hidden <a download> link to hand it to the browser's own download
+// mechanism. That's fine on desktop and in a normal mobile browser, but
+// inside the native (Capacitor) iOS app the WKWebView has no download
+// handler wired up at all — the click is a silent no-op, so the file never
+// lands anywhere and the user has no way to tell where (or whether) it
+// saved. Same root cause as the print/YouTube-embed native-app branches
+// above (see _isNativeApp()'s own comment) — a WKWebView behaviour the
+// wrapping native app has to opt into, which this one never has for plain
+// downloads.
+//
+// The "Share" button (shareSong(), further below) never had this problem:
+// it uses navigator.share() with a real File, and WebKit implements the Web
+// Share API natively inside WKWebView with no extra native plugin required
+// — that already opens the iOS share sheet, and "Save to Files" from there
+// lets the user pick exactly where the file goes. This helper reuses that
+// same path for every OTHER export/save action: on the native app, try
+// navigator.share({files:[...]}) first, so the user gets a real, visible
+// save destination instead of nothing; fall back to the ordinary download
+// everywhere else (and if share itself is unavailable/fails on the native
+// app too). Desktop and normal mobile-browser behaviour is unchanged, since
+// the share branch only ever runs when _isNativeApp() is true.
+//
+// Deliberately fire-and-forget from every call site (not awaited) — same as
+// the plain a.click() download it replaces, callers don't wait on it before
+// showing their own "exported"/"saved" toast, and every path inside here is
+// already caught, so there's nothing left over to reject unhandled.
+async function _shareOrDownloadBlob(blob, filename) {
+  if (_isNativeApp()) {
+    var file;
+    try { file = new File([blob], filename, { type: blob.type }); } catch (e) { file = null; }
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;  // user backed out of the share sheet — not a failure
+        console.warn('[export] navigator.share failed, falling back to download:', e);
+      }
+    }
+  }
+  var url = URL.createObjectURL(blob);
+  var a = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 function applyMarkup(line, lineEl) {
   // YouTube / video tags → placeholder so we can build real DOM nodes later
   line = line.replace(/\[(yt|video):\s*([^\]]+)\]/gi, function(_, _k, url) {
@@ -9282,10 +9337,7 @@ function exportFolder(folderId) {
     folders: [{ name: folder.name, songIndices: folderSongs.map(function(_,i){ return i; }) }]
   };
   var blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = folder.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.json';
-  a.click(); URL.revokeObjectURL(a.href);
+  _shareOrDownloadBlob(blob, folder.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.json');
 }
 
 function deleteFolder(id) {
@@ -10864,11 +10916,7 @@ function _buildConfigJSON() {
 
 function _downloadConfigBlob(data, name) {
   var blob = new Blob([data], {type: 'application/json'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name || 'magic-scroll-config.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  _shareOrDownloadBlob(blob, name || 'magic-scroll-config.json');
 }
 
 function _showSavedToast(msg) {
@@ -17662,12 +17710,7 @@ function downloadSong(song, bodyOverride) {
   ].join('\n');
   const filename = (title + (artist ? ' - ' + artist : '')).replace(/[/\\:*?"<>|]/g, '_') + '.txt';
   const blob = new Blob([header + body], { type: 'text/plain' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  _shareOrDownloadBlob(blob, filename);
   showToast(t('download.toast', { filename }));
 }
 
@@ -17817,13 +17860,7 @@ document.getElementById('btn-save-as').addEventListener('click', () => {
     '----------------------------------------------------------------------', '',
   ].join('\n');
   const blob = new Blob([header + body], { type: 'text/plain' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), {
-    href: url,
-    download: (title + (artist ? ' - ' + artist : '')).replace(/[/\\:*?"<>|]/g, '_') + '.txt',
-  });
-  a.click();
-  URL.revokeObjectURL(url);
+  _shareOrDownloadBlob(blob, (title + (artist ? ' - ' + artist : '')).replace(/[/\\:*?"<>|]/g, '_') + '.txt');
 });
 
 // ── EXPORT MONOSPACE ─────────────────────────────────────────────────────────
@@ -17847,13 +17884,7 @@ document.getElementById('btn-export-monospace').addEventListener('click', () => 
     '----------------------------------------------------------------------', '',
   ].join('\n');
   const blob = new Blob([header + mono], { type: 'text/plain' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), {
-    href: url,
-    download: (title + (artist ? ' - ' + artist : '')).replace(/[/\\:*?"<>|]/g, '_') + ' (monospace).txt',
-  });
-  a.click();
-  URL.revokeObjectURL(url);
+  _shareOrDownloadBlob(blob, (title + (artist ? ' - ' + artist : '')).replace(/[/\\:*?"<>|]/g, '_') + ' (monospace).txt');
 });
 
 // ── NEW SONG MODAL ────────────────────────────────────────────────────────────
@@ -21563,9 +21594,7 @@ document.getElementById('btn-abc-save-as').addEventListener('click', () => {
     : (song.abc_text || song.tab_content || '');
   const fn   = (song.title || 'tune').replace(/[/\\\\:*?"<>|]/g, '_') + '.abc';
   const blob = new Blob([body], { type: 'text/plain' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: fn });
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  _shareOrDownloadBlob(blob, fn);
   showToast(t('download.toast', { filename: fn }));
 });
 
@@ -23418,9 +23447,7 @@ function renderIRealSong(song, opts){
     song.bpm=_curBpm; if(typeof saveSongs==='function'){try{saveSongs();}catch(e){}}
     const out=Object.assign({},song,{bpm:_curBpm,_ms_format:'lead-sheet',_ms_version:1});
     const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=(song.title||'lead-sheet').replace(/[^a-z0-9 _-]/gi,'_')+'.mslead';
-    a.click();URL.revokeObjectURL(a.href);
+    _shareOrDownloadBlob(blob,(song.title||'lead-sheet').replace(/[^a-z0-9 _-]/gi,'_')+'.mslead');
   });
 
   const urlBtn=document.createElement('button');urlBtn.textContent=t('lsEdit.irealUrlBtn');
