@@ -388,7 +388,7 @@ window.MS_STRINGS_ES = {
   'newSong.openEditor':          'Abrir editor',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'versión 1.2.7',
+  'contact.version':             'versión 1.2.8',
   'contact.bugReportsHeading':   'Reporte de errores / Donaciones',
   'contact.getInTouch':          '¿Encontraste un problema? Escríbeme:',
   'contact.includeDescription':  'Incluye el archivo de la canción y una descripción de lo que salió mal.',

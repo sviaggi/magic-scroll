@@ -442,7 +442,7 @@ window.MS_STRINGS_EN = {
   'newSong.openEditor':          'Open Editor',
 
   // ── CONTACT / CREDITS PANEL ──────────────────────────────────────────────
-  'contact.version':             'version 1.2.7',
+  'contact.version':             'version 1.2.8',
   'contact.bugReportsHeading':   'Bug Reports / Donations',
   'contact.getInTouch':          'Found an issue? Get in touch:',
   'contact.includeDescription':  'Please include the song file and a description of what went wrong.',
