@@ -3,6 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<script>
+// iOS force-zooms the page when a focused field's font-size is under 16px.
+// maximum-scale=1 suppresses that auto-zoom; iOS 10+ ignores it for user
+// pinch-zoom, so pinch in/out still works. iOS-only: on Android it WOULD
+// block pinch-zoom, and Android never force-zooms on focus anyway. Lets the
+// song editor use a comfortable smaller font on phones (see the
+// (pointer: coarse) rules for #song-editor).
+(function () {
+  try {
+    var ua = navigator.userAgent || '';
+    var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isIOS) return;
+    var m = document.querySelector('meta[name="viewport"]');
+    if (m && m.content.indexOf('maximum-scale') === -1) m.content += ', maximum-scale=1';
+  } catch (e) {}
+})();
+</script>
 <title>Magic Scroll</title>
 
 <!-- Supabase JS SDK — loaded only for the "Collaborate" live-multiplayer feature
@@ -4320,11 +4337,21 @@
        !important to outrank the bare-tag rule just above at equal
        specificity-tier (both are !important, so normal specificity still
        decides between them, and id+class beats a bare tag selector). */
-    #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: max(16px, 0.68rem) !important; }
-    #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: max(16px, 0.82rem) !important; }
-    #song-editor.fs-md, #tab-content-preview.fs-md { font-size: max(16px, 0.95rem) !important; }
-    #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: max(16px, 1.12rem) !important; }
-    #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: max(16px, 1.32rem) !important; }
+    /* v1.2.7: the 16px floor above made the song editor read far too large
+       on phones. iOS's focus-zoom is now stopped a different way instead —
+       the <head> script next to the viewport meta tag adds maximum-scale=1
+       on iOS only (iOS 10+ ignores that for pinch-zoom, so users can still
+       pinch in/out; it only suppresses the automatic zoom-on-focus), and
+       Android never force-zooms on focus to begin with. With the floor gone,
+       the editor (and its live preview, which must stay identical so the
+       collab-cursor overlay lines up) uses a smaller touch-screen scale,
+       ~85% of the desktop sizes. */
+    #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: 0.6rem !important; }
+    #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: 0.7rem !important; }
+    #song-editor.fs-md, #tab-content-preview.fs-md { font-size: 0.8rem !important; }
+    #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: 0.95rem !important; }
+    #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: 1.12rem !important; }
+    #song-editor { padding: 10px !important; }
   }
 
   /* ── REDUCED MOTION (WCAG 2.3.3 Animation from Interactions) ────────────────
@@ -4363,6 +4390,7 @@
 <script src="strings-en.js"></script>
 <script src="strings-zh.js"></script>
 <script src="strings-fr.js"></script>
+<script src="strings-es.js"></script>
 <script>
 // ── SANDBOXED PREVIEW SAFETY NET ─────────────────────────────────────────
 // Some sandboxed preview environments only ever serve this single HTML file
@@ -4476,6 +4504,7 @@ if (typeof window.t !== 'function') {
     <span class="ctrl-label" data-i18n="options.language">Language</span>
     <select id="lang-sel" title="Change the app's display language" data-i18n-title="options.languageTitle">
       <option value="en">English</option>
+      <option value="es-419">Español</option>
       <option value="fr">Français</option>
       <option value="zh">中文</option>
     </select>
@@ -5215,10 +5244,6 @@ I hope you enjoy using your magic scroll!"></textarea>
       <div class="modal-field" style="grid-column:1/-1">
         <label for="ns-artist" data-i18n="editor.artistLabel">Artist</label>
         <input type="text" id="ns-artist" placeholder="Artist name" data-i18n-placeholder="editor.artistPlaceholder" autocomplete="off">
-      </div>
-      <div class="modal-field" style="grid-column:1/-1">
-        <label for="ns-key" data-i18n="newSong.keyOptional">Key (optional)</label>
-        <input type="text" id="ns-key" placeholder="e.g. Am" data-i18n-placeholder="editor.keyPlaceholder" autocomplete="off">
       </div>
     </div>
     <div id="new-song-format" data-i18n-html="newSong.format">
@@ -12235,8 +12260,10 @@ window.addEventListener('scroll', updateScrollProgress);
 // and even the minimum was still too fast for a lot of songs. Roughly
 // halved across the board (now ~15-87 px/s) so the low end is actually
 // usable for slow ballads instead of only the top few % of the range.
+// v1.2.7: halved again (now ~6-42 px/s; default slider position 3 = 14 px/s,
+// down from 31) — the default was still much too fast for most songs.
 function _scrollPxPerSec(speed) {
-  return 7 + speed * 8;
+  return 2 + speed * 4;
 }
 
 let _scrollLastTs = null;
@@ -17884,7 +17911,7 @@ document.getElementById('btn-export-monospace').addEventListener('click', () => 
 
 // ── NEW SONG MODAL ────────────────────────────────────────────────────────────
 function openNewSongModal() {
-  ['ns-title', 'ns-artist', 'ns-key'].forEach(id => {
+  ['ns-title', 'ns-artist'].forEach(id => {
     document.getElementById(id).value = '';
   });
   // Reset iReal section
@@ -18042,7 +18069,7 @@ document.getElementById('btn-ns-create').addEventListener('click', () => {
   if (nsType === 'blank-lead') {
     const title = document.getElementById('ns-title').value.trim() || 'New Lead Sheet';
     const nsArtist = document.getElementById('ns-artist').value.trim();
-    const nsKey = document.getElementById('ns-key').value.trim();
+    const nsKey = '';   // Key field removed from the New Song flow — key is auto-detected from the chords instead
     const song = {
       title,
       artist:      nsArtist,
@@ -18068,7 +18095,7 @@ document.getElementById('btn-ns-create').addEventListener('click', () => {
   // Song / Chord Sheet flow
   const title = document.getElementById('ns-title').value.trim();
   if (!title) { document.getElementById('ns-title').focus(); return; }
-  const nsKey = document.getElementById('ns-key').value.trim();
+  const nsKey = '';   // Key field removed from the New Song flow — key is auto-detected from the chords instead
   const nsArtist = document.getElementById('ns-artist').value.trim();
   const song = {
     title,
@@ -19854,7 +19881,14 @@ function getABCAudioCtx() {
 }
 
 // Minimal ABC-to-note parser — extracts notes + durations from ABC body
-function abcToNotes(abcText, bpm, semitoneShift) {
+// opts.writtenOrder: return the notes in the order they're WRITTEN on the
+// page (each bar once, repeats and 1st/2nd endings not expanded) instead of
+// in play order. That's what anything matching notes 1:1 against the
+// rendered .abcjs-note SVG elements needs (Note Names, whistle tabs) — the
+// SVG draws a repeated section only once, so the expanded play-order
+// sequence used to fall out of step at the first :| and label every note
+// after it with the pitch from the start of the repeat instead.
+function abcToNotes(abcText, bpm, semitoneShift, opts) {
   semitoneShift = semitoneShift || 0;
   // Parse headers
   const get = f => { const m = abcText.match(new RegExp('^' + f + ':\\s*(.+)', 'm')); return m ? m[1].trim() : ''; };
@@ -19980,6 +20014,12 @@ function abcToNotes(abcText, bpm, semitoneShift) {
     curText += c; i += 1;
   }
   flushBar();
+
+  if (opts && opts.writtenOrder) {
+    const written = [];
+    bars.forEach(b => { b.notes.forEach(n => written.push(n)); });
+    return written;
+  }
 
   // Expand repeats + variant endings into a linear play order of bar indices.
   const order = [];
@@ -22159,8 +22199,8 @@ function _wtInjectTabs(notDiv, visualObj, tuneIdx, blockSrc) {
     // abcjs-basic's pitches[0].pitch encoding is unreliable across note types.
     // abcToNotes() uses the same freq-based audio path that plays the tune —
     // the values are always correct including key-sig accidentals + transposition.
-    // If it returns more notes than the SVG shows (expanded repeats), we just use
-    // as many as there are visual note elements (Math.min caps the loop).
+    // writtenOrder: repeats are NOT expanded, so the sequence lines up 1:1 with
+    // the SVG's note elements (a repeated section is only drawn once).
     var midiSeq = [];
     var song = currentIdx >= 0 ? songs[currentIdx] : null;
     // Use THIS tune's block and its effective transpose (per-tune card key offset
@@ -22172,7 +22212,7 @@ function _wtInjectTabs(notDiv, visualObj, tuneIdx, blockSrc) {
                     : (transposeAmount || 0);
     if (_tabSrc) {
       try {
-        var noteObjs = abcToNotes(_tabSrc, 120, _tabTr);
+        var noteObjs = abcToNotes(_tabSrc, 120, _tabTr, { writtenOrder: true });
         noteObjs.filter(function(n){ return n.freq > 0; }).forEach(function(n){
           midiSeq.push(Math.round(freqToMidi(n.freq)));
         });
@@ -22279,7 +22319,7 @@ function _wtInjectTabsPrint(svgs, blockSrc, tr) {
   var _wtPrintTr = (tr != null) ? tr : (transposeAmount || 0);
   var midiSeq = [];
   try {
-    abcToNotes(_wtPrintSrc, 120, _wtPrintTr)
+    abcToNotes(_wtPrintSrc, 120, _wtPrintTr, { writtenOrder: true })
       .filter(function(n){ return n.freq > 0; })
       .forEach(function(n){ midiSeq.push(Math.round(freqToMidi(n.freq))); });
   } catch (e) {}
@@ -22338,9 +22378,9 @@ function _wtInjectTabsPrint(svgs, blockSrc, tr) {
 // Labels the letter name (C, D♯, etc.) directly under each notehead — for
 // people who read tab/chords fine but struggle to sight-read staff notation.
 // Reuses the exact same MIDI-sequence approach as the whistle tabs above
-// (abcToNotes(), matched 1:1 against the visual .abcjs-note elements in order)
-// since that pipeline is already proven correct across repeats/grace notes/
-// transposition. Unlike the whistle tabs (which share one baseline per staff
+// (abcToNotes() in WRITTEN order — opts.writtenOrder, so repeats aren't
+// expanded — matched 1:1 against the visual .abcjs-note elements in order).
+// Unlike the whistle tabs (which share one baseline per staff
 // system, since the fingering diagram is tall and needs a stable row), each
 // note name sits right under its OWN note — that's the whole point of the
 // feature — so no system-clustering is needed here.
@@ -22365,7 +22405,7 @@ function _injectNoteNames(notDiv, tuneIdx, blockSrc) {
     var _tr = (typeof _abcEffectiveTr === 'function') ? _abcEffectiveTr(tuneIdx || 0) : (transposeAmount || 0);
     if (_srcTr) {
       try {
-        abcToNotes(_srcTr, 120, _tr)
+        abcToNotes(_srcTr, 120, _tr, { writtenOrder: true })
           .filter(function(n) { return n.freq > 0; })
           .forEach(function(n) { midiSeq.push(Math.round(freqToMidi(n.freq))); });
       } catch (e) {}
@@ -22408,7 +22448,7 @@ function _injectNoteNamesPrint(svgs, blockSrc, tr) {
   var _nnPrintTr = (tr != null) ? tr : (transposeAmount || 0);
   var midiSeq = [];
   try {
-    abcToNotes(src, 120, _nnPrintTr)
+    abcToNotes(src, 120, _nnPrintTr, { writtenOrder: true })
       .filter(function(n) { return n.freq > 0; })
       .forEach(function(n) { midiSeq.push(Math.round(freqToMidi(n.freq))); });
   } catch (e) {}
@@ -25039,7 +25079,7 @@ document.getElementById('ns-type').addEventListener('change', function() {
   if (abcDiv) abcDiv.style.display = (v === 'abc')    ? '' : 'none';
   if (irDiv)  irDiv.style.display  = (v === 'ireal')  ? '' : 'none';
   var showMeta = (v === 'song' || v === 'blank-lead');
-  ['ns-title', 'ns-artist', 'ns-key'].forEach(function(id) {
+  ['ns-title', 'ns-artist'].forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
     var field = el.closest ? el.closest('.modal-field') : el.parentElement;
@@ -25059,6 +25099,7 @@ document.getElementById('ns-type').addEventListener('change', function() {
 <script src="tutorial-strings-en.js"></script>
 <script src="tutorial-strings-fr.js"></script>
 <script src="tutorial-strings-zh.js"></script>
+<script src="tutorial-strings-es.js"></script>
 <script src="tutorial.js"></script>
 </body>
 </html>
