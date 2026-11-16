@@ -20,6 +20,8 @@ workflows:
       vars:
         BUNDLE_ID: "com.magicscroll.app"
         XCODE_SCHEME: "App"
+        APP_STORE_APPLE_ID: 6780778678
+        APP_STORE_CONNECT_ALTOOL_ADDITIONAL_ARGUMENTS: "--apple-id 6780778678"
       xcode: latest
       node: 22   # pinned: 'latest' now resolves to a Node 27 alpha that sharp can't install on; Capacitor 8 needs >=22
     scripts:
