@@ -9,7 +9,7 @@
 // this file's bytes changing, independent of that constant.
 // Bumped to v1.2.6 for the 1.2.6 bugfix release (native-app export/save fix).
 
-const CACHE_VERSION = 'magic-scroll-v1.2.6';
+const CACHE_VERSION = 'magic-scroll-v1.2.7';
 const SHARE_CACHE   = 'magic-scroll-share-target';
 
 // ── Install ───────────────────────────────────────────────────────────────────
@@ -37,6 +37,7 @@ self.addEventListener('install', function(event) {
         './strings-en.js',
         './strings-zh.js',
         './strings-fr.js',
+        './strings-es.js',
         './abcjs-basic.js',
         './manifest.json',
         // Audio engine + bundled FluidR3 soundfonts (primary, higher quality)

@@ -714,7 +714,7 @@ window.MS_STRINGS_EN = {
 };
 
 // ── Active language ──────────────────────────────────────────────────────
-// 'en', 'zh', or 'fr', persisted so the choice survives a reload. Read once
+// 'en', 'zh', 'fr', or 'es-419' (Latin American Spanish), persisted so the choice survives a reload. Read once
 // at load; setLanguage() below is the only thing that should change it after.
 window.MS_LANG = (function() {
   try { return localStorage.getItem('ug_lang') || 'en'; } catch (e) { return 'en'; }
@@ -722,6 +722,7 @@ window.MS_LANG = (function() {
 function _activeDict() {
   if (window.MS_LANG === 'zh' && window.MS_STRINGS_ZH) return window.MS_STRINGS_ZH;
   if (window.MS_LANG === 'fr' && window.MS_STRINGS_FR) return window.MS_STRINGS_FR;
+  if (window.MS_LANG === 'es-419' && window.MS_STRINGS_ES) return window.MS_STRINGS_ES;
   return window.MS_STRINGS_EN;
 }
 
