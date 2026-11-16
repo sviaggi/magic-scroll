@@ -17,10 +17,6 @@
     // Guitar
     guitar:              [40, 45, 50, 55, 59, 64], // E2 A2 D3 G3 B3 E4
     drop_d:              [38, 45, 50, 55, 59, 64], // D2 A2 D3 G3 B3 E4
-    // Drop C: standard tuning down a whole step (D G C F A D), then the low
-    // string dropped a further whole step — same "drop" relationship Drop D
-    // has to standard, just a whole step lower overall. Low-to-high: C G C F A D.
-    drop_c:              [36, 43, 48, 53, 57, 62], // C2 G2 C3 F3 A3 D4
     dadgad:              [38, 45, 50, 55, 57, 62], // D2 A2 D3 G3 A3 D4
     open_g:              [38, 43, 50, 55, 59, 62], // D2 G2 D3 G3 B3 D4
     // Ukulele
@@ -33,6 +29,7 @@
     mando_cross_aeae:    [57, 64, 69, 76],          // A3 E4 A4 E5
     mando_cajun_fcgd:    [53, 60, 67, 74],          // F3 C4 G4 D5
     mando_gdad:          [55, 62, 69, 74],          // G3 D4 A4 D5
+    mando_dahlia:        [48, 55, 62, 69, 76],      // C3 G3 D4 A4 E5 (5-string "Dahlia")
     // Banjo family
     banjo:               [50, 55, 59, 62, 67],      // D3 G3 B3 D4 G4 (5-string open G)
     banjo_sawmill:       [50, 55, 60, 62],          // D3 G3 C4 D4
@@ -140,12 +137,7 @@
   }
 
   // -- Finger-count estimate ---------------------------------------------------
-  // Returns fingers needed. Correctly handles barres: open string inside span
-  // breaks barre, and (see _detectBarres) a barre that doesn't reach all the
-  // way to the highest string doesn't count as a barre either — mirrored here
-  // so the search's difficulty estimate matches what _detectBarres will
-  // actually display; without this a shape could get scored as "easy" for a
-  // barre that then renders as several separate full-effort finger dots.
+  // Returns fingers needed. Correctly handles barres: open string inside span breaks barre.
   function _estimateFingers(frets, N) {
     var minFret = 0, frettedCount = 0;
     for (var i = 0; i < N; i++) {
@@ -163,9 +155,6 @@
         if (frets[s2] < minFret) { barrePossible = false; break; }
       }
     }
-    // A barre anchored anywhere but the highest string is nearly impossible
-    // to fret in practice (see _detectBarres) — don't credit it as "cheap".
-    if (barrePossible && lastAtMin !== N - 1) barrePossible = false;
     if (barrePossible) {
       var nonBarre = 0;
       for (var s3 = 0; s3 < N; s3++) { if (frets[s3] > minFret) nonBarre++; }
@@ -254,18 +243,6 @@
   }
 
   // -- Barre detection ---------------------------------------------------------
-  // A shape only gets drawn as a barre if the fretting hand could actually
-  // form one: every string between the first and last string at the barre
-  // fret has to be at that fret or higher (an open string, or a lower fret,
-  // in between means the "barre" would have to skip over a string the finger
-  // is physically still pressing down on — not achievable), AND the barre
-  // has to reach all the way to the highest-pitched string. That second rule
-  // isn't a shortcut — with a standard fretting-hand grip, a barre finger
-  // that stops short of the highest string (i.e. sits in the middle of the
-  // neck rather than braced against its top edge) is nearly impossible to
-  // hold down cleanly, unlike one anchored at that edge. A shape that fails
-  // either check still gets its individual finger dots (see _assignFingers);
-  // it just isn't asserted to be a barre.
   function _detectBarres(frets, N) {
     var minFret = 0;
     for (var i = 0; i < N; i++) {
@@ -285,7 +262,6 @@
       if (frets[s2] === minFret) barreCount++;
     }
     if (broken || barreCount < 2) return [];
-    if (lastAtMin !== N - 1) return [];
     return [{ fret: minFret, from: firstAtMin + 1, to: lastAtMin + 1 }];
   }
 
@@ -467,13 +443,5 @@
     for (var k in _cache) { if (k.indexOf('\x00custom') !== -1) delete _cache[k]; }
     return true;
   };
-
-  // Read-only-in-spirit reference to the string tunings table (MIDI pitch per
-  // string, keyed by instrument id — same ids used everywhere else: 'guitar',
-  // 'drop_d', 'mandolin', ..., and 'custom' once setCustomTuning has run).
-  // Exposed so other parts of the app (the tuner's Primary/Secondary Instrument
-  // modes) can look up a real instrument's actual strings instead of keeping a
-  // second, hand-maintained copy of this table in sync.
-  window.INSTRUMENT_TUNINGS = TUNINGS;
 
 })();

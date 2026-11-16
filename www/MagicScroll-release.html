@@ -4346,11 +4346,13 @@
        the editor (and its live preview, which must stay identical so the
        collab-cursor overlay lines up) uses a smaller touch-screen scale,
        ~85% of the desktop sizes. */
-    #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: 0.6rem !important; }
-    #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: 0.7rem !important; }
-    #song-editor.fs-md, #tab-content-preview.fs-md { font-size: 0.8rem !important; }
-    #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: 0.95rem !important; }
-    #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: 1.12rem !important; }
+    /* v1.2.8: shifted down one step again — each size now uses what the
+       next size down used in 1.2.7 (M = old S, L = old M, ...). */
+    #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: 0.52rem !important; }
+    #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: 0.6rem !important; }
+    #song-editor.fs-md, #tab-content-preview.fs-md { font-size: 0.7rem !important; }
+    #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: 0.8rem !important; }
+    #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: 0.95rem !important; }
     #song-editor { padding: 10px !important; }
   }
 
@@ -4951,7 +4953,6 @@ if (typeof window.t !== 'function') {
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites" data-i18n="editor.exportMonospace">⬇ Export monospace</button>
       </div>
       <button id="btn-collaborate-toolbar" title="Start or manage a live collaboration on this song" data-i18n-title="toolbar.collaborateTitle" data-i18n="toolbar.collaborate">🔗 Collaborate</button>
-      <span id="save-status"></span>
       <button id="btn-chordview" title="Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)" data-i18n-title="toolbar.chordViewTitle" data-i18n="toolbar.chordView" style="margin-left:auto;">≡ Condensed</button>
     </div>
     <div id="song-card">
@@ -5095,6 +5096,7 @@ I hope you enjoy using your magic scroll!"></textarea>
       <option value="mando_cross_aeae">Mandolin: Cross-tuned AEAE</option>
       <option value="mando_cajun_fcgd">Mandolin: Cajun FCGD</option>
       <option value="mando_gdad">Mandolin: GDAD</option>
+      <option value="mando_dahlia">Mandolin: Dahlia (5-string CGDAE)</option>
     </select>
     <select class="inst-select" data-family="folk">
       <option value="irish_bouzouki">Folk: Irish Bouzouki (GDAD)</option>
@@ -12262,8 +12264,10 @@ window.addEventListener('scroll', updateScrollProgress);
 // usable for slow ballads instead of only the top few % of the range.
 // v1.2.7: halved again (now ~6-42 px/s; default slider position 3 = 14 px/s,
 // down from 31) — the default was still much too fast for most songs.
+// v1.2.8: slowed again — now ~3.5-21 px/s (middle of the slider ≈ 12 px/s,
+// default position 3 = 7.5 px/s, down from 14).
 function _scrollPxPerSec(speed) {
-  return 2 + speed * 4;
+  return 1.5 + speed * 2;
 }
 
 let _scrollLastTs = null;
