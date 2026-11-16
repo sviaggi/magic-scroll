@@ -4337,7 +4337,7 @@
        !important to outrank the bare-tag rule just above at equal
        specificity-tier (both are !important, so normal specificity still
        decides between them, and id+class beats a bare tag selector). */
-    /* v1.2.6: the 16px floor above made the song editor read far too large
+    /* v1.2.7: the 16px floor above made the song editor read far too large
        on phones. iOS's focus-zoom is now stopped a different way instead —
        the <head> script next to the viewport meta tag adds maximum-scale=1
        on iOS only (iOS 10+ ignores that for pinch-zoom, so users can still
@@ -4504,9 +4504,9 @@ if (typeof window.t !== 'function') {
     <span class="ctrl-label" data-i18n="options.language">Language</span>
     <select id="lang-sel" title="Change the app's display language" data-i18n-title="options.languageTitle">
       <option value="en">English</option>
+      <option value="es-419">Español</option>
       <option value="fr">Français</option>
       <option value="zh">中文</option>
-      <option value="es-419">Español (Latinoamérica)</option>
     </select>
   </div>
   <span class="sep">|</span>
@@ -12265,7 +12265,7 @@ window.addEventListener('scroll', updateScrollProgress);
 // and even the minimum was still too fast for a lot of songs. Roughly
 // halved across the board (now ~15-87 px/s) so the low end is actually
 // usable for slow ballads instead of only the top few % of the range.
-// v1.2.6: halved again (now ~6-42 px/s; default slider position 3 = 14 px/s,
+// v1.2.7: halved again (now ~6-42 px/s; default slider position 3 = 14 px/s,
 // down from 31) — the default was still much too fast for most songs.
 function _scrollPxPerSec(speed) {
   return 2 + speed * 4;
