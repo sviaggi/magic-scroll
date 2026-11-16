@@ -126,12 +126,13 @@
   function stringsForLang(lang) {
     if (lang === 'fr') return window.MS_TUTORIAL_STRINGS_FR || {};
     if (lang === 'zh') return window.MS_TUTORIAL_STRINGS_ZH || {};
+    if (lang === 'es-419') return window.MS_TUTORIAL_STRINGS_ES || {};
     return window.MS_TUTORIAL_STRINGS_EN || {};
   }
 
   function currentLang() {
     var l = window.MS_LANG;
-    return (l === 'fr' || l === 'zh') ? l : 'en';
+    return (l === 'fr' || l === 'zh' || l === 'es-419') ? l : 'en';
   }
   function tt(key, vars) {
     var dict = stringsForLang(currentLang());
