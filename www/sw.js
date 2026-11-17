@@ -9,7 +9,7 @@
 // this file's bytes changing, independent of that constant.
 // Bumped to v1.2.6 for the 1.2.6 bugfix release (native-app export/save fix).
 
-const CACHE_VERSION = 'magic-scroll-v1.2.8';
+const CACHE_VERSION = 'magic-scroll-v1.2.9';
 const SHARE_CACHE   = 'magic-scroll-share-target';
 
 // ── Install ───────────────────────────────────────────────────────────────────
