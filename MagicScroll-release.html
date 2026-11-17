@@ -3888,6 +3888,23 @@
   #ireal-song-card.fs-md{font-size:0.95rem;}
   #ireal-song-card.fs-lg{font-size:1.12rem;}
   #ireal-song-card.fs-xl{font-size:1.32rem;}
+  /* v1.2.9: phones (not tablets) read one size step smaller — each size uses
+     what the next size down uses elsewhere (M = S, L = M, ...; XS gets a new,
+     smaller step). Same phone test as _isPhone() in JS: narrow portrait
+     screens, plus touch screens that are short in landscape. The song editor
+     has its own (pointer: coarse) sizes and is unaffected. */
+  @media (max-width: 520px), (pointer: coarse) and (max-height: 500px) {
+    #tab-content.fs-xs { font-size: 0.58rem; }
+    #tab-content.fs-sm { font-size: 0.68rem; }
+    #tab-content.fs-md { font-size: 0.82rem; }
+    #tab-content.fs-lg { font-size: 0.95rem; }
+    #tab-content.fs-xl { font-size: 1.12rem; }
+    #ireal-song-card.fs-xs{font-size:0.58rem;}
+    #ireal-song-card.fs-sm{font-size:0.68rem;}
+    #ireal-song-card.fs-md{font-size:0.80rem;}
+    #ireal-song-card.fs-lg{font-size:0.95rem;}
+    #ireal-song-card.fs-xl{font-size:1.12rem;}
+  }
   /* Restore comfortable padding on desktops/large tablets */
   @media (min-width: 1000px) {
     #ireal-song-card { padding: 40px 28px 32px !important; }
@@ -8391,7 +8408,7 @@ function _buildEmbeddedABCBlock(abcText, idx) {
   }
   const _abcIsMobile = window.innerWidth <= 600;
   const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
-  const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+  const _abcZoom = ({ 'fs-xxs': 0.62, 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_effectiveSize(_abcSz)] || 1.0;
   const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
   const staffW = Math.max(200, Math.round(_abcContent / _abcZoom));
   try {
@@ -12192,14 +12209,15 @@ document.getElementById('line-spacing-sel').addEventListener('input', e => {
 
 // restore saved font size on load
 (function(){
-  // Phones default to S so song text stays readable and lead sheets don't get
-  // too tall; desktop defaults to medium. (Sheet-music notation is enlarged
+  // Every device defaults to M (on phones M is already the old S size). (Sheet-music notation is enlarged
   // separately, so a smaller size here doesn't shrink the actual tunes — see
   // _abcStaffW.) XS is still available from the dropdown, just not the
   // default — it squishes the whole chrome (see body.ui-xs rules) which is
   // more aggressive than most phones need out of the box.
-  const saved = localStorage.getItem('ug_fontsize') ||
-                (window.innerWidth <= 520 ? 'fs-sm' : 'fs-md');
+  // v1.2.9: phones now default to M like everything else — phone sizes are
+  // already one step smaller (see _effectiveSize), so M on a phone reads
+  // like the old S default did.
+  const saved = localStorage.getItem('ug_fontsize') || 'fs-md';
   _applyFontSizeClass(saved);
   document.body.classList.toggle('ui-xs', saved === 'fs-xs');
   document.getElementById('font-size-sel').value = saved;
@@ -20820,7 +20838,7 @@ function renderABCSong(song) {
   // it isn't crammed; abcjs decides bars-per-line by density (a single bar only
   // fills the line when it's dense, ~14+ notes).
   const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
-  const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+  const _abcZoom = ({ 'fs-xxs': 0.62, 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_effectiveSize(_abcSz)] || 1.0;
   const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
   let _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
   let _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
@@ -22952,10 +22970,23 @@ function _renderNotesView(text, container){
   });
 }
 
+// v1.2.9: on phones (not tablets) every size reads one step smaller — the
+// CSS does this for song text and lead sheets; JS-sized things (sheet-music
+// zoom, inline lead-sheet diagrams) use this to pick the same shifted step.
+// Must match the @media test next to the #ireal-song-card.fs-* rules.
+function _isPhone() {
+  try { return matchMedia('(max-width: 520px), (pointer: coarse) and (max-height: 500px)').matches; }
+  catch (e) { return false; }
+}
+function _effectiveSize(sz) {
+  if (!_isPhone()) return sz;
+  return ({ 'fs-xl': 'fs-lg', 'fs-lg': 'fs-md', 'fs-md': 'fs-sm', 'fs-sm': 'fs-xs', 'fs-xs': 'fs-xxs' })[sz] || sz;
+}
+
 // Returns a base diagram scale for lead-sheet inline diagrams based on current SIZE setting.
 function _lsDiagScale() {
-  const sz = document.getElementById('font-size-sel').value || 'fs-md';
-  const s = {'fs-xs':0.72,'fs-sm':0.68,'fs-md':0.82,'fs-lg':0.82,'fs-xl':0.90}[sz] || 0.82;
+  const sz = _effectiveSize(document.getElementById('font-size-sel').value || 'fs-md');
+  const s = {'fs-xxs':0.62,'fs-xs':0.72,'fs-sm':0.68,'fs-md':0.82,'fs-lg':0.82,'fs-xl':0.90}[sz] || 0.82;
   return s;
 }
 

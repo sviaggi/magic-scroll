@@ -3888,6 +3888,23 @@
   #ireal-song-card.fs-md{font-size:0.95rem;}
   #ireal-song-card.fs-lg{font-size:1.12rem;}
   #ireal-song-card.fs-xl{font-size:1.32rem;}
+  /* v1.2.9: phones (not tablets) read one size step smaller — each size uses
+     what the next size down uses elsewhere (M = S, L = M, ...; XS gets a new,
+     smaller step). Same phone test as _isPhone() in JS: narrow portrait
+     screens, plus touch screens that are short in landscape. The song editor
+     has its own (pointer: coarse) sizes and is unaffected. */
+  @media (max-width: 520px), (pointer: coarse) and (max-height: 500px) {
+    #tab-content.fs-xs { font-size: 0.58rem; }
+    #tab-content.fs-sm { font-size: 0.68rem; }
+    #tab-content.fs-md { font-size: 0.82rem; }
+    #tab-content.fs-lg { font-size: 0.95rem; }
+    #tab-content.fs-xl { font-size: 1.12rem; }
+    #ireal-song-card.fs-xs{font-size:0.58rem;}
+    #ireal-song-card.fs-sm{font-size:0.68rem;}
+    #ireal-song-card.fs-md{font-size:0.80rem;}
+    #ireal-song-card.fs-lg{font-size:0.95rem;}
+    #ireal-song-card.fs-xl{font-size:1.12rem;}
+  }
   /* Restore comfortable padding on desktops/large tablets */
   @media (min-width: 1000px) {
     #ireal-song-card { padding: 40px 28px 32px !important; }
@@ -4346,11 +4363,13 @@
        the editor (and its live preview, which must stay identical so the
        collab-cursor overlay lines up) uses a smaller touch-screen scale,
        ~85% of the desktop sizes. */
-    #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: 0.6rem !important; }
-    #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: 0.7rem !important; }
-    #song-editor.fs-md, #tab-content-preview.fs-md { font-size: 0.8rem !important; }
-    #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: 0.95rem !important; }
-    #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: 1.12rem !important; }
+    /* v1.2.8: shifted down one step again — each size now uses what the
+       next size down used in 1.2.7 (M = old S, L = old M, ...). */
+    #song-editor.fs-xs, #tab-content-preview.fs-xs { font-size: 0.52rem !important; }
+    #song-editor.fs-sm, #tab-content-preview.fs-sm { font-size: 0.6rem !important; }
+    #song-editor.fs-md, #tab-content-preview.fs-md { font-size: 0.7rem !important; }
+    #song-editor.fs-lg, #tab-content-preview.fs-lg { font-size: 0.8rem !important; }
+    #song-editor.fs-xl, #tab-content-preview.fs-xl { font-size: 0.95rem !important; }
     #song-editor { padding: 10px !important; }
   }
 
@@ -4951,7 +4970,6 @@ if (typeof window.t !== 'function') {
         <button id="btn-export-monospace" title="Download this song as a classic space-aligned chord sheet, for pasting into monospace chord sites" data-i18n="editor.exportMonospace">⬇ Export monospace</button>
       </div>
       <button id="btn-collaborate-toolbar" title="Start or manage a live collaboration on this song" data-i18n-title="toolbar.collaborateTitle" data-i18n="toolbar.collaborate">🔗 Collaborate</button>
-      <span id="save-status"></span>
       <button id="btn-chordview" title="Showing chords floating above each word — click to show them inline in [brackets] instead (more compact)" data-i18n-title="toolbar.chordViewTitle" data-i18n="toolbar.chordView" style="margin-left:auto;">≡ Condensed</button>
     </div>
     <div id="song-card">
@@ -5095,6 +5113,7 @@ I hope you enjoy using your magic scroll!"></textarea>
       <option value="mando_cross_aeae">Mandolin: Cross-tuned AEAE</option>
       <option value="mando_cajun_fcgd">Mandolin: Cajun FCGD</option>
       <option value="mando_gdad">Mandolin: GDAD</option>
+      <option value="mando_dahlia">Mandolin: Dahlia (5-string CGDAE)</option>
     </select>
     <select class="inst-select" data-family="folk">
       <option value="irish_bouzouki">Folk: Irish Bouzouki (GDAD)</option>
@@ -5313,7 +5332,7 @@ I hope you enjoy using your magic scroll!"></textarea>
            bumping it there would prematurely mark the actual release build as
            1.2.2 too, before these dev-build changes are vetted and promoted.
            This build number is dev-build-only and intentionally not translated. -->
-      <span class="contact-app-version">version 1.2.7-dev</span>
+      <span class="contact-app-version">version 1.2.9-dev</span>
       <div class="contact-app-links">
         <a href="https://apps.apple.com/us/app/magic-scroll/id6780778678" target="_blank" rel="noopener">iOS</a>
         <span class="sep">-</span>
@@ -8394,7 +8413,7 @@ function _buildEmbeddedABCBlock(abcText, idx) {
   }
   const _abcIsMobile = window.innerWidth <= 600;
   const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
-  const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+  const _abcZoom = ({ 'fs-xxs': 0.62, 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_effectiveSize(_abcSz)] || 1.0;
   const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
   const staffW = Math.max(200, Math.round(_abcContent / _abcZoom));
   try {
@@ -12195,14 +12214,15 @@ document.getElementById('line-spacing-sel').addEventListener('input', e => {
 
 // restore saved font size on load
 (function(){
-  // Phones default to S so song text stays readable and lead sheets don't get
-  // too tall; desktop defaults to medium. (Sheet-music notation is enlarged
+  // Every device defaults to M (on phones M is already the old S size). (Sheet-music notation is enlarged
   // separately, so a smaller size here doesn't shrink the actual tunes — see
   // _abcStaffW.) XS is still available from the dropdown, just not the
   // default — it squishes the whole chrome (see body.ui-xs rules) which is
   // more aggressive than most phones need out of the box.
-  const saved = localStorage.getItem('ug_fontsize') ||
-                (window.innerWidth <= 520 ? 'fs-sm' : 'fs-md');
+  // v1.2.9: phones now default to M like everything else — phone sizes are
+  // already one step smaller (see _effectiveSize), so M on a phone reads
+  // like the old S default did.
+  const saved = localStorage.getItem('ug_fontsize') || 'fs-md';
   _applyFontSizeClass(saved);
   document.body.classList.toggle('ui-xs', saved === 'fs-xs');
   document.getElementById('font-size-sel').value = saved;
@@ -12267,8 +12287,10 @@ window.addEventListener('scroll', updateScrollProgress);
 // usable for slow ballads instead of only the top few % of the range.
 // v1.2.7: halved again (now ~6-42 px/s; default slider position 3 = 14 px/s,
 // down from 31) — the default was still much too fast for most songs.
+// v1.2.8: slowed again — now ~3.5-21 px/s (middle of the slider ≈ 12 px/s,
+// default position 3 = 7.5 px/s, down from 14).
 function _scrollPxPerSec(speed) {
-  return 2 + speed * 4;
+  return 1.5 + speed * 2;
 }
 
 let _scrollLastTs = null;
@@ -20821,7 +20843,7 @@ function renderABCSong(song) {
   // it isn't crammed; abcjs decides bars-per-line by density (a single bar only
   // fills the line when it's dense, ~14+ notes).
   const _abcSz   = (document.getElementById('font-size-sel') || {}).value || 'fs-md';
-  const _abcZoom = ({ 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_abcSz] || 1.0;
+  const _abcZoom = ({ 'fs-xxs': 0.62, 'fs-xs': 0.72, 'fs-sm': 0.85, 'fs-md': 1.0, 'fs-lg': 1.15, 'fs-xl': 1.3 })[_effectiveSize(_abcSz)] || 1.0;
   const _abcContent = _abcIsMobile ? Math.max(260, (window.innerWidth || 360) - 24) : 720;
   let _abcStaffW = Math.max(200, Math.round(_abcContent / _abcZoom));
   let _abcWrap   = { minSpacing: 1.6, maxSpacing: 2.7 };
@@ -22953,10 +22975,23 @@ function _renderNotesView(text, container){
   });
 }
 
+// v1.2.9: on phones (not tablets) every size reads one step smaller — the
+// CSS does this for song text and lead sheets; JS-sized things (sheet-music
+// zoom, inline lead-sheet diagrams) use this to pick the same shifted step.
+// Must match the @media test next to the #ireal-song-card.fs-* rules.
+function _isPhone() {
+  try { return matchMedia('(max-width: 520px), (pointer: coarse) and (max-height: 500px)').matches; }
+  catch (e) { return false; }
+}
+function _effectiveSize(sz) {
+  if (!_isPhone()) return sz;
+  return ({ 'fs-xl': 'fs-lg', 'fs-lg': 'fs-md', 'fs-md': 'fs-sm', 'fs-sm': 'fs-xs', 'fs-xs': 'fs-xxs' })[sz] || sz;
+}
+
 // Returns a base diagram scale for lead-sheet inline diagrams based on current SIZE setting.
 function _lsDiagScale() {
-  const sz = document.getElementById('font-size-sel').value || 'fs-md';
-  const s = {'fs-xs':0.72,'fs-sm':0.68,'fs-md':0.82,'fs-lg':0.82,'fs-xl':0.90}[sz] || 0.82;
+  const sz = _effectiveSize(document.getElementById('font-size-sel').value || 'fs-md');
+  const s = {'fs-xxs':0.62,'fs-xs':0.72,'fs-sm':0.68,'fs-md':0.82,'fs-lg':0.82,'fs-xl':0.90}[sz] || 0.82;
   return s;
 }
 
